@@ -1,0 +1,134 @@
+<!--
+  PROJECT CONSTITUTION
+  The most important file in .sdd/. It holds (a) settings, (b) the current
+  state, (c) locked structural decisions, (d) the CANONICAL stage index and
+  (e) this project's decision conventions. Every agent reads it right after
+  README.md.
+
+  This file is YOURS: the sdd CLI creates it once and never overwrites it.
+  Fields in <...> are filled in when the agent is invoked and the project is
+  explained. IDs (stages, D-NNN, Q-NNN) are append-only and immutable.
+-->
+
+# Constitution — [PROJECT NAME]
+
+## Settings
+
+<!-- Set by `sdd init`. Edit by hand to toggle features later. -->
+
+- **Language:** {{LANGUAGE}}
+  <!-- All interactions and generated artifacts use this language.
+       The skill instructions stay in English by design. -->
+- **Estimation tracking:** {{ESTIMATION}}
+  <!-- When turning this ON later: past stages may have coarse metrics.
+       Durations are reconstructed from report dates, so early stages can be
+       approximate. Say so explicitly rather than presenting them as exact. -->
+- **Documentation:** {{DOCUMENTATION}}
+  <!-- When on, the sdd-document skill plans the documentation set together
+       with the user, based on the actual project. -->
+
+---
+
+## Current state
+
+<!-- HARD CAP: ~5 lines. This field is a POINTER, not a diary.
+     All closing narrative goes to the stage's report.md and to §6. -->
+
+- **State:** INITIALIZING
+- **Active stage:** (none)
+- **Next action:** load the `sdd-init` skill
+- **Last updated:** [date]
+
+> States and flow are in `README.md`. No production code while the state is
+> `INITIALIZING` or `DECIDING`. §5 is the canonical index; `roadmap.md` derives
+> from it; disk is the truth about what is actually done.
+
+---
+
+## 1. Project vision
+
+- **What it is:** [one to three sentences]
+- **Who it is for:** [users / audience]
+- **Definition of done:** [what must be true for the project to be complete]
+- **Delivery mode:** ( ) MVP first, then evolve  ( ) straight to final product
+
+---
+
+## 2. Inviolable principles
+
+> Rules that hold across every stage and that the executor may never violate.
+
+- **Stack / language:** [...]
+- **Architecture patterns:** [...]
+- **Code and naming conventions:** [...]
+- **Data model — general rules:** [...]
+- **Authentication / authorization:** [...]
+- **Error handling and logging:** [...]
+- **Testing — minimum policy:** [...]
+- **External constraints (budget, deadlines, compliance, locale):** [...]
+
+---
+
+## 3. Locked structural decisions
+
+> Decisions whose change would undo work across several stages. Must be settled
+> before leaving DECIDING (or cited during bootstrap). Rows are **append-only**;
+> display in ascending ID order. Changing one requires the anti-regression
+> procedure (see `sdd-specify`) and an entry in `CHANGELOG.md` (refresh §6's
+> dated-band index to keep pointing there).
+
+| ID    | Decision                     | Choice | Rationale | Locked on |
+|-------|------------------------------|--------|-----------|-----------|
+| D-001 | [e.g. database]              | [...]  | [...]     | [date]    |
+
+---
+
+## 4. Open questions
+
+> What is still undecided. Mark whether it blocks the gate. Only **structural**
+> questions block; local/business questions are recorded so they are not lost.
+> Append-only; display in ascending ID order.
+
+| ID    | Question                     | Blocks the gate? | Status |
+|-------|------------------------------|------------------|--------|
+| Q-001 | <...>                        | yes / no         | open   |
+
+---
+
+## 5. Stage index (CANONICAL)
+
+> This is the source of truth for progress. `roadmap.md` is generated from here.
+> A stage is `done` only if `stages/NNN-<slug>/report.md` exists on disk.
+> Prefer a suffix (`010-A`) over renumbering. Maintained by `sdd-roadmap`,
+> `sdd-close` and `sdd-reconcile`.
+
+| Stage | Slug   | Status                       | Spec | Report |
+|-------|--------|------------------------------|------|--------|
+| 001   | [slug] | pending / in progress / done | —    | —      |
+
+---
+
+## 6. Structural change history
+
+> A dated-band INDEX pointing at `CHANGELOG.md`, which holds the long-form
+> narrative. One row per band of changes (a stretch of structural edits over a
+> few days/weeks), not one row per edit. Append a row only when a new band ends;
+> the detailed entries already live in `CHANGELOG.md`. Never paste the narrative
+> here — that lives in `CHANGELOG.md`, never in `Current state`.
+
+| Entries            | Period       | Theme   | Link            |
+|--------------------|--------------|---------|-----------------|
+| [YYYY-MM-DD]–[…]   | [date range] | [theme] | `CHANGELOG.md`  |
+
+---
+
+## 7. Project decision conventions
+
+> Where THIS project's specific conventions live, so the generic skills can
+> reference them abstractly. Fill in as needed; write "not applicable" if unused.
+
+- **Decision records (ADRs):** [where they live, format — e.g. "ADRs in DOC-007;
+  amendments as 'Amendment N — ADR-XXX'". If unused, "not applicable".]
+- **Migration / artifact versioning:** [convention — e.g. "migrations numbered
+  NNNN, versioned, never loose SQL"]
+- **Validation environment:** [where stages are validated before closing]
