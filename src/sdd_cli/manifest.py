@@ -25,6 +25,19 @@ def hash_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
 
+def parse_version(v: str) -> tuple[int, int, int]:
+    """Parse 'v3.0.2' or '3.0.2' into (3, 0, 2).
+
+    Raises ValueError on a non-semver string (e.g. 'v1 (no manifest)').
+    """
+    v = v.strip().lstrip("vV")
+    parts = v.split(".")
+    if len(parts) != 3 or not all(p.isdigit() for p in parts):
+        raise ValueError(f"not a semver string: {v!r}")
+    major, minor, patch = (int(p) for p in parts)
+    return (major, minor, patch)
+
+
 def manifest_path(root: Path) -> Path:
     return root / ".sdd" / MANIFEST_NAME
 

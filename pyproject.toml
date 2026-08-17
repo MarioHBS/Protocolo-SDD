@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sdd-cli"
-version = "3.0.2"
+version = "3.1.0"
 description = "Spec-Driven Development scaffolding for AI coding agents"
 authors = [{name = "Mário Henrique", email = "developer.mario.santos@example.com"}]
 readme = "README.md"

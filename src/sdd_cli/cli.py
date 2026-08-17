@@ -1108,6 +1108,143 @@ def cmd_migrate(args) -> None:
           "change, then invoke `sdd-reconcile`.")
 
 
+def cmd_update(args) -> None:
+    """Selectively sync managed files for a minor/patch bump within the same
+    major kit generation. Unlike `migrate`, this never wipes skills/templates
+    wholesale -- it diffs each managed file's old-bundled vs new-bundled
+    content and only touches what actually changed, skipping (and backing up)
+    anything hand-edited. Requires an existing manifest as a diff baseline.
+    """
+    root = Path(args.path).resolve()
+    sdd = root / ".sdd"
+    if not sdd.exists():
+        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+
+    m = manifest.load(root)
+    if m is None:
+        die("no .sdd-manifest.json found -- 'sdd update' needs an existing "
+            "manifest as a baseline to diff against. Legacy v1 projects have "
+            "none; run 'sdd migrate --to v2' first.")
+
+    try:
+        installed = manifest.parse_version(m.get("kit_version", ""))
+    except ValueError:
+        die(f"manifest kit_version {m.get('kit_version')!r} is not a "
+            f"parseable semver -- run 'sdd migrate --to v3' instead.")
+
+    bundled = manifest.parse_version(KIT_VERSION)
+
+    print(bold(f"Updating {root}"))
+    print(f"  installed: v{'.'.join(map(str, installed))}\n"
+          f"  bundled:   v{'.'.join(map(str, bundled))}\n")
+
+    if installed[0] != bundled[0]:
+        die(f"installed kit is v{installed[0]}.x, bundled kit is "
+            f"v{bundled[0]}.x -- 'sdd update' only handles minor/patch "
+            f"changes within the same major. Run 'sdd migrate --to "
+            f"v{bundled[0]}' instead.")
+
+    if installed >= bundled:
+        print(green("Already up to date. Nothing to do."))
+        return
+
+    src_sdd = CONTENT_DIR / "sdd"
+    managed_files = dict(m.get("managed_files", {}))
+
+    def _in_scope(rel: str) -> bool:
+        return rel == ".sdd/README.md" or rel.startswith(".sdd/skills/") \
+            or rel.startswith(".sdd/templates/")
+
+    # Hand-edited managed files are never overwritten (detected up front).
+    edited: set[str] = {
+        rel for rel, old_hash in managed_files.items()
+        if _in_scope(rel) and (root / rel).exists()
+        and manifest.hash_file(root / rel) != old_hash
+    }
+
+    changed, added, removed_flagged, restored, preserved = [], [], [], [], []
+    recorded: dict[str, str] = {}
+
+    for rel, old_hash in sorted(managed_files.items()):
+        if not _in_scope(rel):
+            continue
+        if rel in edited:
+            preserved.append(rel)
+            continue
+        new_src = src_sdd / rel[len(".sdd/"):]
+        if not new_src.exists():
+            removed_flagged.append(rel)
+            continue
+        new_hash = manifest.hash_file(new_src)
+        if new_hash == old_hash:
+            continue  # unchanged across the version bump
+        cur = root / rel
+        (restored if not cur.exists() else changed).append(rel)
+        recorded[rel] = new_hash
+
+    # Files added upstream that this project's manifest never recorded.
+    for item in sorted(src_sdd.rglob("*")):
+        if item.is_dir():
+            continue
+        rel_from_sdd = item.relative_to(src_sdd).as_posix()
+        if rel_from_sdd != "README.md" and not (
+                rel_from_sdd.startswith("skills/")
+                or rel_from_sdd.startswith("templates/")):
+            continue
+        rel = f".sdd/{rel_from_sdd}"
+        if rel in managed_files:
+            continue
+        added.append(rel)
+        recorded[rel] = manifest.hash_file(item)
+
+    if args.dry_run:
+        print(yellow("  DRY RUN -- nothing written.\n"))
+    for rel in changed:
+        print(f"  {green('would update' if args.dry_run else 'updated')}   {rel}")
+    for rel in restored:
+        print(f"  {green('would restore' if args.dry_run else 'restored')}  {rel} "
+              f"{dim('(missing on disk)')}")
+    for rel in added:
+        print(f"  {green('would add' if args.dry_run else 'added')}      {rel}")
+    for rel in preserved:
+        print(f"  {yellow('hand-edited')} {rel} "
+              f"{dim('(would be preserved, not overwritten)' if args.dry_run else '(preserved, not overwritten)')}")
+    for rel in removed_flagged:
+        print(f"  {yellow('removed upstream')} {rel} "
+              f"{dim('(kept on disk; delete manually if no longer needed)')}")
+
+    if args.dry_run:
+        print(dim(f"\nWould bump kit_version -> {KIT_VERSION}"))
+        return
+
+    if not (changed or restored or added or preserved or removed_flagged):
+        print(dim("  (no managed file changes to apply)"))
+
+    backup_dir = None
+    if preserved:
+        backup_dir, backed = _backup_managed(root, sdd, m, recorded={})
+        if backup_dir:
+            print(f"\n  {yellow('backup')} {backup_dir.relative_to(root)}/ "
+                  f"{dim('(' + str(len(backed)) + ' hand-edited file(s))')}")
+
+    for rel in changed + restored + added:
+        new_src = src_sdd / rel[len(".sdd/"):]
+        cur = root / rel
+        cur.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(new_src, cur)
+
+    managed_files.update(recorded)
+    m["managed_files"] = managed_files
+    m["kit_version"] = KIT_VERSION
+    manifest.save(root, m)
+
+    print(bold("\nDone.") +
+          f"  updated={len(changed)} restored={len(restored)} "
+          f"added={len(added)} preserved(hand-edited)={len(preserved)} "
+          f"flagged-removed={len(removed_flagged)}")
+    print(dim(f"  kit_version -> {KIT_VERSION}"))
+
+
 # ------------------------------------------------------------------ parser
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1202,6 +1339,37 @@ migration todo:
     m.add_argument("--fix-mojibake", action="store_true",
                    help="repair double-encoding (v2) mojibake inline before migrating")
     m.set_defaults(func=cmd_migrate)
+
+    u = sub.add_parser(
+        "update",
+        help="sync patch/minor kit changes within the same major version",
+        description="Selectively sync managed files (README, skills/, "
+                    "templates/) when the bundled kit's version is a "
+                    "minor/patch bump over what's installed, preserving "
+                    "hand-edited files (backed up, not overwritten). "
+                    "Refuses across a major-version boundary -- use "
+                    "'sdd migrate' for that.",
+        epilog="""\
+examples:
+  sdd update              # sync this project to the bundled kit's minor/patch
+  sdd update PATH         # sync another project
+  sdd update --dry-run    # preview what would change; write nothing
+
+Unlike 'sdd migrate', this never does a full skills/templates wipe: it diffs
+old-bundled vs new-bundled content per managed file and only touches files
+that actually changed, skipping any file you've hand-edited (those are
+backed up under .sdd/.pre-migrate-backup/<timestamp>/ instead of being
+overwritten). Requires an existing .sdd/.sdd-manifest.json -- a legacy v1
+project with no manifest has no baseline to diff against; run
+'sdd migrate --to v2' first. Refuses to run across a major-version boundary;
+run 'sdd migrate --to vN' for that instead.
+""",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    u.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    u.add_argument("--dry-run", action="store_true",
+                   help="show what would change, write nothing")
+    u.set_defaults(func=cmd_update)
 
     dr = sub.add_parser(
         "doctor",
