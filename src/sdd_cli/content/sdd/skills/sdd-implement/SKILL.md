@@ -48,3 +48,7 @@ Write all artifacts in the language set in
   checked-off, truthful file rather than a retrofit.
 - A stage with its spec locked may proceed straight here from `sdd-specify`. No
   production code in any other state (see the gate in `README.md`).
+- **MUST NOT** implement a stage whose §5 `Depends on` column lists a track
+  that is not yet fully incorporated (`sdd-specify` should have already
+  refused to spec it, but this is a second check — never build against an
+  unmet join dependency even if a spec somehow got written prematurely).

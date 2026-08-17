@@ -138,6 +138,50 @@ def test_modern_clean_reports_no_mojibake(capsys, tmp_path):
     assert "no mojibake detected" in out
 
 
+# ------------------------------------------------------- parallel tracks -----
+
+def test_modern_without_tracks_dir_produces_no_track_output(capsys, tmp_path):
+    """Backward compatibility: a project scaffolded before the tracks feature
+    (no `.sdd/tracks/` at all) must produce ZERO track-related doctor output."""
+    root = _make_modern(tmp_path)
+    out, _ = _run(capsys, root)
+    assert "track hygiene" not in out
+
+
+def test_modern_with_empty_tracks_dir_produces_no_track_output(capsys, tmp_path):
+    """A freshly-`sdd init`'d project (post-feature) has an empty tracks/ dir
+    -- still zero track output until a track is actually opened."""
+    root = _make_modern(tmp_path)
+    (root / ".sdd" / "tracks").mkdir()
+    (root / ".sdd" / "tracks" / ".gitkeep").touch()
+    out, _ = _run(capsys, root)
+    assert "track hygiene" not in out
+
+
+def test_opened_but_empty_track_is_flagged(capsys, tmp_path):
+    root = _make_modern(tmp_path)
+    (root / ".sdd" / "tracks" / "login").mkdir(parents=True)
+    (root / ".sdd" / "tracks" / "login" / "state.md").write_text(
+        "# Track login\n", encoding="utf-8")
+    out, _ = _run(capsys, root)
+    assert "track hygiene" in out
+    assert "login" in out
+    assert "empty" in out
+
+
+def test_completed_track_stage_not_incorporated_is_flagged(capsys, tmp_path):
+    root = _make_modern(tmp_path)
+    stage = root / ".sdd" / "tracks" / "billing" / "stages" / "001-invoice"
+    stage.mkdir(parents=True)
+    (stage / "report.md").write_text("# Report\n", encoding="utf-8")
+    (root / ".sdd" / "tracks" / "billing" / "state.md").write_text(
+        "# Track billing\n", encoding="utf-8")
+    out, _ = _run(capsys, root)
+    assert "track hygiene" in out
+    assert "billing" in out
+    assert "not_incorporated" in out
+
+
 def test_modern_without_kit_version_falls_back_to_unknown(capsys, tmp_path):
     """A manifest missing the `kit_version` key is reported as 'unknown'
     rather than crashing -- the doctor is a diagnostic, not a gate."""

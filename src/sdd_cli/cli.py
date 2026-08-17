@@ -348,6 +348,9 @@ def cmd_init(args) -> None:
     (sdd_dst / "stages").mkdir(exist_ok=True)
     (sdd_dst / "stages" / ".gitkeep").touch()
 
+    (sdd_dst / "tracks").mkdir(exist_ok=True)
+    (sdd_dst / "tracks" / ".gitkeep").touch()
+
     ga = root / ".gitattributes"
     if not ga.exists():
         shutil.copy2(CONTENT_DIR / "gitattributes.txt", ga)
@@ -488,6 +491,12 @@ def cmd_doctor(args) -> None:
     else:
         print(green("  ok    every spec'd stage has a todo.md"))
 
+    if hyg.track_divergences:
+        print(yellow(f"  {yellow('WARN')} track hygiene "
+                     f"({len(hyg.track_divergences)}):"))
+        for t in hyg.track_divergences:
+            print(f"    - {t.track} [{t.kind}]: {t.detail}")
+
     if not hyg.changelog_exists:
         print(yellow("  note  no CHANGELOG.md — the constitution §6 is an index "
                      "pointing here; create it with 'sdd init' (new) or migrate "
@@ -592,9 +601,15 @@ def _current_state_value(text: str) -> str:
 
 
 def _current_state_linecount(text: str) -> int:
-    """Count non-empty lines in the Current state / Estado atual section."""
+    """Count non-empty lines in the Current state / Estado atual section.
+
+    Stops at a ``### Active tracks`` sub-heading (parallel-tracks feature) as
+    well as the next ``##`` heading: the tracks table is legitimate content
+    of that section, not diary creep, so it must not inflate the ~5-line
+    pointer-cap heuristic used by the migration TODO generator.
+    """
     m = re.search(
-        r"^##\s+(Current state|Estado atual)\s*\n(.*?)(?=^##\s|\Z)",
+        r"^##\s+(Current state|Estado atual)\s*\n(.*?)(?=^###\s|^##\s|\Z)",
         text, re.MULTILINE | re.DOTALL,
     )
     if not m:

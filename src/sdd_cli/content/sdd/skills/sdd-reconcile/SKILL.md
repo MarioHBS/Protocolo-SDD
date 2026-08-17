@@ -20,15 +20,31 @@ Write all output in the language set in `constitution.md → Settings → Langua
 
    Do not trust what the indexes claim — trust what exists.
 
-2. **Compare against the indexes** (`Current state`, §5, `roadmap.md`) and list
-   the divergences: a stage marked done without `report.md`; a stage in the index
-   with no folder on disk; wrong counts; slugs differing between §5 and the
-   roadmap; `Current state` pointing at a stage that already closed.
+   Also list `tracks/*/` (if any): for each track, whether it has any
+   stages left under `tracks/<slug>/stages/` (still open / not yet
+   incorporated) and whether `state.md`'s claimed active stage matches
+   something that actually exists on disk.
+
+2. **Compare against the indexes** (`Current state`, `### Active tracks`, §5,
+   `roadmap.md`) and list the divergences: a stage marked done without
+   `report.md`; a stage in the index with no folder on disk; wrong counts;
+   slugs differing between §5 and the roadmap; `Current state` pointing at a
+   stage that already closed; a track listed in `### Active tracks` whose
+   `tracks/<slug>/` no longer exists, or vice versa; a join stage (§5 row
+   with `Depends on` filled) whose listed tracks are all incorporated but
+   the row is still blocked from proceeding.
 
 3. **Fix the caches to match disk:**
    - Adjust §5 (canonical) to the real status.
-   - Regenerate `roadmap.md` from §5.
-   - Fix `Current state` (and trim it if it has turned into a diary).
+   - Regenerate `roadmap.md` from §5. **This is the single point where
+     roadmap regeneration happens for tracked stages** — `sdd-track`
+     deliberately defers it here instead of doing it per-track-close, so
+     two tracks incorporating around the same time never race on this
+     file.
+   - Fix `Current state` (and trim it if it has turned into a diary). If a
+     track's fork is now fully merged (every sibling stage incorporated),
+     remove its row from `### Active tracks` — do not leave stale rows for
+     finished tracks.
 
 4. **Do not invent the future — but preserve the legitimate roadmap.** Pending
    stages in §5 (no folder on disk yet) are NOT necessarily invented:

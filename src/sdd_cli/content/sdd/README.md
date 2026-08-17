@@ -92,12 +92,15 @@ INITIALIZING -> DECIDING -> ROADMAP -> +- SPECIFYING -> IMPLEMENTING -> CLOSING 
      IMPLEMENTING -- (structural decision mid-flight) --> DECIDING -> IMPLEMENTING
 ```
 
-Two skills are **cross-cutting utilities**, not phases, and may be invoked in
+Three skills are **cross-cutting utilities**, not phases, and may be invoked in
 any state:
 
 - `sdd-reconcile` — realign the indexes with disk.
 - `sdd-document` — plan and produce project documentation (only when the
   Documentation feature is on; see Settings).
+- `sdd-track` — open, govern and merge **parallel tracks**: two or more
+  stages worked at the same time by separate agent sessions, without git
+  worktrees. See "Parallel tracks" below.
 
 ---
 
@@ -138,6 +141,10 @@ anyone re-explaining what happened before.
         +-- todo.md          — detailed task list for the stage
         +-- report.md        — closing report (becomes context for the next stage)
         +-- checklist.md     — (optional) verification log, one scenario per section
++-- tracks/              — (optional) parallel work; see "Parallel tracks" below
+    +-- <slug>/
+        +-- state.md          — free-form, owned only by that track's agent session
+        +-- stages/NNN-<slug>/  — same shape as a normal stage folder, local numbering
 ```
 
 Optional management artifacts (created only when the matching feature is on):
@@ -150,6 +157,26 @@ Stage numbering: `001`, `002`, … **IDs are append-only and immutable** (stages
 `D-NNN`, `Q-NNN`). To insert a stage between existing ones, **prefer a suffix**
 (`010-A`) over renumbering — renumbering leaves stale references in specs already
 written. Always display tables in ascending ID order.
+
+---
+
+## Parallel tracks
+
+Two or more stages can be worked **at the same time**, by separate agent
+sessions, without git worktrees (some projects using this kit are not under
+version control at all) — see the `sdd-track` skill for the full protocol.
+In short:
+
+- Each track gets its own `tracks/<slug>/` scratch area (own `state.md`, own
+  `stages/` with local numbering) that only its own agent session writes to.
+- §5 stays the single canonical index — a track's stages are only appended
+  there (moved into the shared `stages/` queue) at incorporation, never a
+  second permanent index.
+- A downstream stage can declare in §5's `Depends on` column that it must
+  wait for one or more tracks to finish (a **join stage**) — `sdd-specify`/
+  `sdd-implement` refuse to start it early.
+- The queue can fork into tracks and join back to sequential as many times
+  as the roadmap needs — each fork/join is independent of the others.
 
 ---
 

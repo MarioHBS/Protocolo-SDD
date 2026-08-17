@@ -5,6 +5,44 @@ All notable changes to the sdd-cli kit. Versions follow a pragmatic
 small additive content changes and fixes bump PATCH. Any `estimates.md`
 produced by an older version remains valid — the templates are additive.
 
+## [3.2.0] — 2026-08-17
+
+### Added
+- **Parallel tracks** — two or more stages can now be worked at the same
+  time by separate agent sessions, without git worktrees (not every project
+  using this kit is under version control). Governed by the new
+  `sdd-track` skill (a third cross-cutting utility, alongside
+  `sdd-reconcile`/`sdd-document`). Each track gets its own scratch area
+  (`.sdd/tracks/<slug>/state.md` + `.sdd/tracks/<slug>/stages/` with local
+  numbering) that only its own agent session writes to; `constitution.md
+  §5` stays the single canonical index — a track's stages are only
+  appended there (moved into the shared `stages/` queue) at incorporation,
+  never a second permanent index. `sdd init` now scaffolds an empty
+  `.sdd/tracks/` alongside `.sdd/stages/`.
+- **Fork/join** — a stage in §5 can declare (`Depends on` column) that it
+  must wait for one or more tracks to finish before starting. `sdd-roadmap`
+  declares the dependency when the plan is drawn; `sdd-specify` and
+  `sdd-implement` both refuse to start a join stage while a listed track is
+  still open. This composes: the queue can fork into tracks and join back
+  to sequential as many times as the roadmap needs.
+- **Track hygiene checks** in `sdd doctor` / `sdd-reconcile` — an opened
+  track with no stage ever started, a track idle 14+ days with unfinished
+  stages, or a completed stage still sitting under `tracks/<slug>/stages/`
+  instead of being incorporated. Report-only, never blocking; produces zero
+  output for a project that has never opened a track.
+
+### Changed
+- `sdd-close` (step 5) and `sdd-reconcile` (steps 1-3) gained conditional
+  notes for the tracked-stage case: incorporation (move + append to §5)
+  replaces a plain index update, and `roadmap.md` regeneration is
+  deliberately deferred from per-track close to `sdd-reconcile`'s single
+  pass, so two tracks incorporating around the same time never race on
+  that file. The untracked path (stages living directly under `stages/`,
+  with or without the existing out-of-order letter suffix) is unaffected.
+- `constitution.md`'s `## Current state` gained an optional `### Active
+  tracks` sub-table, only present once a track is opened — a project that
+  never opens one keeps the exact same `Current state` shape as before.
+
 ## [3.1.0] — 2026-08-17
 
 ### Added

@@ -31,8 +31,11 @@
 
 ## Current state
 
-<!-- HARD CAP: ~5 lines. This field is a POINTER, not a diary.
-     All closing narrative goes to the stage's report.md and to §6. -->
+<!-- HARD CAP: ~5 lines for the top-level pointer. This field is a POINTER,
+     not a diary. All closing narrative goes to the stage's report.md and to
+     §6. If parallel tracks are open, list them in "Active tracks" below
+     instead of trying to cram more than one active stage into the fields
+     above -- each track's own detail lives in tracks/<slug>/state.md. -->
 
 - **State:** INITIALIZING
 - **Active stage:** (none)
@@ -42,6 +45,23 @@
 > States and flow are in `README.md`. No production code while the state is
 > `INITIALIZING` or `DECIDING`. §5 is the canonical index; `roadmap.md` derives
 > from it; disk is the truth about what is actually done.
+
+<!-- Only present once `sdd-track` has opened at least one track. Append a
+     row here when a track opens; remove a row only when that track's fork is
+     merged via `sdd-reconcile` (never mid-flight). One row per track --
+     append-only, never rewrite an existing row in place. -->
+
+### Active tracks
+
+<!-- Example (delete once you actually open a track):
+| Track   | Branched from | State         | Pointer                  |
+|---------|---------------|---------------|---------------------------|
+| login   | 010           | IMPLEMENTING  | `tracks/login/state.md`   |
+| billing | 010           | SPECIFYING    | `tracks/billing/state.md` |
+-->
+
+| Track | Branched from | State | Pointer |
+|-------|---------------|-------|---------|
 
 ---
 
@@ -99,12 +119,22 @@
 
 > This is the source of truth for progress. `roadmap.md` is generated from here.
 > A stage is `done` only if `stages/NNN-<slug>/report.md` exists on disk.
-> Prefer a suffix (`010-A`) over renumbering. Maintained by `sdd-roadmap`,
-> `sdd-close` and `sdd-reconcile`.
+> Prefer a suffix (`010-A`) over renumbering — that suffix means "inserted
+> fix/extra stage without renumbering the queue"; it is unrelated to parallel
+> tracks (see `sdd-track`), which live in their own `tracks/<slug>/stages/`
+> subtree with independent local numbering until incorporated here. Maintained
+> by `sdd-roadmap`, `sdd-close`, `sdd-track` and `sdd-reconcile`.
+>
+> **"Depends on"** is empty by default (today's purely sequential behavior).
+> Fill it only for a **join stage** — one that must not start until every
+> track slug listed there has all its stages incorporated. Declared by
+> `sdd-roadmap` when the fork/join shape is planned, checked by `sdd-track`
+> when incorporating a track's last stage, and enforced as a MUST-NOT-start
+> rule by `sdd-specify`/`sdd-implement`.
 
-| Stage | Slug   | Status                       | Spec | Report |
-|-------|--------|------------------------------|------|--------|
-| 001   | [slug] | pending / in progress / done | —    | —      |
+| Stage | Slug   | Status                       | Depends on | Spec | Report |
+|-------|--------|------------------------------|------------|------|--------|
+| 001   | [slug] | pending / in progress / done | —          | —    | —      |
 
 ---
 

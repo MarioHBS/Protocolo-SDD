@@ -22,8 +22,19 @@ Write all output in the language set in `constitution.md → Settings → Langua
    the definition of done. Sizing heuristic: if a stage looks like more than ~5
    ideal days, or does not fit into finite acceptance criteria, split it.
 
+   If part of the plan can genuinely proceed in parallel (independent
+   slices of work with no data/order dependency on each other), it is fine
+   to note that here as a candidate for `sdd-track` later — but do not open
+   the tracks yet; that happens when the user actually wants to start
+   parallel work, via `sdd-track`.
+
 3. **Fill the canonical index (§5 of the constitution).** One row per stage,
-   status `pending`. **This is the source of truth.**
+   status `pending`. **This is the source of truth.** If the plan includes a
+   **join stage** — one that must wait for two or more parallel tracks to
+   finish before it can start — fill that stage's `Depends on` column with
+   the track slug(s) it waits for (the tracks themselves are opened later
+   via `sdd-track`; declaring the dependency here is what lets
+   `sdd-specify`/`sdd-implement` refuse to start it early).
 
 4. **Generate `roadmap.md` from §5** (using `templates/roadmap.template.md`).
    The roadmap is a **derivation** of §5 — same statuses, same slugs, same
