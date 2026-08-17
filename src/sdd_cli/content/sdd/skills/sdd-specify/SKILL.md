@@ -19,6 +19,13 @@ Write all artifacts in the language set in
 ## Steps
 
 1. **Identify the active stage** in the constitution (`Active stage`).
+   **Check §5's `Depends on` column for this stage.** If it lists one or
+   more track slugs, this is a **join stage** — confirm via
+   `### Active tracks` / `tracks/<slug>/` that every listed track has all
+   its stages incorporated into the canonical queue before proceeding.
+   **MUST NOT** start specifying a join stage while any listed track is
+   still open. If blocked, stop and tell the user which track(s) are still
+   pending (or invoke `sdd-track`/`sdd-reconcile` to check current status).
 
 2. **Gather the context and embed it in the spec** (copied/summarized, not just
    referenced):

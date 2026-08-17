@@ -45,6 +45,15 @@ Write all artifacts in the language set in
 5. **Update the canonical index (§5).** Mark the stage `done` **only because
    `report.md` exists on disk**, with pointers to spec and report.
 
+   > **If this stage's folder lives under `tracks/<slug>/stages/`** (a
+   > parallel track, see `sdd-track`), this step is the "incorporate" step
+   > instead: move/rename the folder into the canonical `stages/` queue
+   > with the next free number, append its §5 row, and **skip step 6**
+   > (roadmap regeneration is deferred to `sdd-reconcile` — see
+   > `sdd-track` step 3 for the full sequence). A stage folder directly
+   > under `stages/` (with or without an out-of-order letter suffix) is
+   > unaffected by this note — its close is byte-identical to before.
+
 6. **Regenerate `roadmap.md` from §5.** Never hand-edit the roadmap; derive it so
    statuses, slugs and counts match. (Or invoke `sdd-reconcile`.)
 
