@@ -126,11 +126,16 @@
 > by `sdd-roadmap`, `sdd-close`, `sdd-track` and `sdd-reconcile`.
 >
 > **"Depends on"** is empty by default (today's purely sequential behavior).
-> Fill it only for a **join stage** — one that must not start until every
-> track slug listed there has all its stages incorporated. Declared by
-> `sdd-roadmap` when the fork/join shape is planned, checked by `sdd-track`
-> when incorporating a track's last stage, and enforced as a MUST-NOT-start
-> rule by `sdd-specify`/`sdd-implement`.
+> Fill it with one or more track slugs to sequence this stage **after** those
+> tracks, for either reason: it **needs their result** (a classic join stage),
+> or it is **stability-sensitive** — accepted by running the app (manual/
+> on-device QA, a release build, e2e, benchmarking) and so cannot run while a
+> listed track keeps the shared build/runtime unstable. Tracks isolate the
+> `.sdd/` index, not the shared build/runtime/device, so a stability-sensitive
+> stage is sequenced here rather than opened as a parallel track sibling.
+> Declared by `sdd-roadmap` when the fork/join shape is planned, checked by
+> `sdd-track` when incorporating a track's last stage, and enforced as a
+> MUST-NOT-start rule by `sdd-specify`/`sdd-implement`.
 
 | Stage | Slug   | Status                       | Depends on | Spec | Report |
 |-------|--------|------------------------------|------------|------|--------|

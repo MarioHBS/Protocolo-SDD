@@ -25,6 +25,34 @@ almost never contend for the same file; the one place they still could
 (structural decisions in §2/§3) is called out explicitly below rather than
 pretended away.
 
+## What tracks isolate — and what they do NOT
+
+Tracks isolate the **SDD index** (`tracks/<slug>/` scratch, §5 append-only).
+They do **not** isolate the shared things two sessions build on top of:
+
+- the **working tree / source code** — both tracks edit the same files;
+- the **build, compiler, and runtime** — one shared buildable state;
+- **manual/on-device testing, a running dev server, a physical or emulated
+  device, a shared database or external sandbox** — one at a time, really.
+
+So two stages can be perfectly independent *in the index* and still collide
+*in reality*. The sharpest form of this — the one that motivated writing it
+down — is a **stability-sensitive stage**: a stage whose acceptance needs a
+**stable, buildable, runnable shared artifact**. Examples: manual QA on a
+mobile build, on-device or end-to-end testing, a release/store build,
+performance benchmarking, anything a human validates by *running the app*.
+
+A stability-sensitive stage **cannot** run as a parallel sibling of a track
+that is mid-flight mutating shared code, because that track will routinely
+leave the build red while it works — exactly when the stability-sensitive
+stage needs it green. "Independent slices of work" (the `sdd-roadmap`
+parallelization test) means independent in **data/order AND in the shared
+build/runtime/device**, not just in the index. If a candidate stage fails
+the second half of that test, **do not open it as a parallel track** —
+sequence it instead (see "Fork/join" below): after the mutating tracks join
+back (a join stage whose `Depends on` lists them), or strictly after the one
+specific track stage it validates.
+
 ## On-disk layout
 
 ```text
@@ -54,7 +82,17 @@ original, unrelated meaning.
 1. **Opening a track.** Only from a point where the canonical queue is
    between stages (e.g. just closed one, or at the ROADMAP boundary).
    Confirm with the user: which stage is the branch point, what slug each
-   track gets, and what each one covers. For each track:
+   track gets, and what each one covers.
+   **Stability check before you fork:** for each candidate track, ask
+   whether any of its stages is *stability-sensitive* (needs a stable
+   shared build/runtime/device — see "What tracks isolate" above) and
+   whether any *sibling* track will be mutating shared code at the same
+   time. If both are true for the same time window, that stability-sensitive
+   stage **must not** be opened as a parallel sibling — pull it out and
+   sequence it instead (a join stage that `Depends on` the mutating tracks,
+   or a stage placed strictly after the specific track stage it validates).
+   Only genuinely build/runtime-independent work goes into parallel
+   siblings. For each track you do open:
    - create `tracks/<slug>/` and seed `tracks/<slug>/state.md` from
      `templates/track-state.template.md`;
    - create `tracks/<slug>/stages/` (empty, ready for the track's own
@@ -123,6 +161,19 @@ another fork later. This is declared in §5's **Depends on** column:
   not move to SPECIFYING/IMPLEMENTING until every listed track has all its
   stages incorporated into the canonical queue.
 
+`Depends on` sequences a stage after tracks for **either** reason, with the
+same mechanism:
+
+- **needs the result** — the stage consumes what those tracks produce
+  (data/order dependency); or
+- **needs the stability** — the stage is stability-sensitive (manual/on-device
+  QA, a release build, e2e, benchmarking) and cannot tolerate those tracks
+  breaking the shared build while it runs. This is how a stage that would
+  otherwise have been dropped into a parallel sibling gets safely sequenced
+  after the code-mutating tracks instead. When the reason is stability, note
+  it beside the stage (e.g. in its slug or a spec line) so a later reader
+  knows the dependency is about build stability, not consumed output.
+
 `sdd-roadmap` declares a join stage's `Depends on` cell when the fork/join
 shape is planned (even before the tracks are actually opened via
 `sdd-track`). `sdd-specify` and `sdd-implement` both carry a short
@@ -139,6 +190,11 @@ level.
 
 - One track, one agent session, one `state.md` — never two sessions editing
   the same `tracks/<slug>/state.md`.
+- **Tracks isolate the index, not the build.** A stability-sensitive stage
+  (needs a stable shared build/runtime/device) is never a parallel sibling of
+  a track that mutates shared code in the same window — sequence it after via
+  `Depends on`. Parallel siblings must be independent in the shared
+  build/runtime/device, not only in the index.
 - `constitution.md §5` remains the ONLY canonical index; a track's
   `state.md` is disposable scratch, never a second source of truth.
 - `roadmap.md` regeneration only happens via `sdd-reconcile`, never inside a

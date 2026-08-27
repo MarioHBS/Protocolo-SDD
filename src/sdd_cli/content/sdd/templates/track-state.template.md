@@ -10,6 +10,14 @@
 - **Branched from stage:** [NNN]
 - **State:** [one of: SPECIFYING / IMPLEMENTING / CLOSING]
 - **Active stage in this track:** [tracks/[slug]/stages/NNN-<slug> or (none yet)]
+- **Mutates shared code / build:** [yes / no — does this track leave the shared
+  build red while it works? If yes, a sibling track's stability-sensitive stage
+  must NOT run in parallel with it; sequence it after this track via §5
+  `Depends on` (see the `sdd-track` skill).]
+- **Needs build stability:** [yes / no — does any stage here require a stable,
+  runnable shared build/runtime/device (manual/on-device QA, release build,
+  e2e, benchmarking)? If yes, it should have been sequenced, not opened as a
+  parallel sibling of a code-mutating track.]
 - **Next action:** [one line]
 - **Last updated:** [date]
 
