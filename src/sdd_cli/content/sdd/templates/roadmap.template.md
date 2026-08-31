@@ -15,9 +15,18 @@
 | Stage | Slug   | Status  | Depends on | Delivers |
 |-------|--------|---------|------------|----------|
 | 001   | [slug] | pending | —          | [...]    |
-| 002   | [slug] | pending | 001        | [...]    |
 
 <!-- If there is an MVP, mark the boundary with a separator row and a note. -->
+
+---
+
+## Provisional stages (not yet numbered)
+
+> Future stages not yet reached — no canonical `NNN` yet. See constitution §5.
+
+| Slug   | Status  | Depends on | Notes |
+|--------|---------|------------|-------|
+| [slug] | pending | 001        | [...] |
 
 ---
 

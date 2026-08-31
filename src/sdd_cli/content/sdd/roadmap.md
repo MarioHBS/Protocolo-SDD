@@ -22,6 +22,16 @@
 
 ---
 
+## Provisional stages (not yet numbered)
+
+> Future stages not yet reached — no canonical `NNN` yet. See constitution §5.
+
+| Slug   | Status  | Depends on | Notes |
+|--------|---------|------------|-------|
+| <slug> | pending | —          | —     |
+
+---
+
 ## Summary
 
 | Done | In progress | Pending | Total |
@@ -33,4 +43,5 @@
 ## Legend
 
 `pending` — not yet specified · `in progress` — spec/todo without report ·
-`done` — `report.md` exists on disk
+`done` — `report.md` exists on disk · a stage in **Provisional stages** —
+not yet numbered, order not final (see constitution §5)
