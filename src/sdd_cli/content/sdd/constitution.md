@@ -26,6 +26,9 @@
 - **Documentation:** {{DOCUMENTATION}}
   <!-- When on, the sdd-document skill plans the documentation set together
        with the user, based on the actual project. -->
+- **Parallel tracks:** {{TRACKS}}
+  <!-- Off by default -- turn on only if you actually want two agent
+       sessions working stages of this project at the same time. -->
 
 ---
 
