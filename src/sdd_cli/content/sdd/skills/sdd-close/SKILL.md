@@ -73,9 +73,17 @@ Write all artifacts in the language set in
    constitution so it keeps pointing at `CHANGELOG.md` (§6 is the index, never
    the long history). Never rewrite the changelog's English skeleton.
 
-9. **Point to the next stage.** If stages remain: `State: SPECIFYING`,
-   `Active stage: <next one with satisfied dependencies>`, `Next action: load the
-   sdd-specify skill`. If none remain: `State: COMPLETE`. Update the date.
+9. **Point to the next stage.** Pick the next stage with satisfied
+   dependencies — normally the next row in the Provisional queue, in order,
+   unless the user asks to fast-track a different independent one instead.
+   **Promote it:** assign it the next free canonical `NNN` (the same shared
+   pool a track incorporation draws from — see §5), append its row to the
+   canonical table (status `pending`, carrying over its slug and `Depends
+   on`), and remove it from the Provisional queue. A row noted as a track
+   candidate is not promoted this way — it is opened as a track instead, via
+   `sdd-track`. If stages remain: `State: SPECIFYING`, `Active stage: <NNN
+   just promoted>`, `Next action: load the sdd-specify skill`. If none
+   remain: `State: COMPLETE`. Update the date.
 
 10. **(If the Estimation feature is on)** update `estimates.md` with this stage's
     real duration and adjust the remaining ones. Recalculate **both** forecast
