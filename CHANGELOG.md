@@ -5,6 +5,35 @@ All notable changes to the sdd-cli kit. Versions follow a pragmatic
 small additive content changes and fixes bump PATCH. Any `estimates.md`
 produced by an older version remains valid — the templates are additive.
 
+## [3.2.1] — 2026-08-27
+
+### Changed
+- **Tracks isolate the index, not the build — made explicit.** The parallel
+  tracks feature (3.2.0) isolates each track's `.sdd/` scratch area, but two
+  tracks still share one working tree, build, runtime and device. That
+  boundary was never stated, so a **stability-sensitive stage** (manual/
+  on-device QA, a release build, e2e, benchmarking — anything accepted by
+  *running the app*) could be opened as a parallel sibling of a track that
+  mutates shared code, and then get blocked by that track leaving the build
+  red. `sdd-track` now spells out what tracks do and do not isolate, and
+  classifies such stages.
+- **Parallelization test in `sdd-roadmap` corrected.** "Independent slices of
+  work" now explicitly means independent in **data/order AND in the shared
+  build/runtime/device** — not just data/order. A stability-sensitive stage
+  is planned as a *sequenced* stage, never a parallel sibling of a mutating
+  track.
+- **`Depends on` (§5) documented for both reasons.** The existing join-stage
+  column now also carries stability sequencing: a stage may depend on tracks
+  because it needs their *result* or because it needs the shared build
+  *stable*. Same MUST-NOT-start enforcement in `sdd-specify`/`sdd-implement`,
+  no new mechanism.
+- **Opening a track gained a stability check** (`sdd-track` step 1): before
+  forking, confirm no candidate track's stage needs a stable build while a
+  sibling mutates shared code in the same window — if it does, sequence it
+  instead of parallelizing it.
+- **`track-state.template.md`** gained "Mutates shared code / build" and
+  "Needs build stability" fields so the collision is declared up front.
+
 ## [3.2.0] — 2026-08-17
 
 ### Added

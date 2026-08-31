@@ -476,10 +476,11 @@ def cmd_doctor(args) -> None:
     if hyg.closed_with_open_todo:
         print(yellow(f"  {yellow('WARN')} closed stage with open todo.md "
                      f"checkboxes ({len(hyg.closed_with_open_todo)}):"))
+        note = dim('(report.md exists; complete the work or '
+                   'record the divergence in report §7)')
         for d in hyg.closed_with_open_todo:
             print(f"    - {d.stage}: {d.open_checkboxes}/{d.total_checkboxes} "
-                  f"unchecked {dim('(report.md exists; complete the work or '
-                                   'record the divergence in report §7)')}")
+                  f"unchecked {note}")
     else:
         print(green("  ok    no closed stage with open checkboxes"))
 
@@ -1082,9 +1083,9 @@ def cmd_migrate(args) -> None:
         if ag.exists() and generic_src.exists() and \
                 manifest.hash_file(ag) == manifest.hash_file(generic_src):
             ag.unlink()
-            print(f"  {yellow('cleanup')} removed stray AGENTS.md "
-                  f"{dim('(byte-identical to generic shim; prior buggy '
-                         'migrate wrote it)')}")
+            reason = dim('(byte-identical to generic shim; prior buggy '
+                         'migrate wrote it)')
+            print(f"  {yellow('cleanup')} removed stray AGENTS.md {reason}")
     for key in prov_keys:
         p = providers.get(key)
         if p:

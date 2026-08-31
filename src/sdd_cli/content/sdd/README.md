@@ -172,9 +172,16 @@ In short:
 - §5 stays the single canonical index — a track's stages are only appended
   there (moved into the shared `stages/` queue) at incorporation, never a
   second permanent index.
-- A downstream stage can declare in §5's `Depends on` column that it must
-  wait for one or more tracks to finish (a **join stage**) — `sdd-specify`/
-  `sdd-implement` refuse to start it early.
+- A downstream stage can declare in §5's `Depends on` column that it must be
+  sequenced after one or more tracks — because it needs their result (a
+  **join stage**), or because it is **stability-sensitive** and cannot run
+  while a track keeps the shared build unstable. `sdd-specify`/`sdd-implement`
+  refuse to start it early.
+- **Tracks isolate the `.sdd/` index, not the shared build/runtime/device.**
+  Two stages can be independent in the index and still collide in reality.
+  A stage accepted by *running the app* (manual/on-device QA, a release
+  build, e2e, benchmarking) is never opened as a parallel sibling of a track
+  that mutates shared code — it is sequenced after it via `Depends on`.
 - The queue can fork into tracks and join back to sequential as many times
   as the roadmap needs — each fork/join is independent of the others.
 
