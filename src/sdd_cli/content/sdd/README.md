@@ -172,10 +172,12 @@ turned canonical. Always display tables in ascending ID order.
 
 ## Parallel tracks
 
-Two or more stages can be worked **at the same time**, by separate agent
-sessions, without git worktrees (some projects using this kit are not under
-version control at all) — see the `sdd-track` skill for the full protocol.
-In short:
+Opt-in — off by default (`Settings → Parallel tracks`), for projects that
+want to stay simple and never juggle this naming. Turn it on when you
+actually want two or more stages worked **at the same time**, by separate
+agent sessions, without git worktrees (some projects using this kit are not
+under version control at all) — see the `sdd-track` skill for the full
+protocol. In short:
 
 - Each track gets its own `tracks/<slug>/` scratch area (own `state.md`, own
   `stages/` with local numbering) that only its own agent session writes to.
