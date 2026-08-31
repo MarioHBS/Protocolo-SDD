@@ -79,10 +79,18 @@ original, unrelated meaning.
 
 ## Steps
 
+0. **Feature gate.** Only usable if `Settings → Parallel tracks` is `on` in
+   the constitution. If it is `off`, tell the user how to turn it on (edit
+   `## Settings` in `constitution.md`, same as any other toggle) and stop —
+   do not open a track.
+
 1. **Opening a track.** Only from a point where the canonical queue is
    between stages (e.g. just closed one, or at the ROADMAP boundary).
    Confirm with the user: which stage is the branch point, what slug each
-   track gets, and what each one covers.
+   track gets, and what each one covers. If this track already sat in §5's
+   **Provisional queue** as a `track candidate` row, remove that row now —
+   the track's progress is tracked in `### Active tracks` from here on, not
+   as a queue entry.
    **Stability check before you fork:** for each candidate track, ask
    whether any of its stages is *stability-sensitive* (needs a stable
    shared build/runtime/device — see "What tracks isolate" above) and
@@ -197,6 +205,10 @@ level.
   build/runtime/device, not only in the index.
 - `constitution.md §5` remains the ONLY canonical index; a track's
   `state.md` is disposable scratch, never a second source of truth.
+- The next-free-number a track stage gets at incorporation (step 3.1) comes
+  from the **same pool** §5's Provisional queue draws from when it promotes a
+  solo stage — whichever closes first gets the next `NNN`, regardless of
+  planning order.
 - `roadmap.md` regeneration only happens via `sdd-reconcile`, never inside a
   track's own incorporation step.
 - **Mid-flight structural decisions are the one real collision risk this

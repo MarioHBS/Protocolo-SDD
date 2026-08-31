@@ -25,9 +25,12 @@ Write all output in the language set in `constitution.md → Settings → Langua
    more than ~5 ideal days, or does not fit into finite acceptance criteria,
    split it.
 
-   If part of the plan can genuinely proceed in parallel, note that here as a
-   **track candidate** — but do not open the tracks yet; that happens when
-   the user actually wants to start parallel work, via `sdd-track`. **Parallel-safe means independent in two ways:**
+   If `Settings → Parallel tracks` is `off`, stop here — plan purely
+   sequentially and skip the rest of this step; do not suggest tracks. If it
+   is `on` and part of the plan can genuinely proceed in parallel, note that
+   here as a **track candidate** — but do not open the tracks yet; that
+   happens when the user actually wants to start parallel work, via
+   `sdd-track`. **Parallel-safe means independent in two ways:**
    no data/order dependency **and** no contention on a shared
    build/runtime/device. A **stability-sensitive stage** — one that is
    accepted by *running the app* (manual/on-device QA, a release build,
