@@ -1074,18 +1074,21 @@ def cmd_migrate(args) -> None:
     print(f"  {green('keep')}  .sdd/constitution.md, roadmap.md, CHANGELOG.md, "
           f"stages/ {dim('(yours)')}")
 
-    # 4. refresh shims only for the detected/recorded providers; clean up a
-    #    stray AGENTS.md that a prior buggy migrate (generic default) left when
-    #    the project never wanted the generic provider.
-    if "generic" not in prov_keys:
-        ag = root / "AGENTS.md"
-        generic_src = CONTENT_DIR / "shims" / "generic.md"
-        if ag.exists() and generic_src.exists() and \
-                manifest.hash_file(ag) == manifest.hash_file(generic_src):
-            ag.unlink()
-            reason = dim('(byte-identical to generic shim; prior buggy '
-                         'migrate wrote it)')
-            print(f"  {yellow('cleanup')} removed stray AGENTS.md {reason}")
+    # 4. refresh shims only for the detected/recorded providers; clean up stray
+    #    shims left by prior installs/migrates when the project no longer wants
+    #    that provider.
+    for rel, shim_name, key in [
+        ("AGENTS.md", "generic.md", "generic"),
+        (".kilo/commands/sdd.md", "kilo.md", "kilo"),
+    ]:
+        if key not in prov_keys:
+            p = root / rel
+            src = CONTENT_DIR / "shims" / shim_name
+            if p.exists() and src.exists() and \
+                    manifest.hash_file(p) == manifest.hash_file(src):
+                p.unlink()
+                print(f"  {yellow('cleanup')} removed stale {rel} "
+                      f"{dim('(byte-identical to ' + key + ' shim; prior install wrote it)')}")
     for key in prov_keys:
         p = providers.get(key)
         if p:
