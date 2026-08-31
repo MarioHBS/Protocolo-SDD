@@ -118,12 +118,34 @@
 ## 5. Stage index (CANONICAL)
 
 > This is the source of truth for progress. `roadmap.md` is generated from here.
-> A stage is `done` only if `stages/NNN-<slug>/report.md` exists on disk.
-> Prefer a suffix (`010-A`) over renumbering — that suffix means "inserted
-> fix/extra stage without renumbering the queue"; it is unrelated to parallel
-> tracks (see `sdd-track`), which live in their own `tracks/<slug>/stages/`
-> subtree with independent local numbering until incorporated here. Maintained
-> by `sdd-roadmap`, `sdd-close`, `sdd-track` and `sdd-reconcile`.
+> A stage is `done` only if `stages/NNN-<slug>/report.md` exists on disk. Only
+> a stage that is active, already worked, or urgently inserted carries a
+> canonical `NNN` here — everything else still ahead in the queue lives in the
+> **Provisional queue** below, unnumbered, until its turn to be specified
+> arrives (normally at `sdd-close` step 9, or sooner if deliberately
+> fast-tracked). Promoting a provisional stage means assigning it the next
+> free `NNN` and moving its row up here — never a renumbering, since it never
+> had a canonical ID before. This is the same promotion pattern parallel
+> tracks already use to incorporate a track's stages (see `sdd-track`): both
+> draw from the **same shared "next free NNN" pool**, consumed strictly in
+> the order stages actually finish, never in the order they were planned. If
+> several tracks and a provisional stage are all in flight at once, there is
+> no way to know in advance whose stage closes first — so the Provisional
+> queue's row order is planning intent for the sequential/solo stretch only,
+> not a numbering guarantee.
+>
+> Prefer a suffix (`010-A`) over renumbering when a stage must still be
+> inserted **among already-canonical stages** — that suffix means "inserted
+> fix/extra stage without renumbering the queue". Reserve it for: (a) an
+> urgent stage needed right at/after one already `in progress`; (b) a late
+> adjustment needed right before a stage that already turned canonical, once
+> new information surfaces after its promotion. Any other future insertion —
+> advancing an independent stage, or adding one ahead of a stage that is
+> still provisional — belongs in the Provisional queue instead, where
+> reordering costs nothing. The suffix is unrelated to parallel tracks (see
+> `sdd-track`), which live in their own `tracks/<slug>/stages/` subtree with
+> independent local numbering until incorporated here. Maintained by
+> `sdd-roadmap`, `sdd-close`, `sdd-track` and `sdd-reconcile`.
 >
 > **"Depends on"** is empty by default (today's purely sequential behavior).
 > Fill it with one or more track slugs to sequence this stage **after** those
@@ -140,6 +162,23 @@
 | Stage | Slug   | Status                       | Depends on | Spec | Report |
 |-------|--------|------------------------------|------------|------|--------|
 | 001   | [slug] | pending / in progress / done | —          | —    | —      |
+
+### Provisional queue (not yet numbered)
+
+> Future stages the roadmap already knows about but has not reached yet.
+> Listed by slug only, in intended order — freely reorderable, insertable and
+> removable, since none of these rows carry a canonical ID yet. A row is a
+> plain future stage, or a **track candidate** (`Notes: track candidate`) —
+> work planned to become a parallel track later. A plain row leaves this
+> table only by **promotion** into the canonical table above, with the next
+> free `NNN`. A track-candidate row leaves this table when the track is
+> actually opened via `sdd-track`, moving to `## Current state → ### Active
+> tracks` instead — it never gets a canonical `NNN` directly; its own stages
+> do, one at a time, as `sdd-track` incorporates each.
+
+| Slug   | Status  | Depends on | Notes |
+|--------|---------|------------|-------|
+| [slug] | pending | —          | —     |
 
 ---
 

@@ -154,9 +154,19 @@ Optional management artifacts (created only when the matching feature is on):
 - documentation set — shape decided with the user by `sdd-document`.
 
 Stage numbering: `001`, `002`, … **IDs are append-only and immutable** (stages,
-`D-NNN`, `Q-NNN`). To insert a stage between existing ones, **prefer a suffix**
-(`010-A`) over renumbering — renumbering leaves stale references in specs already
-written. Always display tables in ascending ID order.
+`D-NNN`, `Q-NNN`). Only a stage that is active, already worked, or urgently
+inserted carries a canonical number — a stage still ahead in the queue sits
+in the **Provisional queue** (§5 of the constitution) by slug alone, with no
+`NNN`, until its turn to be specified arrives. Promoting a provisional stage
+means assigning it the next free `NNN`; it is never a renumbering, since it
+never had a canonical ID before. This keeps reordering, fast-tracking an
+independent stage, or inserting one ahead of another that is still
+provisional free of any renumbering or suffix. Once a stage **is** canonical,
+inserting next to it still follows the old rule: **prefer a suffix**
+(`010-A`) over renumbering — now reserved for inserting **among
+already-canonical stages**: an urgent stage needed right at/after one already
+`in progress`, or a late adjustment needed right before a stage that already
+turned canonical. Always display tables in ascending ID order.
 
 ---
 
