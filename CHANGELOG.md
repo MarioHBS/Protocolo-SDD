@@ -5,6 +5,40 @@ All notable changes to the sdd-cli kit. Versions follow a pragmatic
 small additive content changes and fixes bump PATCH. Any `estimates.md`
 produced by an older version remains valid — the templates are additive.
 
+## [3.3.0] — 2026-08-31
+
+### Added
+- **Kilo Code provider.** New `kilo` entry in `providers.py`, with its own
+  content shim (`content/shims/kilo.md`, same `/sdd` trigger pattern as the
+  other providers). The stale-shim cleanup in `sdd migrate` was generalized
+  from a single hardcoded case (`AGENTS.md`/`generic`) into a loop that
+  covers any registered provider, `kilo` included.
+- **Provisional queue for stage numbering.** Mitigates the letter-suffix
+  convention (`010-A`): future stages not yet up for specification are now
+  recorded by slug alone, with no canonical `NNN`, in a new "Provisional
+  queue" subsection of §5. A stage only receives its canonical number at
+  **promotion** — normally when `sdd-close` points to the next stage, or
+  sooner if the user deliberately fast-tracks an independent one. This
+  removes the need for renumbering or letter suffixes to advance an
+  independent stage, or to insert one ahead of another that has no number
+  yet. The letter suffix stays reserved for inserting **among
+  already-canonical stages**: an urgent stage next to one already `in
+  progress`, or a late adjustment right before a stage that just turned
+  canonical. The canonical-number pool is explicitly shared with parallel
+  tracks: a promoted solo stage and an incorporated track stage draw from
+  the same "next free `NNN`", assigned strictly in the order stages actually
+  finish — never in planning order. A whole future track can also sit in the
+  Provisional queue as a `track candidate` row until it is actually opened
+  via `sdd-track`. Touches `README.md`, `constitution.md` (§5),
+  `roadmap.md` + `templates/roadmap.template.md`, and the `sdd-roadmap`,
+  `sdd-close`, `sdd-track` skills.
+- **Parallel tracks become an opt-in feature.** Follows the same pattern as
+  `Estimation tracking`/`Documentation`: a new `--tracks` flag and
+  interactive prompt in `sdd init`, a `Parallel tracks` line in the
+  constitution's `## Settings` (off by default), and a matching feature gate
+  in the `sdd-track` skill (refuses to open a track when the setting is
+  off). Lets projects that want a simpler flow skip tracks entirely.
+
 ## [3.2.1] — 2026-08-27
 
 ### Changed

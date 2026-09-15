@@ -295,13 +295,17 @@ def cmd_init(args) -> None:
     features = {
         "estimation": bool(args.estimation),
         "documentation": bool(args.docs),
+        "tracks": bool(args.tracks),
     }
-    if interactive and not args.estimation and not args.docs:
+    if interactive and not args.estimation and not args.docs and not args.tracks:
         print(bold("\nOptional features") + dim("  (toggle later in the constitution)"))
         features["estimation"] = input(
             "  Track schedule estimates? [y/N]: ").strip().lower().startswith("y")
         features["documentation"] = input(
             "  Enable documentation generation? [y/N]: "
+        ).strip().lower().startswith("y")
+        features["tracks"] = input(
+            "  Enable parallel tracks (sdd-track)? [y/N]: "
         ).strip().lower().startswith("y")
 
     # --- install -------------------------------------------------------
@@ -335,6 +339,8 @@ def cmd_init(args) -> None:
                                 "on" if features["estimation"] else "off")
             text = text.replace("{{DOCUMENTATION}}",
                                 "on" if features["documentation"] else "off")
+            text = text.replace("{{TRACKS}}",
+                                "on" if features["tracks"] else "off")
             target.write_text(text, encoding="utf-8", newline="\n")
             print(f"  {green('ok')}    .sdd/{name}")
 
@@ -365,7 +371,8 @@ def cmd_init(args) -> None:
 
     print(bold("\nDone.") + f"  language={language}  "
           f"estimation={'on' if features['estimation'] else 'off'}  "
-          f"docs={'on' if features['documentation'] else 'off'}")
+          f"docs={'on' if features['documentation'] else 'off'}  "
+          f"tracks={'on' if features['tracks'] else 'off'}")
     print(dim("\nNext: open your agent and trigger "
               f"{chosen[0].invoke} -- it will read .sdd/ and start the "
               "INITIALIZING phase."))
@@ -729,6 +736,9 @@ the live constitution first -- if `## Settings` is already present, skip.
 - **Documentation:** off
   <!-- When on, the sdd-document skill plans the documentation set together
        with the user, based on the actual project. -->
+- **Parallel tracks:** off
+  <!-- Off by default -- turn on only if you actually want two agent
+       sessions working stages of this project at the same time. -->
 ```
 
 The language is seeded as `{lang_code}` ({lang_conf}). CONFIRM the language
@@ -1074,18 +1084,21 @@ def cmd_migrate(args) -> None:
     print(f"  {green('keep')}  .sdd/constitution.md, roadmap.md, CHANGELOG.md, "
           f"stages/ {dim('(yours)')}")
 
-    # 4. refresh shims only for the detected/recorded providers; clean up a
-    #    stray AGENTS.md that a prior buggy migrate (generic default) left when
-    #    the project never wanted the generic provider.
-    if "generic" not in prov_keys:
-        ag = root / "AGENTS.md"
-        generic_src = CONTENT_DIR / "shims" / "generic.md"
-        if ag.exists() and generic_src.exists() and \
-                manifest.hash_file(ag) == manifest.hash_file(generic_src):
-            ag.unlink()
-            reason = dim('(byte-identical to generic shim; prior buggy '
-                         'migrate wrote it)')
-            print(f"  {yellow('cleanup')} removed stray AGENTS.md {reason}")
+    # 4. refresh shims only for the detected/recorded providers; clean up stray
+    #    shims left by prior installs/migrates when the project no longer wants
+    #    that provider.
+    for rel, shim_name, key in [
+        ("AGENTS.md", "generic.md", "generic"),
+        (".kilo/commands/sdd.md", "kilo.md", "kilo"),
+    ]:
+        if key not in prov_keys:
+            p = root / rel
+            src = CONTENT_DIR / "shims" / shim_name
+            if p.exists() and src.exists() and \
+                    manifest.hash_file(p) == manifest.hash_file(src):
+                p.unlink()
+                print(f"  {yellow('cleanup')} removed stale {rel} "
+                      f"{dim('(byte-identical to ' + key + ' shim; prior install wrote it)')}")
     for key in prov_keys:
         p = providers.get(key)
         if p:
@@ -1106,7 +1119,8 @@ def cmd_migrate(args) -> None:
 
     # 7. save the manifest (with a backups ledger for audit).
     features = (old or {}).get(
-        "features", {"estimation": False, "documentation": False})
+        "features",
+        {"estimation": False, "documentation": False, "tracks": False})
     mdata = manifest.build(KIT_VERSION, lang_code, prov_keys, features, recorded)
     if backup_dir:
         ledger = mdata.setdefault("backups", [])
@@ -1283,6 +1297,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="enable schedule estimate tracking")
     i.add_argument("--docs", action="store_true",
                    help="enable documentation generation")
+    i.add_argument("--tracks", action="store_true",
+                   help="enable parallel tracks (sdd-track)")
     i.add_argument("--force", action="store_true",
                    help="overwrite managed files and shims")
     i.add_argument("-y", "--yes", action="store_true",

@@ -39,6 +39,8 @@ PROVIDERS: tuple[Provider, ...] = (
              ".gemini/commands/sdd.toml", "gemini.toml", "/sdd"),
     Provider("codex", "Codex CLI", "cli",
              ".agents/skills/sdd/SKILL.md", "codex.md", "$sdd"),
+    Provider("kilo", "Kilo Code", "ide",
+             ".kilo/commands/sdd.md", "kilo.md", "/sdd"),
     Provider("generic", "Generic / any other agent", "ide",
              "AGENTS.md", "generic.md", "read AGENTS.md"),
 )
