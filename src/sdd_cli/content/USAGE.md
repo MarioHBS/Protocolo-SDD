@@ -69,7 +69,7 @@ Audits the project's `.sdd/` tree in read-only mode. It reports:
 The command exits non-zero when v2 mojibake is present, which makes it suitable
 for quick pre-flight checks before a migration.
 
-### `sdd migrate --to v2 [PATH] [--dry-run]`
+### `sdd migrate --to v4 [PATH] [--dry-run]`
 
 Upgrades an existing `.sdd/` to a newer kit.
 

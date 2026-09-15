@@ -4,12 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sdd-cli"
-version = "3.3.0"
+version = "4.0.0"
 description = "Spec-Driven Development scaffolding for AI coding agents"
 authors = [{name = "Mário Henrique", email = "developer.mario.santos@example.com"}]
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = []          # stdlib only, on purpose
+requires-python = ">=3.12"
+dependencies = []          # stdlib only in the default install
+
+[project.optional-dependencies]
+dashboard-rich = ["rich>=13.0"]
+dashboard-textual = ["textual>=0.80"]
+dashboard = ["rich>=13.0", "textual>=0.80"]
 
 [project.scripts]
 sdd = "sdd_cli.cli:main"

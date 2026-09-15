@@ -1,5 +1,15 @@
 # Changelog — sdd-cli
 
+## [4.0.0] - Unreleased
+
+### Added
+- Structured sessions, JSON diagnostics, optional dashboard, EDD templates,
+  stage scaffolding, dependencies, decision impact and health score.
+- Major migration support from v2/v3 with safer provider refresh.
+
+### Changed
+- Default package requires Python 3.12; dashboard dependencies are extras.
+
 All notable changes to the sdd-cli kit. Versions follow a pragmatic
 `MAJOR.MINOR.PATCH`: breaking changes bump MAJOR, additive changes bump MINOR,
 small additive content changes and fixes bump PATCH. Any `estimates.md`

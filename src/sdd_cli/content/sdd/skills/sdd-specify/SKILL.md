@@ -61,6 +61,7 @@ Write all artifacts in the language set in
 7. **Release implementation.** Only with the spec `locked`: `State: IMPLEMENTING`,
    `Next action: implement the active stage following stages/NNN-<slug>/spec.md`,
    mark the stage "in progress" in §5, update the date.
+   Immediately run `sdd session sync` so the resumable work context is created.
 
 ## Atomicity — the calibration
 

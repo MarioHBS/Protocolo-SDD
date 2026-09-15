@@ -239,7 +239,7 @@ def test_legacy_project_without_manifest_refused(capsys, tmp_path):
 
     out, code = _run(capsys, tmp_path)
     assert code == 1
-    assert "migrate --to v2" in out
+    assert "migrate --to v4" in out
 
 
 # --------------------------------------------------------- version drift --
