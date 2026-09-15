@@ -260,7 +260,7 @@ def test_migrate_blocks_on_v2_without_fix(tmp_path, capsys, monkeypatch):
     (sdd_d / ".sdd-manifest.json").write_text("{}", encoding="utf-8")
 
     from sdd_cli import cli
-    args = cli.build_parser().parse_args(["migrate", "--to", "v2", str(tmp_path)])
+    args = cli.build_parser().parse_args(["migrate", "--to", "v4", str(tmp_path)])
     with pytest.raises(SystemExit) as exc:
         cli.cmd_migrate(args)
     assert exc.value.code == 1

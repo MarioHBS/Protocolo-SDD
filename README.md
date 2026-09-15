@@ -15,7 +15,8 @@ sdd docs                  # full manual
 - [English](INSTALL.en.md) — Windows / macOS / Linux × pipx / uv
 - [Español](INSTALL.es.md) — Windows / macOS / Linux × pipx / uv
 
-Commands: `init`, `providers`, `docs`, `doctor`, `migrate --to v2|v3`.
+Commands: `init`, `providers`, `docs`, `doctor`, `fix`, `session`, `scaffold`,
+`deps`, `impact`, `health`, `dashboard`, `migrate --to v4`.
 
 The CLI is deliberately dumb: it copies the `.sdd/` kit, places a thin shim for
 your agent(s), and records a manifest. All reasoning lives in `.sdd/skills/` and

@@ -85,7 +85,7 @@ def test_legacy_reports_v1_no_manifest(capsys, tmp_path):
     out, code = _run(capsys, root)
     assert "v1 (no manifest)" in out
     # And it points the owner at migrate to upgrade.
-    assert "sdd migrate --to v2" in out
+    assert "sdd migrate --to v4" in out
     # Empty stages => no mojibake, no hygiene divergence => the audit is clean.
     # cmd_doctor returns normally on a clean run (no SystemExit raised), so
     # code is None; a clean legacy dir must NOT exit non-zero.

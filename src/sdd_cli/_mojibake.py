@@ -68,6 +68,11 @@ class Hit:
     offset: int       # byte offset in the file
     snippet: str      # ~12-char context, replacement chars for undecodable bytes
 
+    @property
+    def actionable(self) -> bool:
+        """Only deterministic double-encoding is safe for automation."""
+        return self.kind == "v2"
+
 
 @dataclass
 class FileReport:
@@ -77,6 +82,10 @@ class FileReport:
     v2: list[Hit]      # double-encoding hits (ERROR-class)
     v1: list[Hit]      # accent-loss hits (WARN-class)
     is_utf8: bool      # False if the file is not decodable as UTF-8 at all
+
+    @property
+    def actionable(self) -> bool:
+        return bool(self.v2)
 
 
 def _make_hit(kind: str, m: re.Match, raw: bytes) -> Hit:

@@ -29,6 +29,9 @@
 - **Parallel tracks:** {{TRACKS}}
   <!-- Off by default -- turn on only if you actually want two agent
        sessions working stages of this project at the same time. -->
+- **Eval Driven Development:** {{EDD}}
+  <!-- When on, locked stages carry evals.md and closing stages record
+       checklist.md evidence. -->
 
 ---
 

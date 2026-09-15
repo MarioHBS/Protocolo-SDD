@@ -52,8 +52,9 @@ class TrackDivergence:
     """A hygiene finding about a `.sdd/tracks/<slug>/` directory."""
 
     track: str    # slug, e.g. "login"
-    kind: str     # "empty" | "stale" | "not_incorporated"
+    kind: str     # "not_started" | "not_incorporated"
     detail: str   # human-readable specifics
+    track_state: str = "in_progress"  # "not_started" | "in_progress" | "closed"
 
 
 @dataclass
@@ -69,12 +70,6 @@ class HygieneResult:
 
 _OPEN_BOX_RE = re.compile(r"(?m)^[-*]\s+\[\s\]")
 _CLOSED_BOX_RE = re.compile(r"(?m)^[-*]\s+\[[xX]\]")
-
-# A track with unfinished work whose state.md hasn't been touched in this many
-# days is flagged as possibly abandoned. Fixed constant, no config surface
-# (v1 of this check) -- report-only, never a gate.
-_STALE_TRACK_DAYS = 14
-
 
 def _count_boxes(text: str) -> tuple[int, int]:
     """Return (open, closed) markdown checkbox counts."""
@@ -134,6 +129,38 @@ def _scan_tracks(sdd: Path) -> list[TrackDivergence]:
     return findings
 
 
+def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
+    """Classify empty tracks deterministically; closed tracks are clean."""
+    tracks_dir = sdd / "tracks"
+    if not tracks_dir.is_dir():
+        return []
+    findings: list[TrackDivergence] = []
+    for directory in sorted(tracks_dir.iterdir()):
+        if not directory.is_dir() or directory.name.startswith("."):
+            continue
+        slug = directory.name
+        state = directory / "state.md"
+        text = state.read_text(encoding="utf-8", errors="replace") if state.is_file() else ""
+        closed = bool(re.search(r"(?im)^[-*]?\s*(?:status|state)\s*:\s*closed\s*$", text)
+                      or re.search(r"(?im)^[-*]?\s*incorporated\s*:\s*true\s*$", text))
+        stages = directory / "stages"
+        stage_dirs = [p for p in stages.iterdir() if p.is_dir()] if stages.is_dir() else []
+        if not stage_dirs:
+            if not closed:
+                findings.append(TrackDivergence(
+                    slug, "not_started",
+                    f"no stage folders under tracks/{slug}/stages/; the track has not started",
+                    "not_started"))
+            continue
+        for stage in sorted(stage_dirs):
+            if (stage / "report.md").is_file():
+                findings.append(TrackDivergence(
+                    slug, "not_incorporated",
+                    f"tracks/{slug}/stages/{stage.name}/ has report.md but is not incorporated",
+                    "in_progress"))
+    return findings
+
+
 def scan_hygiene(sdd: Path) -> HygieneResult:
     """Walk `.sdd/stages/`, `.sdd/tracks/` and `.sdd/CHANGELOG.md`. Pure read
     — writes nothing."""
@@ -144,7 +171,7 @@ def scan_hygiene(sdd: Path) -> HygieneResult:
     changelog = sdd / "CHANGELOG.md"
     changelog_exists = changelog.is_file()
 
-    track_divergences = _scan_tracks(sdd)
+    track_divergences = _scan_tracks_v4(sdd)
 
     stages = sdd / "stages"
     if not stages.is_dir():

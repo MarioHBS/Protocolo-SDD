@@ -7,6 +7,7 @@ lives in the skills under .sdd/skills/ and runs inside your AI agent.
 """
 
 import argparse
+import json
 import os
 import re
 import shutil
@@ -15,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import manifest, providers
-from . import _mojibake, _user_files
+from . import _deps, _mojibake, _session, _user_files
 from .content import CONTENT_DIR, KIT_VERSION
 
 # ---------------------------------------------------------------- utilities
@@ -250,7 +251,7 @@ def cmd_init(args) -> None:
     if existing and not args.force:
         print(f"{yellow('note:')} .sdd/ already initialized "
               f"(kit {existing.get('kit_version')}).")
-        print("      Use 'sdd migrate --to v2' to upgrade, or --force to "
+        print("      Use 'sdd migrate --to v4' to upgrade, or --force to "
               "reinstall managed files.")
         raise SystemExit(0)
 
@@ -296,6 +297,7 @@ def cmd_init(args) -> None:
         "estimation": bool(args.estimation),
         "documentation": bool(args.docs),
         "tracks": bool(args.tracks),
+        "edd": bool(getattr(args, "edd", False)),
     }
     if interactive and not args.estimation and not args.docs and not args.tracks:
         print(bold("\nOptional features") + dim("  (toggle later in the constitution)"))
@@ -341,6 +343,7 @@ def cmd_init(args) -> None:
                                 "on" if features["documentation"] else "off")
             text = text.replace("{{TRACKS}}",
                                 "on" if features["tracks"] else "off")
+            text = text.replace("{{EDD}}", "on" if features["edd"] else "off")
             target.write_text(text, encoding="utf-8", newline="\n")
             print(f"  {green('ok')}    .sdd/{name}")
 
@@ -366,8 +369,9 @@ def cmd_init(args) -> None:
     for p in chosen:
         print(_install_shim(root, p, recorded, args.force))
 
-    manifest.save(root, manifest.build(
-        KIT_VERSION, language, [p.key for p in chosen], features, recorded))
+    initial_manifest = manifest.build(KIT_VERSION, language, [p.key for p in chosen], features, recorded)
+    initial_manifest["dashboard_renderer"] = getattr(args, "dashboard_ui", "rich") or "rich"
+    manifest.save(root, initial_manifest)
 
     print(bold("\nDone.") + f"  language={language}  "
           f"estimation={'on' if features['estimation'] else 'off'}  "
@@ -414,6 +418,12 @@ def cmd_doctor(args) -> None:
     never rewrites a file."""
     root = Path(args.path).resolve()
     sdd = root / ".sdd"
+    if getattr(args, "json", False):
+        payload = _doctor_payload(root)
+        _emit_json(payload)
+        if payload["status"]:
+            raise SystemExit(payload["status"])
+        return
 
     print(bold(f"doctor — {root}"))
 
@@ -433,7 +443,7 @@ def cmd_doctor(args) -> None:
         project_ver = "v1 (no manifest)"
         print(f"  sdd    {project_ver}")
         print(dim("        Legacy install (no .sdd/.sdd-manifest.json). "
-                  "Run 'sdd migrate --to v2' to record a manifest and upgrade."))
+                  "Run 'sdd migrate --to v4' to record a manifest and upgrade."))
     else:
         project_ver = m.get("kit_version") or "unknown"
         print(f"  sdd    {project_ver}")
@@ -477,6 +487,15 @@ def cmd_doctor(args) -> None:
     if not reports:
         print(green("  ok    no mojibake detected"))
 
+    # --- session (read-only) ---
+    session_data = _session.load(root)
+    session_issues = _session.validate(root, session_data)
+    if session_data and not session_data.get("invalid"):
+        print(f"  session {session_data.get('state', 'unknown').lower()} "
+              f"stage={session_data.get('active_stage') or '(none)'}")
+    for issue in session_issues:
+        print(yellow(f"  WARN session: {issue}"))
+
     # --- user-file hygiene (audit-only) ---
     hyg = _user_files.scan_hygiene(sdd)
     print(bold("\nhygiene — stages & indexes"))
@@ -516,6 +535,314 @@ def cmd_doctor(args) -> None:
         raise SystemExit(status)
     print(bold("\nclean.") if not (hyg.closed_with_open_todo
                                   or hyg.spec_without_todo) else "")
+
+
+def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str | None]:
+    """Read the small current-state pointer without owning or rewriting it."""
+    path = root / ".sdd" / "tracks" / track / "state.md" if track else root / ".sdd" / "constitution.md"
+    if not path.is_file():
+        return None, None
+    text = path.read_text(encoding="utf-8", errors="replace")
+    state = re.search(r"(?im)^[-*]?\s*\*\*(?:State|Estado):\*\*\s*([A-Z_]+)", text)
+    stage = re.search(r"(?im)^[-*]?\s*\*\*(?:Active stage|Active stage in this track):\*\*\s*`?([^`\n]+)", text)
+    return (state.group(1) if state else None,
+            stage.group(1).strip() if stage else None)
+
+
+def _doctor_payload(root: Path) -> dict:
+    sdd = root / ".sdd"
+    if not sdd.is_dir():
+        return {"version": 1, "command": "doctor", "project": str(root),
+                "status": 0, "sdd": None, "findings": [{"severity": "note", "code": "no_sdd"}]}
+    reports = _mojibake.scan_tree(sdd)
+    hyg = _user_files.scan_hygiene(sdd)
+    findings: list[dict] = []
+    for report in reports:
+        rel = str(report.path.relative_to(root)).replace("\\", "/")
+        for hit in report.v2:
+            findings.append({"severity": "error", "code": "mojibake_v2", "path": rel,
+                             "offset": hit.offset, "actionable": True})
+        for hit in report.v1:
+            findings.append({"severity": "warn", "code": "mojibake_v1", "path": rel,
+                             "offset": hit.offset, "actionable": False})
+        if not report.is_utf8:
+            findings.append({"severity": "error", "code": "invalid_utf8", "path": rel,
+                             "actionable": False})
+    for stage in hyg.spec_without_todo:
+        findings.append({"severity": "warn", "code": "spec_without_todo", "stage": stage})
+    for item in hyg.closed_with_open_todo:
+        findings.append({"severity": "warn", "code": "closed_open_todo", "stage": item.stage,
+                         "open": item.open_checkboxes})
+    for item in hyg.track_divergences:
+        findings.append({"severity": "warn", "code": f"track_{item.kind}",
+                         "track": item.track, "track_state": item.track_state, "detail": item.detail})
+    manifest_data = manifest.load(root)
+    if (manifest_data or {}).get("features", {}).get("edd"):
+        for stage in sorted((sdd / "stages").glob("*")) if (sdd / "stages").is_dir() else []:
+            if not stage.is_dir() or not (stage / "spec.md").is_file():
+                continue
+            if not (stage / "evals.md").is_file():
+                findings.append({"severity": "warn", "code": "edd_missing_evals", "stage": stage.name})
+            if (stage / "report.md").is_file() and not (stage / "checklist.md").is_file():
+                findings.append({"severity": "warn", "code": "edd_missing_checklist", "stage": stage.name})
+        if (sdd / "milestones").is_dir() and not (sdd / "avaliacao-desempenho.md").is_file():
+            findings.append({"severity": "note", "code": "edd_missing_performance_doc"})
+    saved_session = _session.load(root)
+    for issue in _session.validate(root, saved_session):
+        findings.append({"severity": "warn", "code": "session_inconsistent", "detail": issue})
+    constitution_state, _ = _scope_state(root)
+    if saved_session and not saved_session.get("invalid") and constitution_state != "IMPLEMENTING":
+        findings.append({"severity": "warn", "code": "session_state_mismatch",
+                         "detail": f"session exists while constitution is {constitution_state or 'unknown'}"})
+    for issue in _deps.findings(root):
+        findings.append({"severity": "warn", "code": "dependency_inconsistent", "detail": issue})
+    return {"version": 1, "command": "doctor", "project": str(root),
+            "sdd": (manifest_data or {}).get("kit_version", "v1 (no manifest)"),
+            "status": 1 if any(x["severity"] == "error" for x in findings) else 0,
+            "findings": findings}
+
+
+def _emit_json(data: dict) -> None:
+    print(json.dumps(data, ensure_ascii=False, sort_keys=True))
+
+
+def cmd_fix(args) -> None:
+    """Repair only deterministic SDD file problems."""
+    root = Path(args.path).resolve()
+    sdd = root / ".sdd"
+    if not sdd.is_dir():
+        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+    dry_run = bool(getattr(args, "dry_run", False))
+    use_mojibake = bool(getattr(args, "mojibake", False) or getattr(args, "all", False))
+    use_eol = bool(getattr(args, "eol", False) or getattr(args, "all", False))
+    if not use_mojibake and not use_eol:
+        use_mojibake = use_eol = True
+    repairs: list[dict] = []
+    unresolved: list[dict] = []
+    reports = _mojibake.scan_tree(sdd, suffixes=(".md", ".json"))
+    for report in reports:
+        rel = str(report.path.relative_to(root)).replace("\\", "/")
+        if report.v2 and use_mojibake:
+            repairs.append({"kind": "mojibake_v2", "path": rel, "count": len(report.v2)})
+            if not dry_run:
+                _mojibake.repair_v2_file(report.path)
+        if not report.is_utf8:
+            unresolved.append({"kind": "invalid_utf8", "path": rel})
+    if use_eol:
+        for path in sorted(sdd.rglob("*")):
+            if not path.is_file() or path.suffix not in {".md", ".json"}:
+                continue
+            try:
+                raw = path.read_bytes()
+                raw.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            normalized = raw[3:] if raw.startswith(b"\xef\xbb\xbf") else raw
+            normalized = normalized.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+            if normalized != raw:
+                repairs.append({"kind": "encoding_eol", "path": str(path.relative_to(root)).replace("\\", "/")})
+                if not dry_run:
+                    path.write_bytes(normalized)
+    status = 2 if unresolved else (1 if repairs else 0)
+    result = {"version": 1, "command": "fix", "project": str(root), "dry_run": dry_run,
+              "status": status, "repairs": repairs, "unresolved": unresolved}
+    if getattr(args, "json", False):
+        _emit_json(result)
+    else:
+        for item in repairs:
+            print(f"{'would fix' if dry_run else 'fixed'} {item['kind']}: {item['path']}")
+        for item in unresolved:
+            print(f"{yellow('unfixable')} {item['kind']}: {item['path']}")
+        if not repairs and not unresolved:
+            print(green("clean — nothing deterministic to repair"))
+    if status:
+        raise SystemExit(status)
+
+
+def cmd_session(args) -> None:
+    root = Path(args.path).resolve()
+    track = getattr(args, "track", None)
+    if not (root / ".sdd").is_dir():
+        die(f"no .sdd/ found in {root}")
+    state, stage = _scope_state(root, track)
+    action = args.session_command
+    current = _session.load(root, track)
+    if action == "sync":
+        if state == "IMPLEMENTING":
+            current = current if current and not current.get("invalid") else _session.new(state, stage)
+            current["state"] = "IMPLEMENTING"
+            current["active_stage"] = stage
+            current["updated_at"] = _session.now()
+            path = _session.save(root, current, track)
+            print(f"synced {path.relative_to(root)}")
+        elif current:
+            _session.clear(root, track)
+            print("cleared session outside IMPLEMENTING")
+        else:
+            print("no session needed")
+        return
+    if action == "pause":
+        if state != "IMPLEMENTING":
+            die("session pause requires scope state IMPLEMENTING")
+        data = current if current and not current.get("invalid") else _session.new(state, stage)
+        task = getattr(args, "task", None)
+        context = getattr(args, "context", "") or ""
+        if task:
+            data["active_task"] = {"id": task, "description": context or task,
+                                   "started_at": data.get("updated_at") or _session.now(), "context": context}
+            data.setdefault("stack", []).append({"stage": stage, "task": task, "context": context})
+        data.update({"state": "PAUSED", "active_stage": stage, "interrupted_at": _session.now(),
+                     "interruption_reason": args.reason, "updated_at": _session.now()})
+        if context:
+            data["resume_hints"] = [context] + data.get("resume_hints", [])
+        path = _session.save(root, data, track)
+        print(f"paused {path.relative_to(root)}")
+        return
+    if action == "resume":
+        if not current:
+            die("no saved session")
+        if current.get("invalid"):
+            die("session JSON is invalid")
+        current["state"] = "IMPLEMENTING"
+        current["updated_at"] = _session.now()
+        _session.save(root, current, track)
+        print(f"resume stage: {current.get('active_stage') or '(none)'}")
+        for hint in current.get("resume_hints", []):
+            print(f"  - {hint}")
+        return
+    if action == "close":
+        print("session cleared" if _session.clear(root, track) else "no session to clear")
+        return
+    issues = _session.validate(root, current, track)
+    result = {"scope": track or "root", "constitution_state": state, "session": current,
+              "issues": issues}
+    if getattr(args, "json", False):
+        _emit_json(result)
+    else:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def _stage_path(root: Path, token: str, track: str | None) -> Path:
+    base = root / ".sdd" / "tracks" / track / "stages" if track else root / ".sdd" / "stages"
+    direct = base / token
+    if direct.is_dir():
+        return direct
+    matches = [p for p in base.glob(f"{token}-*") if p.is_dir()] if base.is_dir() else []
+    if len(matches) == 1:
+        return matches[0]
+    die(f"cannot resolve stage {token!r}")
+
+
+def cmd_scaffold(args) -> None:
+    root = Path(args.path).resolve()
+    stage = _stage_path(root, args.stage, getattr(args, "track", None))
+    spec = stage / "spec.md"
+    if not spec.is_file() or not re.search(r"(?im)^[-*]?\s*\*\*Status:\*\*\s*locked\b", spec.read_text(encoding="utf-8", errors="replace")):
+        die("scaffold requires a locked spec.md")
+    text = spec.read_text(encoding="utf-8")
+    section = re.search(r"(?ms)^## 5\. Acceptance criteria\s*$(.*?)(?=^## 6\.|\Z)", text)
+    criteria = re.findall(r"(?m)^[-*]\s+\[\s\]\s+(.+)$", section.group(1) if section else "")
+    targets = [stage / "todo.md"]
+    features = (manifest.load(root) or {}).get("features", {})
+    if features.get("edd"):
+        targets += [stage / "evals.md", stage / "checklist.md"]
+    created: list[str] = []
+    for target in targets:
+        if target.exists():
+            continue
+        if target.name == "todo.md":
+            body = "# TODO — " + stage.name + "\n\n## Acceptance verification\n\n" + "\n".join(f"- [ ] {x}" for x in criteria) + "\n"
+        else:
+            template = CONTENT_DIR / "sdd" / "templates" / ("evals.template.md" if target.name == "evals.md" else "checklist.template.md")
+            body = template.read_text(encoding="utf-8") if template.exists() else f"# {target.stem.title()} — {stage.name}\n"
+        created.append(str(target.relative_to(root)).replace("\\", "/"))
+        if not args.dry_run:
+            target.write_text(body, encoding="utf-8", newline="\n")
+    print(json.dumps({"created": created, "dry_run": args.dry_run}) if args.json else "\n".join(created or ["nothing to scaffold"]))
+
+
+def cmd_deps(args) -> None:
+    root = Path(args.path).resolve()
+    data = _deps.load(root)
+    if args.deps_command == "add":
+        target = str(Path(args.dependency).resolve())
+        edge = {"path": target, "kind": args.kind, "stage": args.stage, "description": args.description or ""}
+        if edge not in data["dependencies"]:
+            data["dependencies"].append(edge)
+            _deps.save(root, data)
+        print(target)
+        return
+    if args.deps_command == "remove":
+        target = str(Path(args.dependency).resolve())
+        data["dependencies"] = [x for x in data["dependencies"] if x.get("path") != target]
+        _deps.save(root, data)
+        print(target)
+        return
+    if args.deps_command == "graph" and args.format == "mermaid":
+        print("graph LR")
+        for edge in data["dependencies"]:
+            print(f'  project["{root.name}"] --> dep["{Path(edge["path"]).name}"]')
+        return
+    _emit_json(data) if getattr(args, "json", False) or args.format == "json" else print(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def cmd_impact(args) -> None:
+    root = Path(args.path).resolve()
+    needle = re.compile(rf"(?<![A-Z0-9-]){re.escape(args.decision)}(?![A-Z0-9-])")
+    hits: list[dict] = []
+    for path in sorted((root / ".sdd").rglob("*.md")):
+        for number, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if needle.search(line):
+                hits.append({"path": str(path.relative_to(root)).replace("\\", "/"), "line": number, "text": line.strip()})
+    result = {"decision": args.decision, "impacts": hits}
+    _emit_json(result) if args.json else print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def cmd_health(args) -> None:
+    payload = _doctor_payload(Path(args.path).resolve())
+    errors = sum(x["severity"] == "error" for x in payload["findings"])
+    warnings = sum(x["severity"] == "warn" for x in payload["findings"])
+    score = max(0, 100 - errors * 25 - warnings * 5)
+    result = {"version": 1, "command": "health", "score": score,
+              "errors": errors, "warnings": warnings, "findings": payload["findings"]}
+    _emit_json(result) if args.json else print(f"health: {score}/100 ({errors} errors, {warnings} warnings)")
+
+
+def cmd_dashboard(args) -> None:
+    root = Path(args.path).resolve()
+    renderer = args.ui or (manifest.load(root) or {}).get("dashboard_renderer", "rich")
+    if args.set_default:
+        data = manifest.load(root)
+        if not data:
+            die("dashboard configuration requires an initialized project")
+        data["dashboard_renderer"] = renderer
+        manifest.save(root, data)
+    health = _doctor_payload(root)
+    if renderer == "rich":
+        try:
+            from rich.console import Console
+            from rich.table import Table
+        except ImportError:
+            die("install dashboard support: pip install 'sdd-cli[dashboard-rich]'")
+        table = Table(title="SDD Dashboard — Overview")
+        table.add_column("View")
+        table.add_column("Status")
+        for view in ("Overview", "Constitution Browser", "Stages/Tracks Explorer", "EDD Monitor", "Doctor+Fix Panel", "Session Resume Panel"):
+            table.add_row(view, "available")
+        Console().print(table)
+        Console().print(f"Doctor findings: {len(health['findings'])}")
+    elif renderer == "textual":
+        try:
+            from textual.app import App, ComposeResult
+            from textual.widgets import Static
+        except ImportError:
+            die("install dashboard support: pip install 'sdd-cli[dashboard-textual]'")
+        class Dashboard(App):
+            def compose(self) -> ComposeResult:
+                yield Static("SDD Dashboard\nOverview · Constitution · Stages/Tracks · EDD · Doctor/Fix · Session")
+        Dashboard().run()
+    else:
+        die("--ui must be rich or textual")
 
 
 def _section_body(section: str) -> str:
@@ -968,9 +1295,9 @@ def cmd_migrate(args) -> None:
         die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
 
     target = args.to.lower().lstrip("v")
-    if target not in ("2", "3"):
-        die(f"unsupported target version 'v{target}'. "
-            f"Choose --to v2 (legacy v1->v2) or --to v3 (refresh v2->v3).")
+    current_major = str(manifest.parse_version(KIT_VERSION)[0])
+    if target != current_major:
+        die(f"unsupported target version 'v{target}'. Choose --to v{current_major}.")
 
     old = manifest.load(root)
     old_version = old.get("kit_version") if old else "v1 (no manifest)"
@@ -1005,7 +1332,7 @@ def cmd_migrate(args) -> None:
                       "on top of mojibake would copy the corruption forward."))
             print(dim("  Nothing was written. Resolve it first:"))
             print(dim("    sdd doctor            # full report (v2 + v1 + hygiene)"))
-            print(dim("    sdd migrate --to v2 --fix-mojibake   # repair v2 inline"))
+            print(dim("    sdd migrate --to v4 --fix-mojibake   # repair v2 inline"))
             print(dim("  v1 accent-loss (`?`) is NOT auto-fixed; review it by "
                       "hand after migrate."))
             raise SystemExit(1)
@@ -1030,7 +1357,13 @@ def cmd_migrate(args) -> None:
     # user can see what will be detected BEFORE writing).
     detected_providers = _detect_providers(root) if no_manifest or not \
         (old or {}).get("providers") else []
-    if old:
+    if getattr(args, "provider", None):
+        prov_keys = []
+        for key in args.provider:
+            if not providers.get(key):
+                die(f"unknown provider '{key}'")
+            prov_keys.append(key)
+    elif old:
         prov_keys = old.get("providers") or _detect_providers(root) or ["generic"]
     else:
         prov_keys = _detect_providers(root) or ["generic"]
@@ -1087,18 +1420,15 @@ def cmd_migrate(args) -> None:
     # 4. refresh shims only for the detected/recorded providers; clean up stray
     #    shims left by prior installs/migrates when the project no longer wants
     #    that provider.
-    for rel, shim_name, key in [
-        ("AGENTS.md", "generic.md", "generic"),
-        (".kilo/commands/sdd.md", "kilo.md", "kilo"),
-    ]:
-        if key not in prov_keys:
-            p = root / rel
-            src = CONTENT_DIR / "shims" / shim_name
+    for provider in providers.PROVIDERS:
+        if provider.key not in prov_keys:
+            p = root / provider.shim_path
+            src = CONTENT_DIR / "shims" / provider.shim_source
             if p.exists() and src.exists() and \
                     manifest.hash_file(p) == manifest.hash_file(src):
                 p.unlink()
-                print(f"  {yellow('cleanup')} removed stale {rel} "
-                      f"{dim('(byte-identical to ' + key + ' shim; prior install wrote it)')}")
+                print(f"  {yellow('cleanup')} removed stale {provider.shim_path} "
+                      f"{dim('(byte-identical managed shim)')}")
     for key in prov_keys:
         p = providers.get(key)
         if p:
@@ -1118,10 +1448,10 @@ def cmd_migrate(args) -> None:
           f"{dim('(agent walks the owner through each constitution edit)')}")
 
     # 7. save the manifest (with a backups ledger for audit).
-    features = (old or {}).get(
-        "features",
-        {"estimation": False, "documentation": False, "tracks": False})
+    features = {"estimation": False, "documentation": False, "tracks": False, "edd": False}
+    features.update((old or {}).get("features", {}))
     mdata = manifest.build(KIT_VERSION, lang_code, prov_keys, features, recorded)
+    mdata["dashboard_renderer"] = (old or {}).get("dashboard_renderer", "rich")
     if backup_dir:
         ledger = mdata.setdefault("backups", [])
         ledger.append({
@@ -1154,13 +1484,13 @@ def cmd_update(args) -> None:
     if m is None:
         die("no .sdd-manifest.json found -- 'sdd update' needs an existing "
             "manifest as a baseline to diff against. Legacy v1 projects have "
-            "none; run 'sdd migrate --to v2' first.")
+            "none; run 'sdd migrate --to v4' first.")
 
     try:
         installed = manifest.parse_version(m.get("kit_version", ""))
     except ValueError:
         die(f"manifest kit_version {m.get('kit_version')!r} is not a "
-            f"parseable semver -- run 'sdd migrate --to v3' instead.")
+            f"parseable semver -- run 'sdd migrate --to v4' instead.")
 
     bundled = manifest.parse_version(KIT_VERSION)
 
@@ -1169,6 +1499,12 @@ def cmd_update(args) -> None:
           f"  bundled:   v{'.'.join(map(str, bundled))}\n")
 
     if installed[0] != bundled[0]:
+        if getattr(args, "major", False):
+            migrated = argparse.Namespace(path=args.path, to=f"v{bundled[0]}",
+                                          dry_run=args.dry_run, fix_mojibake=False,
+                                          provider=None)
+            cmd_migrate(migrated)
+            return
         die(f"installed kit is v{installed[0]}.x, bundled kit is "
             f"v{bundled[0]}.x -- 'sdd update' only handles minor/patch "
             f"changes within the same major. Run 'sdd migrate --to "
@@ -1299,6 +1635,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="enable documentation generation")
     i.add_argument("--tracks", action="store_true",
                    help="enable parallel tracks (sdd-track)")
+    i.add_argument("--edd", action="store_true", help="enable Eval Driven Development")
+    i.add_argument("--dashboard-ui", choices=("rich", "textual"), default="rich",
+                   help="default optional dashboard renderer")
     i.add_argument("--force", action="store_true",
                    help="overwrite managed files and shims")
     i.add_argument("-y", "--yes", action="store_true",
@@ -1332,16 +1671,15 @@ examples:
         description="Upgrade an existing .sdd/ to a new kit version.",
         epilog="""\
 flags:
-  --to v2|v3          target kit version (v2: legacy v1->v2, v3: refresh v2->v3)
+  --to v4             migrate legacy v1, v2 or v3 projects to this release
   --dry-run           preview what would change; write nothing
   --fix-mojibake      repair double-encoding mojibake (v2) inline, then migrate
   path                project root (default: current directory)
 
 examples:
-  sdd migrate --to v2 --dry-run      # preview first -- always do this
-  sdd migrate --to v2                # apply (aborts if v2 mojibake is present)
-  sdd migrate --to v2 --fix-mojibake # repair v2 mojibake, then apply
-  sdd migrate --to v3 --dry-run      # refresh an existing v2 .sdd/ to the v3 kit
+  sdd migrate --to v4 --dry-run      # preview first -- always do this
+  sdd migrate --to v4                # migrate to the current kit
+  sdd migrate --to v4 --fix-mojibake # repair v2 mojibake, then apply
 
 mojibake gate:
   If double-encoding mojibake (v2: Ã§, Ã£, Ã© ...) is found anywhere under .sdd/,
@@ -1365,7 +1703,9 @@ migration todo:
     )
     m.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     m.add_argument("--to", required=True, metavar="VERSION",
-                   help="target kit version: v2 (legacy v1->v2) or v3 (refresh v2->v3)")
+                   help="target kit version; current release is v4")
+    m.add_argument("--provider", action="append", metavar="KEY",
+                   help="replace installed provider shims (repeatable)")
     m.add_argument("--dry-run", action="store_true",
                    help="show what would change, write nothing")
     m.add_argument("--fix-mojibake", action="store_true",
@@ -1401,6 +1741,8 @@ run 'sdd migrate --to vN' for that instead.
     u.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     u.add_argument("--dry-run", action="store_true",
                    help="show what would change, write nothing")
+    u.add_argument("--major", action="store_true",
+                   help="allow a major update through the migration planner")
     u.set_defaults(func=cmd_update)
 
     dr = sub.add_parser(
@@ -1427,7 +1769,77 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     dr.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    dr.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     dr.set_defaults(func=cmd_doctor)
+
+    fx = sub.add_parser("fix", help="repair deterministic SDD hygiene issues")
+    fx.add_argument("path", nargs="?", default=".")
+    fx.add_argument("--all", action="store_true", help="repair all deterministic issues (default)")
+    fx.add_argument("--mojibake", action="store_true")
+    fx.add_argument("--eol", action="store_true")
+    fx.add_argument("--tracks", action="store_true", help="reserved; track changes remain manual")
+    fx.add_argument("--dry-run", action="store_true")
+    fx.add_argument("--json", action="store_true")
+    fx.set_defaults(func=cmd_fix)
+
+    ses = sub.add_parser("session", help="manage resumable SDD work context")
+    ses_sub = ses.add_subparsers(dest="session_command", required=True)
+    for name in ("resume", "status", "close", "sync"):
+        item = ses_sub.add_parser(name)
+        item.add_argument("path", nargs="?", default=".")
+        item.add_argument("--track")
+        item.add_argument("--json", action="store_true")
+        item.set_defaults(func=cmd_session)
+    pause = ses_sub.add_parser("pause")
+    pause.add_argument("path", nargs="?", default=".")
+    pause.add_argument("--track")
+    pause.add_argument("--reason", choices=("emergency", "planned", "context_switch"), default="planned")
+    pause.add_argument("--task")
+    pause.add_argument("--context")
+    pause.set_defaults(func=cmd_session)
+
+    sc = sub.add_parser("scaffold", help="create missing stage artifacts from a locked spec")
+    sc.add_argument("stage")
+    sc.add_argument("path", nargs="?", default=".")
+    sc.add_argument("--track")
+    sc.add_argument("--dry-run", action="store_true")
+    sc.add_argument("--json", action="store_true")
+    sc.set_defaults(func=cmd_scaffold)
+
+    dep = sub.add_parser("deps", help="manage local cross-project dependencies")
+    dep_sub = dep.add_subparsers(dest="deps_command", required=True)
+    for name in ("list", "graph"):
+        item = dep_sub.add_parser(name)
+        item.add_argument("path", nargs="?", default=".")
+        item.add_argument("--format", choices=("text", "json", "mermaid"), default="text")
+        item.add_argument("--json", action="store_true")
+        item.set_defaults(func=cmd_deps)
+    for name in ("add", "remove"):
+        item = dep_sub.add_parser(name)
+        item.add_argument("dependency")
+        item.add_argument("path", nargs="?", default=".")
+        if name == "add":
+            item.add_argument("--kind", choices=("requires", "provides"), default="requires")
+            item.add_argument("--stage")
+            item.add_argument("--description")
+        item.set_defaults(func=cmd_deps)
+
+    impact = sub.add_parser("impact", help="find stage artifacts affected by a decision")
+    impact.add_argument("decision", help="locked decision id, e.g. D-013")
+    impact.add_argument("path", nargs="?", default=".")
+    impact.add_argument("--json", action="store_true")
+    impact.set_defaults(func=cmd_impact)
+
+    health = sub.add_parser("health", help="calculate a deterministic SDD health score")
+    health.add_argument("path", nargs="?", default=".")
+    health.add_argument("--json", action="store_true")
+    health.set_defaults(func=cmd_health)
+
+    dash = sub.add_parser("dashboard", help="open the optional SDD dashboard")
+    dash.add_argument("path", nargs="?", default=".")
+    dash.add_argument("--ui", choices=("rich", "textual"))
+    dash.add_argument("--set-default", action="store_true")
+    dash.set_defaults(func=cmd_dashboard)
 
     return p
 

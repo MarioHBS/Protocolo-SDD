@@ -109,6 +109,9 @@ Write all artifacts in the language set in
 12. **(If the Documentation feature is on)** consider whether this stage changed
     anything the documentation set must reflect; if so, invoke `sdd-document`.
 
+After the stage state leaves IMPLEMENTING, run `sdd session sync` to clear the
+formal interruption context (or use `sdd session close` after the report exists).
+
 ## Rules
 
 - The report must suffice as context: whoever specifies the next stage should not
