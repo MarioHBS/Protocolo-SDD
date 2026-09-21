@@ -152,16 +152,23 @@ def _detect_language(root: Path) -> tuple[str, str]:
     except OSError:
         return ("pt-BR", "default")
 
-    if re.search(r"(^##\s.*Estado|Estado\s+atual|\*\*Estado:\*\*)", text):
-        return ("pt-BR", "detected")
-    if any(w in text for w in ("decisões", "etapas", "visão", "princípios")):
-        return ("pt-BR", "detected")
-    if "¿" in text or ("proyecto" in text and "ñ" in text):
-        return ("es", "detected")
     if re.search(r"[一-鿿]", text):
         return ("zh", "detected")
-    if "## Current state" in text or "## 1. Project vision" in text:
-        return ("en", "detected")
+    lowered = text.lower()
+    # Markers that belong to one language only ("etapas" is both PT and ES, so it
+    # is not used). Case-insensitive: "Proyecto" and "proyecto" are the same word.
+    markers = {
+        "pt-BR": ("estado atual", "decisões", "decisoes", "visão", "visao", "princípios", "principios",
+                  "projeto", "questões", "questoes", "travad", "não", "você"),
+        "es": ("estado actual", "decisiones", "visión", "vision del", "proyecto", "principios inviolables",
+               "cuestiones", "¿", "ñ"),
+        "en": ("current state", "project vision", "locked structural decisions", "open questions",
+               "inviolable principles"),
+    }
+    scores = {lang: sum(lowered.count(word) for word in words) for lang, words in markers.items()}
+    best = max(scores, key=lambda lang: scores[lang])
+    if scores[best] and list(scores.values()).count(scores[best]) == 1:
+        return (best, "detected")
     return ("pt-BR", "default")  # SDD v1 default
 
 
