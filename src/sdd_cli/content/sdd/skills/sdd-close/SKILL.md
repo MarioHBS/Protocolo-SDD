@@ -53,7 +53,8 @@ Write all artifacts in the language set in
      "done" remains `report.md` on disk; `todo.md` is its mirror.
 
 5. **Update the canonical index (§5).** Mark the stage `done` **only because
-   `report.md` exists on disk**, with pointers to spec and report.
+   `report.md` exists on disk**. No per-row links: the spec and report paths are
+   conventional (`stages/NNN-<slug>/`).
 
    > **If this stage's folder lives under `tracks/<slug>/stages/`** (a
    > parallel track, see `sdd-track`), this step is the "incorporate" step

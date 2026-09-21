@@ -270,7 +270,7 @@ def sequences(root: Path) -> dict[str, str]:
     declared: dict[str, str] = {}
     constitution = root / ".sdd" / "constitution.md"
     if constitution.is_file():
-        text = constitution.read_text(encoding="utf-8", errors="replace")
+        text = re.sub(r"(?s)<!--.*?-->", "", constitution.read_text(encoding="utf-8", errors="replace"))
         declared = {name: pattern for name, pattern in _DECLARED_RE.findall(text)}
     if not declared and (root / "supabase" / "migrations").is_dir():
         declared = dict(_DEFAULT_SEQUENCES)

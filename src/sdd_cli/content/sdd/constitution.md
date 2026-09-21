@@ -169,9 +169,12 @@
 > `sdd-track` when incorporating a track's last stage, and enforced as a
 > MUST-NOT-start rule by `sdd-specify`/`sdd-implement`.
 
-| Stage | Slug   | Status                       | Depends on | Spec | Report |
-|-------|--------|------------------------------|------------|------|--------|
-| 001   | [slug] | pending / in progress / done | —          | —    | —      |
+| Stage | Slug   | Status                       | Depends on |
+|-------|--------|------------------------------|------------|
+| 001   | [slug] | pending / in progress / done | —          |
+
+<!-- With Eval Driven Development, add a `Milestone` column and keep each milestone's
+     stages contiguous. There are no Spec/Report columns: the paths are conventional. -->
 
 ### Provisional queue (not yet numbered)
 
@@ -215,4 +218,7 @@
   amendments as 'Amendment N — ADR-XXX'". If unused, "not applicable".]
 - **Migration / artifact versioning:** [convention — e.g. "migrations numbered
   NNNN, versioned, never loose SQL"]
+- **Sequences:** none
+  <!-- Numbers that parallel tracks share and `sdd seq next` hands out, declared as
+       `name` = `dir/NNNN_*.ext` — e.g. `migration` = `db/migrations/NNNN_*.sql`. -->
 - **Validation environment:** [where stages are validated before closing]
