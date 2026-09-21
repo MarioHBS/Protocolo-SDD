@@ -48,27 +48,42 @@ Guidance for the recommendation:
   a lie in the docs is worse than a gap. Recommend the lightest depth that
   actually serves the reader.
 
-## Step 4 — Agree on the concrete list
+## Step 4 — Agree on the concrete plan (`sdd document`)
 
-Turn the chosen depth into an explicit list of documents: filename, purpose, and
-owner stage (which stage produces or updates it). Confirm the list with the user
-before writing anything. Record the agreed list in the constitution (a short
-"Documentation set" note under §7) so later sessions do not renegotiate it.
+The plan is recorded by the CLI, not renegotiated every session. `sdd document`
+**interviews the user** — depth (with a recommendation drawn from the real
+project), audience and cost of error, **where the files live** (a base folder,
+optionally a location per document; it may be outside `.sdd/`, and outside the
+project folder only after an explicit confirmation), the list of documents
+(filename, purpose, owner stage), the numbering/versioning convention, the header
+every document carries, which stages must refresh each document, and what to do
+with documentation that already exists — and saves the result to
+`.sdd/documentation.json`. It also turns the Documentation feature on in both the
+constitution and the manifest and leaves a one-line pointer in §7.
 
-If the project uses numbered documents, agree on the numbering and versioning
-convention now and record it in §7 — that convention is project-specific and
-belongs in the constitution, not in this skill.
+- Run `sdd document` in the user's terminal, or ask the user to. An interrupted
+  interview resumes with `sdd document --resume`.
+- In a session with no terminal, hold the same conversation yourself, write the
+  answers as JSON with the shape of `.sdd/documentation.json`, and run
+  `sdd document --answers FILE.json --dry-run`, then again without `--dry-run`
+  (add `--create-stubs` to create the missing files, which are never overwritten).
+- Confirm the plan with the user before saving. To change it later, edit
+  `.sdd/documentation.json` or run the interview again.
 
 ## Step 5 — Produce and maintain
 
 - Write the documents in the project language, passing the Markdown lint and
   file-hygiene rules in `README.md`.
-- Every document states its version and last-updated date.
+- Follow the plan in `.sdd/documentation.json`: the paths (wherever they live),
+  the header it requires (version, last-updated date, "planned" marker) and the
+  numbering. `sdd doctor` reports a planned file that is missing or lacks its
+  header.
 - **Documentation follows ground truth.** Never document intended behavior as if
   it were implemented. If a document describes something not yet built, mark it
   explicitly as planned.
 - When a stage changes something documented, update the affected documents as
-  part of closing that stage, and note it in the stage report.
+  part of closing that stage (`sdd-close` step 12 reads each document's `covers`
+  in the plan), and note it in the stage report.
 
 ## Rules
 

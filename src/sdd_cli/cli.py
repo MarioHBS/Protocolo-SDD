@@ -395,6 +395,13 @@ def cmd_init(args) -> None:
           f"estimation={'on' if features['estimation'] else 'off'}  "
           f"docs={'on' if features['documentation'] else 'off'}  "
           f"tracks={'on' if features['tracks'] else 'off'}")
+    if features["documentation"]:
+        if not getattr(args, "yes", False) and sys.stdin.isatty() \
+                and _docs_plan.Console().confirm("\nPlan the project documentation now ('sdd document')?", False):
+            cmd_document(argparse.Namespace(path=str(root), answers=None, resume=False, create_stubs=False,
+                                            dry_run=False, json=False))
+        else:
+            print(dim("\nDocumentation is on: run 'sdd document' when you are ready to plan it."))
     print(dim("\nNext: open your agent and trigger "
               f"{chosen[0].invoke} -- it will read .sdd/ and start the "
               "INITIALIZING phase."))
@@ -782,6 +789,7 @@ def _doctor_payload(root: Path) -> dict:
             findings.append({"severity": "note", "code": "edd_missing_performance_doc"})
     findings.extend(_index_checks.backlog_findings(sdd))
     findings.extend(_index_checks.milestone_findings(sdd))
+    findings.extend(_docs_plan.findings(root))
     saved_session = _session.load(root)
     for issue in _session.validate(root, saved_session):
         findings.append({"severity": "warn", "code": "session_inconsistent", "detail": issue})
@@ -1236,44 +1244,101 @@ def cmd_evaluate(args) -> None:
         _emit_json(result)
 
 
+def _set_feature(root: Path, key: str, label: str, on: bool) -> None:
+    """Turn a feature on/off in BOTH places that record it: the constitution's
+    Settings (what the owner edits) and the manifest (what the CLI reads)."""
+    data = manifest.load(root)
+    if data:
+        data.setdefault("features", {})[key] = on
+        manifest.save(root, data)
+    constitution = root / ".sdd" / "constitution.md"
+    if constitution.is_file():
+        raw = constitution.read_bytes().decode("utf-8", errors="replace")
+        wanted, other = ("on", "off") if on else ("off", "on")
+        updated = re.sub(rf"(?im)^(\s*[-*]\s+\*\*{re.escape(label)}:\*\*\s*){other}\b", rf"\g<1>{wanted}", raw)
+        if updated != raw:
+            constitution.write_bytes(updated.encode("utf-8"))
+
+
+def _note_documentation_set(root: Path, plan: dict) -> None:
+    """Record a one-line pointer in constitution section 7 (idempotent)."""
+    constitution = root / ".sdd" / "constitution.md"
+    if not constitution.is_file():
+        return
+    raw = constitution.read_bytes().decode("utf-8", errors="replace")
+    crlf = "\r\n" in raw
+    text = raw.replace("\r\n", "\n")
+    line = (f"- **Documentation set:** {len(plan['documents'])} document(s), plan in "
+            f".sdd/documentation.json (depth: {plan['depth']}, base: {plan['base_path']}/).")
+    if "**Documentation set:**" in text:
+        text = re.sub(r"(?m)^- \*\*Documentation set:\*\*.*$", lambda _: line, text)
+    else:
+        heading = re.search(r"(?m)^##\s+7\.[^\n]*$", text)
+        if not heading:
+            return
+        rest = text[heading.end():]
+        nxt = re.search(r"(?m)^##\s", rest)
+        at = heading.end() + (nxt.start() if nxt else len(rest))
+        text = text[:at].rstrip("\n") + "\n" + line + "\n" + ("\n" if nxt else "") + text[at:]
+    constitution.write_bytes((text.replace("\n", "\r\n") if crlf else text).encode("utf-8"))
+
+
 def cmd_document(args) -> None:
+    """Interview the user (or read --answers) and persist the documentation plan."""
     root = Path(args.path).resolve()
     if not (root / ".sdd").is_dir():
         die(f"no .sdd/ found in {root}")
+    interactive = False
     if args.answers:
         try:
             plan = _docs_plan.load_answers(Path(args.answers))
         except ValueError as exc:
             die(str(exc))
     elif not sys.stdin.isatty():
-        die("sdd document needs --answers FILE.json without a TTY")
+        die("sdd document asks questions and needs a terminal; without one, pass --answers FILE.json "
+            "(same shape as .sdd/documentation.json)")
     else:
-        base = input("Documentation base path [docs]: ").strip() or "docs"
-        raw = input("Documents (comma-separated relative names) [README.md]: ").strip() or "README.md"
-        plan = _docs_plan.validate({"base_path": base, "documents": [{"path": name.strip(), "purpose": "", "owner_stage": "", "format": "md"} for name in raw.split(",") if name.strip()]})
-    targets = [root / plan["base_path"] / item["path"] for item in plan["documents"]]
-    conflicts = [str(path.relative_to(root)).replace("\\", "/") for path in targets if path.exists()]
-    if conflicts and args.create_stubs:
-        die("refusing to overwrite existing documentation: " + ", ".join(conflicts))
-    result = {"command": "document", "plan": plan, "targets": [str(p.relative_to(root)).replace("\\", "/") for p in targets], "dry_run": args.dry_run}
+        interactive = True
+        state = _docs_plan.load_state(root) if getattr(args, "resume", False) else None
+        if getattr(args, "resume", False) and not state:
+            print(dim("nothing to resume; starting a new interview"))
+        try:
+            plan = _docs_plan.run_interview(
+                root, _docs_plan.Console(), state=state,
+                save_state=lambda s: _docs_plan._atomic_write(_docs_plan.state_path(root), s))
+        except _docs_plan.InterviewAborted:
+            die("interview interrupted; answers so far are kept: run 'sdd document --resume'")
+        except ValueError as exc:
+            die(str(exc))
+    targets = [_docs_plan.resolve(root, plan, item) for item in plan["documents"]]
+    outside = [str(t) for t in targets if _docs_plan.is_outside(root, t)]
+    result = {"command": "document", "plan": plan, "targets": [str(t) for t in targets],
+              "outside_project": outside, "dry_run": bool(args.dry_run)}
     if args.dry_run:
         _emit_json(result) if args.json else print(json.dumps(result, ensure_ascii=False, indent=2))
         return
     _docs_plan.save(root, plan)
-    if args.create_stubs:
-        for target, document in zip(targets, plan["documents"]):
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(f"# {Path(document['path']).stem}\n\n> Planned documentation.\n", encoding="utf-8")
-    m = manifest.load(root)
-    if m:
-        m.setdefault("features", {})["documentation"] = True
-        manifest.save(root, m)
-    constitution = root / ".sdd" / "constitution.md"
-    if constitution.is_file():
-        text = constitution.read_text(encoding="utf-8", errors="replace")
-        text = re.sub(r"(?im)^(\s*[-*]\s+\*\*Documentation:\*\*\s*)off\b", r"\1on", text)
-        constitution.write_text(text, encoding="utf-8", newline="\n")
-    _emit_json(result) if args.json else print(f"wrote .sdd/documentation.json ({len(targets)} document(s))")
+    _docs_plan.clear_state(root)
+    _set_feature(root, "documentation", "Documentation", True)
+    _note_documentation_set(root, plan)
+    create = bool(args.create_stubs)
+    if interactive and not create:
+        create = _docs_plan.Console().confirm("Create the missing documents as stubs now?", True)
+    if create:
+        created, skipped = _docs_plan.write_stubs(root, plan)
+        result["created"], result["skipped_existing"] = created, skipped
+    if args.json:
+        _emit_json(result)
+    else:
+        print(f"{green('ok')}  wrote .sdd/documentation.json ({len(targets)} document(s))")
+        def shown(text: str) -> str:
+            path = Path(text)
+            return text if _docs_plan.is_outside(root, path) else str(path.resolve().relative_to(root)).replace("\\", "/")
+
+        for path in result.get("created", []):
+            print(f"  created {shown(path)}")
+        for path in result.get("skipped_existing", []):
+            print(dim(f"  kept existing {shown(path)}"))
 
 
 def _dashboard_data(root: Path) -> dict[str, str]:
@@ -2377,9 +2442,21 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     evaluate.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     evaluate.set_defaults(func=cmd_evaluate)
 
-    document = sub.add_parser("document", help="persist a project documentation plan")
+    document = sub.add_parser(
+        "document", help="interview the user and record the project's documentation plan",
+        description="Ask what documentation the project needs, where each file lives (it may be outside "
+                    ".sdd/), how documents are numbered and which stages must refresh them, then save the "
+                    "plan to .sdd/documentation.json and turn the Documentation feature on.",
+        epilog="examples:\n"
+               "  sdd document                    # interactive interview\n"
+               "  sdd document --resume           # continue an interrupted interview\n"
+               "  sdd document --answers plan.json --create-stubs   # agent/non-interactive\n"
+               "  sdd document --answers plan.json --dry-run        # validate only",
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     document.add_argument("path", nargs="?", default=".", help="project root (default: .)")
-    document.add_argument("--answers", help="JSON plan for non-interactive execution")
+    document.add_argument("--answers", metavar="FILE", help="JSON plan for non-interactive execution "
+                          "(same shape as .sdd/documentation.json)")
+    document.add_argument("--resume", action="store_true", help="continue an interrupted interview")
     document.add_argument("--create-stubs", action="store_true", help="create planned markdown stubs without overwriting")
     document.add_argument("--dry-run", action="store_true", help="validate and show the plan without writing")
     document.add_argument("--json", action="store_true", help="emit machine-readable JSON")
