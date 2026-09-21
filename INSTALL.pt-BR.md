@@ -7,7 +7,8 @@ ao usar `npx`, é porque a ferramenta é Python; use `pipx` ou `uv` (veja abaixo
 
 ## Pré-requisito
 
-- **Python ≥ 3.10** (`python --version` / `py --version`). Já vem em maioria dos sistemas.
+- **Python ≥ 3.12** (`python --version` / `py --version`). Versões antigas instalam "com sucesso" e falham
+  na primeira execução com um `SyntaxError`.
 
 ## Instalação recomendada: `pipx`
 
@@ -56,10 +57,22 @@ uv tool install .\sdd-cli          # Windows (PowerShell)
 ## Verificação pós-instalação
 
 ```bash
-sdd --version      # deve imprimir: sdd v3.0.1
-sdd providers      # lista os 10 providers suportados
-sdd docs           # imprime o manual completo
-sdd docs --md SDD-USAGE.md   # grava o manual num arquivo
+sdd --version      # deve imprimir a versão instalada do sdd
+sdd providers      # lista os providers suportados
+sdd manual         # imprime o manual completo (`sdd docs` é um alias obsoleto)
+sdd manual --md SDD-USAGE.md   # grava o manual num arquivo
+```
+
+## Opcional: o dashboard
+
+`sdd dashboard` precisa de `rich` e/ou `textual`, que a instalação básica não traz.
+O kit é instalado a partir da pasta dele, então peça os extras ali:
+
+```bash
+pipx install --force './sdd-cli[dashboard]'      # rich + textual (no Windows use .\sdd-cli)
+# ou só um renderizador:  './sdd-cli[dashboard-rich]'  /  './sdd-cli[dashboard-textual]'
+# sem extras no pipx:     pipx inject sdd-cli rich textual
+sdd dashboard --ui rich
 ```
 
 ## Erro comum: `npm error could not determine executable to run`

@@ -1386,6 +1386,8 @@ def _dashboard_data(root: Path) -> dict[str, str]:
 
 def cmd_dashboard(args) -> None:
     root = Path(args.path).resolve()
+    if not (root / ".sdd").is_dir():
+        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
     renderer = args.ui or (manifest.load(root) or {}).get("dashboard_renderer", "rich")
     if renderer not in ("rich", "textual", "plain"):
         die("--ui must be rich, textual or plain")
@@ -2171,11 +2173,103 @@ def cmd_update(args) -> None:
 
 # ------------------------------------------------------------------ parser
 
+_ROOT_EPILOG = """\
+commands by purpose:
+  set up       init, providers, update, migrate
+  diagnose     doctor, fix, health, context, evaluate
+  work         session, scaffold, track, seq, deps, impact
+  document     document, manual
+  observe      dashboard
+
+Run 'sdd <command> --help' for details and examples, or 'sdd manual' for the full manual.
+('sdd docs' is a deprecated alias of 'sdd manual'; it is removed in v5.)
+"""
+
+# One place for what every command does and how to call it, so --help stays
+# consistent. Keyed by the command path; value = (description, examples).
+_HELP_DETAILS: dict[str, tuple[str, str]] = {
+    "init": ("Install the SDD kit into a project: .sdd/, the skills, and one shim per agent you use.",
+             "sdd init                                        # interactive\n"
+             "sdd init --provider claude --language pt-BR -y  # no prompts (agents)\n"
+             "sdd init --provider claude --provider cursor    # two agents, one .sdd/"),
+    "providers": ("List the AI agents a shim can be installed for.",
+                  "sdd providers\nsdd providers --plain      # bare keys, for scripts"),
+    "manual": ("Print the full usage manual (the kit's USAGE.md).",
+               "sdd manual\nsdd manual --md SDD-USAGE.md"),
+    "context": ("Print only what a session needs to start: Settings and Current state, the active stage's "
+                "files and, with --budget, what each file costs in tokens (bytes/4, an estimate).",
+                "sdd context\nsdd context --budget       # hot (read at startup) vs cold files\nsdd context --json"),
+    "fix": ("Repair deterministic problems only: v2 mojibake, line endings, absolute file links, manifest "
+            "features that disagree with the constitution. Nothing ambiguous is touched.",
+            "sdd fix --dry-run                 # show what would change\nsdd fix --links                   # only the links\n"
+            "sdd fix --gitignore               # ignore agent worktree folders"),
+    "session": ("Keep a resumable work context (.session.json) so interrupted implementation can continue.",
+                "sdd session sync\nsdd session pause --reason planned --context 'waiting for API keys'\nsdd session resume"),
+    "session pause": ("Record why work stopped and where.",
+                      "sdd session pause --reason context_switch --task T-3 --context 'blocked on review'"),
+    "session resume": ("Show the saved context so work can continue.", "sdd session resume"),
+    "session status": ("Show the current session, if any.", "sdd session status --json"),
+    "session close": ("Delete the session once the stage report exists.", "sdd session close"),
+    "session sync": ("Create/refresh the session while IMPLEMENTING; clear it otherwise.", "sdd session sync"),
+    "track": ("Parallel tracks share one working tree, so their footprints are declared and checked: two "
+              "stages may live in different tracks only if they cannot affect each other.",
+              "sdd track claim billing --stage 001 --path 'src/billing/**' --seq migration\n"
+              "sdd track check\nsdd track verify billing\nsdd track incorporate billing 001-invoice-export"),
+    "track claim": ("Record a track's footprint: paths, shared sequences, exclusive runtime resources.",
+                    "sdd track claim api --stage 001 --path 'src/api/**' --runtime db-write"),
+    "track check": ("Fail (exit 1) when two active tracks' footprints overlap.", "sdd track check --json"),
+    "track verify": ("Fail when real Git changes fall outside every claim, or inside two.",
+                     "sdd track verify api\nsdd track verify api --since main"),
+    "track incorporate": ("Move a closed track stage into the canonical queue: takes the next free number, "
+                          "renames the folder, appends the section-5 row, releases the claims - under a lock.",
+                          "sdd track incorporate billing 001-invoice-export --dry-run"),
+    "seq": ("Hand out numbers of a shared sequence (for example database migrations) exactly once.",
+            "sdd seq next migration --track billing"),
+    "seq next": ("Reserve the next number in .sdd/.reservations.json. Sequences are declared in the "
+                 "constitution as `name` = `dir/NNNN_*.ext`; 'migration' defaults to supabase/migrations.",
+                 "sdd seq next migration\nsdd seq next migration --track billing --json"),
+    "scaffold": ("For a stage with a locked spec.md, create the missing todo.md (from its acceptance criteria) "
+                 "and, with Eval Driven Development on, evals.md and checklist.md. Never overwrites.",
+                 "sdd scaffold 004-auth-model\nsdd scaffold 001-x --track login --dry-run"),
+    "deps": ("Record dependencies on other local projects and inspect them.",
+             "sdd deps add ../shared-lib --kind requires --description 'shared types'\nsdd deps graph --format mermaid"),
+    "deps list": ("List recorded dependencies.", "sdd deps list"),
+    "deps graph": ("Print the dependency graph.", "sdd deps graph --format mermaid"),
+    "deps add": ("Record a dependency.", "sdd deps add ../shared-lib"),
+    "deps remove": ("Remove a recorded dependency.", "sdd deps remove ../shared-lib"),
+    "impact": ("List the artifacts that mention a locked decision, before changing it.",
+               "sdd impact D-013\nsdd impact D-013 --json"),
+    "health": ("Score the project's SDD hygiene from the doctor findings (100 minus 25 per error, 5 per "
+               "warning).", "sdd health\nsdd health --json"),
+    "evaluate": ("Capture local, sanitized evidence about how the kit behaved in this project.",
+                 "sdd evaluate\nsdd evaluate --write      # save .sdd/kit-evaluation/snapshot.json"),
+    "dashboard": ("Open the read-only dashboard: overview, constitution sizes, stages and tracks, EDD, "
+                  "doctor findings (with the command that fixes each) and session. 'rich' and 'textual' need "
+                  "the optional extras; 'plain' needs nothing.",
+                  "sdd dashboard --ui plain          # no dependencies\nsdd dashboard --ui rich\n"
+                  "sdd dashboard --ui textual --set-default   # interactive, keep as the default"),
+}
+
+
+def _enrich_help(parser: argparse.ArgumentParser, path: tuple[str, ...] = ()) -> None:
+    """Fill description/examples for every command that has an entry in _HELP_DETAILS."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for name, child in action.choices.items():
+                key = " ".join((*path, name))
+                if key in _HELP_DETAILS and not child.description:
+                    description, examples = _HELP_DETAILS[key]
+                    child.description = description
+                    child.epilog = "examples:\n  " + examples.replace("\n", "\n  ")
+                    child.formatter_class = argparse.RawDescriptionHelpFormatter
+                _enrich_help(child, (*path, name))
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="sdd",
         description="Spec-Driven Development scaffolding for AI coding agents.",
-        epilog="Run 'sdd manual' for the full usage manual. 'sdd docs' is a deprecated alias.",
+        epilog=_ROOT_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("--version", action="version", version=f"sdd {KIT_VERSION}")
@@ -2209,8 +2303,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     d = sub.add_parser(
         "docs",
-        help="print the usage manual",
-        description="Print the full SDD usage manual (the kit's USAGE.md).",
+        help="deprecated alias of 'manual' (removed in v5)",
+        description="Deprecated alias of 'sdd manual': print the full SDD usage manual (the kit's USAGE.md).",
         epilog="""\
 examples:
   sdd docs                       # print the manual to stdout
@@ -2356,13 +2450,16 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
 
     ses = sub.add_parser("session", help="manage resumable SDD work context")
     ses_sub = ses.add_subparsers(dest="session_command", required=True)
-    for name in ("resume", "status", "close", "sync"):
-        item = ses_sub.add_parser(name)
+    for name, blurb in (("resume", "show the saved context so work can continue"),
+                        ("status", "show the current session, if any"),
+                        ("close", "delete the session once the stage report exists"),
+                        ("sync", "create or refresh the session while IMPLEMENTING")):
+        item = ses_sub.add_parser(name, help=blurb)
         item.add_argument("path", nargs="?", default=".", help="project root (default: .)")
         item.add_argument("--track", help="parallel track slug")
         item.add_argument("--json", action="store_true", help="emit machine-readable JSON")
         item.set_defaults(func=cmd_session)
-    pause = ses_sub.add_parser("pause")
+    pause = ses_sub.add_parser("pause", help="record why work stopped and where")
     pause.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     pause.add_argument("--track", help="parallel track slug")
     pause.add_argument("--reason", choices=("emergency", "planned", "context_switch"), default="planned", help="why work stopped")
@@ -2421,14 +2518,14 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
 
     dep = sub.add_parser("deps", help="manage local cross-project dependencies")
     dep_sub = dep.add_subparsers(dest="deps_command", required=True)
-    for name in ("list", "graph"):
-        item = dep_sub.add_parser(name)
+    for name, blurb in (("list", "list recorded dependencies"), ("graph", "print the dependency graph")):
+        item = dep_sub.add_parser(name, help=blurb)
         item.add_argument("path", nargs="?", default=".", help="project root (default: .)")
         item.add_argument("--format", choices=("text", "json", "mermaid"), default="text", help="output format")
         item.add_argument("--json", action="store_true", help="emit machine-readable JSON")
         item.set_defaults(func=cmd_deps)
-    for name in ("add", "remove"):
-        item = dep_sub.add_parser(name)
+    for name, blurb in (("add", "record a dependency"), ("remove", "remove a recorded dependency")):
+        item = dep_sub.add_parser(name, help=blurb)
         item.add_argument("dependency", help="dependency project path")
         item.add_argument("path", nargs="?", default=".", help="project root (default: .)")
         if name == "add":
@@ -2481,6 +2578,7 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     dash.add_argument("--set-default", action="store_true", help="save renderer in manifest")
     dash.set_defaults(func=cmd_dashboard)
 
+    _enrich_help(p)
     return p
 
 
