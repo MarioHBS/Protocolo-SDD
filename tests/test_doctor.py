@@ -214,3 +214,42 @@ def test_closed_edd_stage_requires_every_eval_id_in_evidence(tmp_path):
 
     findings = _doctor_payload(root)["findings"]
     assert {item["eval"] for item in findings if item["code"] == "edd_eval_uncovered"} == {"E-002"}
+
+
+def test_doctor_reports_overlapping_track_claims_and_nested_worktrees(tmp_path):
+    root = _make_modern(tmp_path)
+    for slug, path in (("api", "src/**"), ("web", "src/app.py")):
+        directory = root / ".sdd" / "tracks" / slug
+        directory.mkdir(parents=True)
+        (directory / "claims.json").write_text(json.dumps({"version": 1, "track": slug, "claims": [{"paths": [path]}]}), encoding="utf-8")
+    (root / ".kilo" / "worktrees" / "copy" / ".sdd").mkdir(parents=True)
+
+    findings = _doctor_payload(root)["findings"]
+    assert any(item["code"] == "track_overlap" and item["severity"] == "error" for item in findings)
+    assert any(item["code"] == "nested_worktree_copies" for item in findings)
+
+
+def test_track_dropped_from_active_table_is_not_reported_as_not_started(tmp_path):
+    from sdd_cli import _user_files
+
+    sdd = tmp_path / ".sdd"
+    (sdd / "tracks" / "done-track").mkdir(parents=True)
+    (sdd / "tracks" / "waiting-track").mkdir(parents=True)
+    (sdd / "constitution.md").write_text(
+        "## Current state\n\n### Active tracks\n\n"
+        "| Track | State |\n| --- | --- |\n| `waiting-track` | open |\n\n## 1. Vision\n",
+        encoding="utf-8")
+
+    slugs = {d.track for d in _user_files.scan_hygiene(sdd).track_divergences}
+    assert slugs == {"waiting-track"}
+
+
+def test_active_track_slugs_ignores_template_comment_rows(tmp_path):
+    from sdd_cli import _user_files
+
+    sdd = tmp_path / ".sdd"
+    sdd.mkdir()
+    (sdd / "constitution.md").write_text(
+        "### Active tracks\n\n<!--\n| `login` | x |\n-->\n\n| Track | State |\n| --- | --- |\n\n## 1. V\n",
+        encoding="utf-8")
+    assert _user_files.active_track_slugs(sdd) is None

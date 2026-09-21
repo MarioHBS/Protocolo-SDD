@@ -161,3 +161,63 @@ artifacts and history are shared — only the trigger differs per agent.
 ```bash
 sdd init --provider claude --provider cursor --provider copilot
 ```
+
+---
+
+## Complete command reference
+
+### `sdd manual` and `sdd docs`
+
+Print the manual. `sdd docs` is a compatibility alias and will be deprecated in v5.
+
+### `sdd update [PATH]`
+
+Update managed files across a compatible minor or patch release without replacing hand-edited files.
+
+### `sdd fix [PATH]`
+
+Repair deterministic hygiene issues. Use `--dry-run` before `--links`, `--features`, `--mojibake`, or `--eol`.
+
+### `sdd context [PATH]`
+
+Print Settings and Current state only. `--budget` includes hot/cold byte and estimated-token counts; `--json` is machine-readable.
+
+### `sdd session <resume|status|pause|close|sync>`
+
+Manage resumable implementation context. Use `sdd session status --json` in automation.
+
+### `sdd scaffold STAGE [PATH]`
+
+Create missing stage artifacts from a locked spec. Supports `--track`, `--dry-run`, and `--json`.
+
+### `sdd deps <add|remove|list|graph>`
+
+Record local cross-project dependencies. `graph --format mermaid` emits a Mermaid graph.
+
+### `sdd impact DECISION [PATH]`
+
+Find artifacts that mention a locked decision such as `D-013`; supports `--json`.
+
+### `sdd health [PATH]`
+
+Calculate a deterministic health score from doctor findings; supports `--json`.
+
+### `sdd dashboard [PATH]`
+
+Open the optional read-only dashboard. Install the local project with `pip install '.[dashboard]'` when the renderer is unavailable.
+
+### `sdd evaluate [PATH]`
+
+Capture local evidence for future kit evaluation. `--write` saves `.sdd/kit-evaluation/snapshot.json`; the directory is normally ignored by Git.
+
+### `sdd document [PATH]`
+
+Persist a documentation plan. Agents use `--answers PLAN.json`; add `--create-stubs` only after reviewing the plan and use `--dry-run` to validate it first.
+
+### `sdd track <claim|check|verify>`
+
+Declare a parallel-track footprint, detect overlaps, and verify Git changes stay inside claims. A conflict exits non-zero.
+
+### `sdd seq next migration [PATH]`
+
+Reserve the next migration number in `.sdd/.reservations.json`, optionally assigning the reservation to a track.

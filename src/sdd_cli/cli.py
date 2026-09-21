@@ -12,11 +12,19 @@ import os
 import re
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
-from . import manifest, providers
-from . import _deps, _mojibake, _session, _tracks, _user_files
+from . import (
+    _deps,
+    _docs_plan,
+    _mojibake,
+    _session,
+    _tracks,
+    _user_files,
+    manifest,
+    providers,
+)
 from .content import CONTENT_DIR, KIT_VERSION
 
 # ---------------------------------------------------------------- utilities
@@ -200,16 +208,15 @@ def _backup_managed(root: Path, sdd: Path,
         }.get(rel)
         if kit_rel and kit_rel.exists() and cur_hash == manifest.hash_file(kit_rel):
             continue
-        if old:
-            # Only back up hand-edited files (current differs from recorded).
-            if rel in old_files and cur_hash == old_files[rel]:
-                continue  # unmodified since last install -- nothing to lose
+        # Only back up hand-edited files (current differs from recorded).
+        if old and rel in old_files and cur_hash == old_files[rel]:
+            continue  # unmodified since last install -- nothing to lose
         to_backup.append(f)
 
     if not to_backup:
         return (None, [])
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     bdir = sdd / ".pre-migrate-backup" / ts
     bdir.mkdir(parents=True, exist_ok=True)
     backed: list[str] = []
@@ -453,24 +460,36 @@ def _context_payload(root: Path, budget: bool = False) -> dict:
             "settings_and_current_state": startup, "state": state,
             "active_stage": stage}
     if stage:
-        try:
-            active = _stage_path(root, stage, None)
-            data["active_paths"] = {name: str((active / name).relative_to(root)).replace("\\", "/")
-                                    for name in ("spec.md", "todo.md") if (active / name).exists()}
-        except SystemExit:
-            data["active_paths"] = {}
+        active = _find_stage(root, stage)
+        data["active_paths"] = ({name: str((active / name).relative_to(root)).replace("\\", "/")
+                                 for name in ("spec.md", "todo.md") if (active / name).exists()}
+                                if active else {})
     if budget:
-        hot = [sdd / "README.md", constitution]
-        cold = [sdd / x for x in ("roadmap.md", "estimates.md", "CHANGELOG.md")]
+        def row(kind: str, path: Path, size: int, part: str = "") -> dict:
+            rel = str(path.relative_to(root)).replace("\\", "/")
+            return {"class": kind, "path": rel, "part": part, "bytes": size,
+                    "estimated_tokens": (size + 3) // 4}
+
+        head_bytes = len(startup.encode("utf-8"))
+        total_bytes = len(text.encode("utf-8"))
         rows = []
-        for category, paths in (("hot", hot), ("cold", cold)):
-            for path in paths:
-                if path.is_file():
-                    size = path.stat().st_size
-                    rows.append({"class": category, "path": str(path.relative_to(root)).replace("\\", "/"),
-                                 "bytes": size, "estimated_tokens": (size + 3) // 4})
+        if (sdd / "README.md").is_file():
+            rows.append(row("hot", sdd / "README.md", (sdd / "README.md").stat().st_size))
+        rows.append(row("hot", constitution, head_bytes, "Settings + Current state"))
+        # Provider shims are read by the host agent before anything else.
+        for key in (manifest.load(root) or {}).get("providers") or []:
+            entry = next((x for x in providers.PROVIDERS if x.key == key), None)
+            if entry and (root / entry.shim_path).is_file():
+                rows.append(row("hot", root / entry.shim_path, (root / entry.shim_path).stat().st_size))
+        rows.append(row("cold", constitution, total_bytes - head_bytes, "sections 1-7, on demand"))
+        for name in ("roadmap.md", "estimates.md", "CHANGELOG.md"):
+            if (sdd / name).is_file():
+                rows.append(row("cold", sdd / name, (sdd / name).stat().st_size))
         data["budget"] = rows
-        data["startup_estimated_tokens"] = (sum(x["bytes"] for x in rows if x["class"] == "hot") + 3) // 4
+        hot_bytes = sum(x["bytes"] for x in rows if x["class"] == "hot")
+        data["startup_estimated_tokens"] = (hot_bytes + 3) // 4
+        # What startup cost when the whole constitution was read (pre-4.1.0 shims).
+        data["full_read_estimated_tokens"] = (hot_bytes + total_bytes - head_bytes + 3) // 4
     return data
 
 
@@ -486,8 +505,10 @@ def cmd_context(args) -> None:
     if args.budget:
         print("\nContext budget (bytes/4 is an estimate):")
         for row in data["budget"]:
-            print(f"  {row['class']:4} {row['path']}: {row['bytes']} B ~= {row['estimated_tokens']} tokens")
-        print(f"  startup total: ~= {data['startup_estimated_tokens']} tokens")
+            part = f" ({row['part']})" if row.get("part") else ""
+            print(f"  {row['class']:4} {row['path']}{part}: {row['bytes']} B ~= {row['estimated_tokens']} tokens")
+        print(f"  startup total: ~= {data['startup_estimated_tokens']} tokens "
+              f"(reading the whole constitution would be ~= {data['full_read_estimated_tokens']})")
 
 
 # ----------------------------------------------------------------- migrate
@@ -616,6 +637,37 @@ def cmd_doctor(args) -> None:
                                   or hyg.spec_without_todo) else "")
 
 
+_STAGE_NUMBER_RE = re.compile(r"\b(\d{3}(?:-[A-Za-z])?)\b")
+
+
+def _find_stage(root: Path, raw: str, track: str | None = None) -> Path | None:
+    """Resolve a stage folder from an ``Active stage`` value without dying.
+
+    The field is free text in real projects ("Etapa 091 (`slug`) especificada e
+    travada..."), so try, in order: the value as a folder name, each backticked
+    slug (folder name or ``NNN-<slug>`` suffix), then a lone ``NNN`` number.
+    """
+    base = root / ".sdd" / "tracks" / track / "stages" if track else root / ".sdd" / "stages"
+    if not base.is_dir():
+        return None
+    folders = [p for p in base.iterdir() if p.is_dir()]
+    slugs = [x.strip() for x in re.findall(r"`([^`]+)`", raw)]
+    for token in slugs + [raw.strip()]:
+        if not token:
+            continue
+        exact = [p for p in folders if p.name == token]
+        if exact:
+            return exact[0]
+        suffixed = [p for p in folders if p.name.endswith("-" + token)]
+        if len(suffixed) == 1:
+            return suffixed[0]
+    for number in _STAGE_NUMBER_RE.findall(raw):
+        prefixed = [p for p in folders if p.name.startswith(number + "-")]
+        if len(prefixed) == 1:
+            return prefixed[0]
+    return None
+
+
 def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str | None]:
     """Read the small current-state pointer without owning or rewriting it."""
     path = root / ".sdd" / "tracks" / track / "state.md" if track else root / ".sdd" / "constitution.md"
@@ -623,9 +675,15 @@ def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str 
         return None, None
     text = path.read_text(encoding="utf-8", errors="replace")
     state = re.search(r"(?im)^[-*]?\s*\*\*(?:State|Estado):\*\*\s*([A-Z_]+)", text)
-    stage = re.search(r"(?im)^[-*]?\s*\*\*(?:Active stage|Active stage in this track):\*\*\s*`?([^`\n]+)", text)
-    return (state.group(1) if state else None,
-            stage.group(1).strip() if stage else None)
+    stage = re.search(r"(?im)^[-*]?\s*\*\*(?:Active stage|Active stage in this track):\*\*\s*(.+)$", text)
+    if not stage:
+        return (state.group(1) if state else None, None)
+    raw = stage.group(1).strip()
+    found = _find_stage(root, raw, track)
+    if found:
+        return (state.group(1) if state else None, found.name)
+    ticked = re.search(r"`([^`]+)`", raw)
+    return (state.group(1) if state else None, (ticked.group(1) if ticked else raw).strip())
 
 
 def _doctor_payload(root: Path) -> dict:
@@ -730,6 +788,23 @@ def _doctor_payload(root: Path) -> dict:
                          "detail": f"session exists while constitution is {constitution_state or 'unknown'}"})
     for issue in _deps.findings(root):
         findings.append({"severity": "warn", "code": "dependency_inconsistent", "detail": issue})
+    try:
+        for conflict in _tracks.check(root):
+            findings.append({"severity": "error", "code": "track_overlap", "detail": conflict})
+    except ValueError as exc:
+        findings.append({"severity": "warn", "code": "track_claims_invalid", "detail": str(exc)})
+    dot_git = root / ".git"
+    if dot_git.is_file():
+        findings.append({"severity": "warn", "code": "inside_linked_worktree",
+                         "detail": "linked worktree has a separate, potentially stale .sdd/ copy"})
+    for worktree_dir in (root / ".kilo" / "worktrees", root / ".claude" / "worktrees", root / ".cursor" / "worktrees"):
+        if not worktree_dir.is_dir():
+            continue
+        copies = [path for path in worktree_dir.iterdir() if path.is_dir() and (path / ".sdd").is_dir()]
+        if copies:
+            findings.append({"severity": "warn", "code": "nested_worktree_copies",
+                             "path": str(worktree_dir.relative_to(root)).replace("\\", "/"),
+                             "count": len(copies)})
     return {"version": 1, "command": "doctor", "project": str(root),
             "sdd": (manifest_data or {}).get("kit_version", "v1 (no manifest)"),
             "status": 1 if any(x["severity"] == "error" for x in findings) else 0,
@@ -901,6 +976,20 @@ def cmd_track(args) -> None:
             _tracks.save(root, args.slug, data)
         _emit_json(claim) if args.json else print(f"claimed {args.slug}: {args.stage}")
         return
+    if args.track_command == "verify":
+        findings = _tracks.verify(root, args.slug, args.since)
+        result = {"command": "track verify", "project": str(root), "track": args.slug,
+                  "findings": findings, "status": 1 if findings else 0}
+        if args.json:
+            _emit_json(result)
+        elif findings:
+            for finding in findings:
+                print(f"{finding['kind']}: {finding['path']}")
+        else:
+            print(f"track {args.slug} verified")
+        if findings:
+            raise SystemExit(1)
+        return
     conflicts = _tracks.check(root)
     result = {"command": "track check", "project": str(root), "conflicts": conflicts,
               "status": 1 if conflicts else 0}
@@ -915,14 +1004,21 @@ def cmd_track(args) -> None:
         raise SystemExit(1)
 
 
+def cmd_seq(args) -> None:
+    root = Path(args.path).resolve()
+    if not (root / ".sdd").is_dir():
+        die(f"no .sdd/ found in {root}")
+    try:
+        record = _tracks.reserve_sequence(root, args.name, args.track)
+    except ValueError as exc:
+        die(str(exc))
+    _emit_json(record) if args.json else print(record["number"])
+
+
 def _stage_path(root: Path, token: str, track: str | None) -> Path:
-    base = root / ".sdd" / "tracks" / track / "stages" if track else root / ".sdd" / "stages"
-    direct = base / token
-    if direct.is_dir():
-        return direct
-    matches = [p for p in base.glob(f"{token}-*") if p.is_dir()] if base.is_dir() else []
-    if len(matches) == 1:
-        return matches[0]
+    found = _find_stage(root, token, track)
+    if found:
+        return found
     die(f"cannot resolve stage {token!r}")
 
 
@@ -1010,7 +1106,7 @@ def cmd_evaluate(args) -> None:
     context = _context_payload(root, budget=True)
     stages = root / ".sdd" / "stages"
     tracks = root / ".sdd" / "tracks"
-    result = {"schema_version": 1, "command": "evaluate", "generated_at": datetime.now(timezone.utc).isoformat(),
+    result = {"schema_version": 1, "command": "evaluate", "generated_at": datetime.now(UTC).isoformat(),
               "kit_version": KIT_VERSION, "project_kit_version": doctor["sdd"],
               "context": {"startup_estimated_tokens": context.get("startup_estimated_tokens", 0), "files": context.get("budget", [])},
               "artifacts": {"stages": len([p for p in stages.iterdir() if p.is_dir()]) if stages.is_dir() else 0,
@@ -1026,6 +1122,65 @@ def cmd_evaluate(args) -> None:
         _emit_json(result)
 
 
+def cmd_document(args) -> None:
+    root = Path(args.path).resolve()
+    if not (root / ".sdd").is_dir():
+        die(f"no .sdd/ found in {root}")
+    if args.answers:
+        try:
+            plan = _docs_plan.load_answers(Path(args.answers))
+        except ValueError as exc:
+            die(str(exc))
+    elif not sys.stdin.isatty():
+        die("sdd document needs --answers FILE.json without a TTY")
+    else:
+        base = input("Documentation base path [docs]: ").strip() or "docs"
+        raw = input("Documents (comma-separated relative names) [README.md]: ").strip() or "README.md"
+        plan = _docs_plan.validate({"base_path": base, "documents": [{"path": name.strip(), "purpose": "", "owner_stage": "", "format": "md"} for name in raw.split(",") if name.strip()]})
+    targets = [root / plan["base_path"] / item["path"] for item in plan["documents"]]
+    conflicts = [str(path.relative_to(root)).replace("\\", "/") for path in targets if path.exists()]
+    if conflicts and args.create_stubs:
+        die("refusing to overwrite existing documentation: " + ", ".join(conflicts))
+    result = {"command": "document", "plan": plan, "targets": [str(p.relative_to(root)).replace("\\", "/") for p in targets], "dry_run": args.dry_run}
+    if args.dry_run:
+        _emit_json(result) if args.json else print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+    _docs_plan.save(root, plan)
+    if args.create_stubs:
+        for target, document in zip(targets, plan["documents"]):
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f"# {Path(document['path']).stem}\n\n> Planned documentation.\n", encoding="utf-8")
+    m = manifest.load(root)
+    if m:
+        m.setdefault("features", {})["documentation"] = True
+        manifest.save(root, m)
+    constitution = root / ".sdd" / "constitution.md"
+    if constitution.is_file():
+        text = constitution.read_text(encoding="utf-8", errors="replace")
+        text = re.sub(r"(?im)^(\s*[-*]\s+\*\*Documentation:\*\*\s*)off\b", r"\1on", text)
+        constitution.write_text(text, encoding="utf-8", newline="\n")
+    _emit_json(result) if args.json else print(f"wrote .sdd/documentation.json ({len(targets)} document(s))")
+
+
+def _dashboard_data(root: Path) -> dict[str, str]:
+    """Read-only shared data model for both dashboard renderers."""
+    doctor = _doctor_payload(root)
+    sdd = root / ".sdd"
+    context = _context_payload(root, budget=True) if sdd.is_dir() and (sdd / "constitution.md").is_file() else {}
+    stages = [path.name for path in (sdd / "stages").iterdir() if path.is_dir()] if (sdd / "stages").is_dir() else []
+    tracks = [path.name for path in (sdd / "tracks").iterdir() if path.is_dir()] if (sdd / "tracks").is_dir() else []
+    sections = _constitution_sections(sdd / "constitution.md") if (sdd / "constitution.md").is_file() else []
+    edd = [item for item in doctor["findings"] if item["code"].startswith("edd_")]
+    return {
+        "Overview": f"kit: {doctor.get('sdd', 'not initialized')}\nstate: {context.get('state') or 'unknown'}\nactive stage: {context.get('active_stage') or '(none)'}\nstartup: ~{context.get('startup_estimated_tokens', 0)} tokens",
+        "Constitution": "\n".join(f"{name}: {size} B" for name, size in sections) or "nothing to show",
+        "Stages / Tracks": f"stages ({len(stages)}): {', '.join(stages) or 'none'}\ntracks ({len(tracks)}): {', '.join(tracks) or 'none'}",
+        "EDD": "\n".join(f"{item['code']}: {item.get('stage', '')}" for item in edd) or "nothing to show",
+        "Doctor / Fix": "\n".join(f"{item['severity']}: {item['code']}" for item in doctor["findings"]) or "clean",
+        "Session": json.dumps(_session.load(root) or {"state": "none"}, ensure_ascii=False, indent=2),
+    }
+
+
 def cmd_dashboard(args) -> None:
     root = Path(args.path).resolve()
     renderer = args.ui or (manifest.load(root) or {}).get("dashboard_renderer", "rich")
@@ -1035,7 +1190,7 @@ def cmd_dashboard(args) -> None:
             die("dashboard configuration requires an initialized project")
         data["dashboard_renderer"] = renderer
         manifest.save(root, data)
-    health = _doctor_payload(root)
+    views = _dashboard_data(root)
     if renderer == "rich":
         try:
             from rich.console import Console
@@ -1044,20 +1199,22 @@ def cmd_dashboard(args) -> None:
             die("install dashboard support: pip install 'sdd-cli[dashboard-rich]'")
         table = Table(title="SDD Dashboard — Overview")
         table.add_column("View")
-        table.add_column("Status")
-        for view in ("Overview", "Constitution Browser", "Stages/Tracks Explorer", "EDD Monitor", "Doctor+Fix Panel", "Session Resume Panel"):
-            table.add_row(view, "available")
+        table.add_column("Data")
+        for view, value in views.items():
+            table.add_row(view, value)
         Console().print(table)
-        Console().print(f"Doctor findings: {len(health['findings'])}")
     elif renderer == "textual":
         try:
             from textual.app import App, ComposeResult
-            from textual.widgets import Static
+            from textual.widgets import Static, TabbedContent, TabPane
         except ImportError:
             die("install dashboard support: pip install 'sdd-cli[dashboard-textual]'")
         class Dashboard(App):
             def compose(self) -> ComposeResult:
-                yield Static("SDD Dashboard\nOverview · Constitution · Stages/Tracks · EDD · Doctor/Fix · Session")
+                with TabbedContent():
+                    for name, value in views.items():
+                        with TabPane(name):
+                            yield Static(value)
         Dashboard().run()
     else:
         die("--ui must be rich or textual")
@@ -1433,9 +1590,7 @@ guidance was derived at migration time and the disk may have changed since.
     missing = [s for s in V2_SECTIONS if s not in present]
     if missing:
         blocks = []
-        i = 0
-        for sec in missing:
-            i += 1
+        for i, sec in enumerate(missing, start=1):
             blocks.append(f"""### Task 5.{i} -- Add `## {sec}`
 
 Not found under any name -- neither the v2 English heading, a known v1
@@ -1571,10 +1726,6 @@ def cmd_migrate(args) -> None:
         print(dim("  No v1 manifest -- all existing managed files will be backed "
                   "up before replacing (no baseline to diff against).\n"))
 
-    # Detect providers and language now (also used by dry-run preview, so the
-    # user can see what will be detected BEFORE writing).
-    detected_providers = _detect_providers(root) if no_manifest or not \
-        (old or {}).get("providers") else []
     if getattr(args, "provider", None):
         prov_keys = []
         for key in args.provider:
@@ -1771,9 +1922,7 @@ def cmd_update(args) -> None:
         if item.is_dir():
             continue
         rel_from_sdd = item.relative_to(src_sdd).as_posix()
-        if rel_from_sdd != "README.md" and not (
-                rel_from_sdd.startswith("skills/")
-                or rel_from_sdd.startswith("templates/")):
+        if rel_from_sdd != "README.md" and not rel_from_sdd.startswith(("skills/", "templates/")):
             continue
         rel = f".sdd/{rel_from_sdd}"
         if rel in managed_files:
@@ -2016,16 +2165,16 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     ses_sub = ses.add_subparsers(dest="session_command", required=True)
     for name in ("resume", "status", "close", "sync"):
         item = ses_sub.add_parser(name)
-        item.add_argument("path", nargs="?", default=".")
-        item.add_argument("--track")
-        item.add_argument("--json", action="store_true")
+        item.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+        item.add_argument("--track", help="parallel track slug")
+        item.add_argument("--json", action="store_true", help="emit machine-readable JSON")
         item.set_defaults(func=cmd_session)
     pause = ses_sub.add_parser("pause")
-    pause.add_argument("path", nargs="?", default=".")
-    pause.add_argument("--track")
-    pause.add_argument("--reason", choices=("emergency", "planned", "context_switch"), default="planned")
-    pause.add_argument("--task")
-    pause.add_argument("--context")
+    pause.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    pause.add_argument("--track", help="parallel track slug")
+    pause.add_argument("--reason", choices=("emergency", "planned", "context_switch"), default="planned", help="why work stopped")
+    pause.add_argument("--task", help="active task identifier")
+    pause.add_argument("--context", help="resume context")
     pause.set_defaults(func=cmd_session)
 
     track = sub.add_parser("track", help="declare and check parallel-track footprints")
@@ -2044,42 +2193,57 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     check.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     check.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     check.set_defaults(func=cmd_track)
+    verify = track_sub.add_parser("verify", help="find Git changes outside a track's declared paths")
+    verify.add_argument("slug", help="track slug")
+    verify.add_argument("--since", help="Git revision to compare against (default: working tree)")
+    verify.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    verify.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    verify.set_defaults(func=cmd_track)
+
+    seq = sub.add_parser("seq", help="reserve a shared numeric sequence")
+    seq_sub = seq.add_subparsers(dest="seq_command", required=True)
+    seq_next = seq_sub.add_parser("next", help="reserve the next identifier")
+    seq_next.add_argument("name", help="sequence name (currently: migration)")
+    seq_next.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    seq_next.add_argument("--track", help="track holding this reservation")
+    seq_next.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    seq_next.set_defaults(func=cmd_seq)
 
     sc = sub.add_parser("scaffold", help="create missing stage artifacts from a locked spec")
-    sc.add_argument("stage")
-    sc.add_argument("path", nargs="?", default=".")
-    sc.add_argument("--track")
-    sc.add_argument("--dry-run", action="store_true")
-    sc.add_argument("--json", action="store_true")
+    sc.add_argument("stage", help="stage identifier")
+    sc.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    sc.add_argument("--track", help="parallel track slug")
+    sc.add_argument("--dry-run", action="store_true", help="show files without writing")
+    sc.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     sc.set_defaults(func=cmd_scaffold)
 
     dep = sub.add_parser("deps", help="manage local cross-project dependencies")
     dep_sub = dep.add_subparsers(dest="deps_command", required=True)
     for name in ("list", "graph"):
         item = dep_sub.add_parser(name)
-        item.add_argument("path", nargs="?", default=".")
-        item.add_argument("--format", choices=("text", "json", "mermaid"), default="text")
-        item.add_argument("--json", action="store_true")
+        item.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+        item.add_argument("--format", choices=("text", "json", "mermaid"), default="text", help="output format")
+        item.add_argument("--json", action="store_true", help="emit machine-readable JSON")
         item.set_defaults(func=cmd_deps)
     for name in ("add", "remove"):
         item = dep_sub.add_parser(name)
-        item.add_argument("dependency")
-        item.add_argument("path", nargs="?", default=".")
+        item.add_argument("dependency", help="dependency project path")
+        item.add_argument("path", nargs="?", default=".", help="project root (default: .)")
         if name == "add":
-            item.add_argument("--kind", choices=("requires", "provides"), default="requires")
-            item.add_argument("--stage")
-            item.add_argument("--description")
+            item.add_argument("--kind", choices=("requires", "provides"), default="requires", help="relationship type")
+            item.add_argument("--stage", help="owning stage")
+            item.add_argument("--description", help="human-readable rationale")
         item.set_defaults(func=cmd_deps)
 
     impact = sub.add_parser("impact", help="find stage artifacts affected by a decision")
     impact.add_argument("decision", help="locked decision id, e.g. D-013")
-    impact.add_argument("path", nargs="?", default=".")
-    impact.add_argument("--json", action="store_true")
+    impact.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    impact.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     impact.set_defaults(func=cmd_impact)
 
     health = sub.add_parser("health", help="calculate a deterministic SDD health score")
-    health.add_argument("path", nargs="?", default=".")
-    health.add_argument("--json", action="store_true")
+    health.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    health.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     health.set_defaults(func=cmd_health)
 
     evaluate = sub.add_parser("evaluate", help="capture local evidence for a future kit evaluation")
@@ -2088,10 +2252,18 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     evaluate.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     evaluate.set_defaults(func=cmd_evaluate)
 
+    document = sub.add_parser("document", help="persist a project documentation plan")
+    document.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    document.add_argument("--answers", help="JSON plan for non-interactive execution")
+    document.add_argument("--create-stubs", action="store_true", help="create planned markdown stubs without overwriting")
+    document.add_argument("--dry-run", action="store_true", help="validate and show the plan without writing")
+    document.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    document.set_defaults(func=cmd_document)
+
     dash = sub.add_parser("dashboard", help="open the optional SDD dashboard")
-    dash.add_argument("path", nargs="?", default=".")
-    dash.add_argument("--ui", choices=("rich", "textual"))
-    dash.add_argument("--set-default", action="store_true")
+    dash.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    dash.add_argument("--ui", choices=("rich", "textual"), help="dashboard renderer")
+    dash.add_argument("--set-default", action="store_true", help="save renderer in manifest")
     dash.set_defaults(func=cmd_dashboard)
 
     return p

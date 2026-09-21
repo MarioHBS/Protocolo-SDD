@@ -56,7 +56,7 @@ uv tool install .\sdd-cli          # Windows (PowerShell)
 ## Verify the install
 
 ```bash
-sdd --version      # should print: sdd v3.0.1
+sdd --version      # should print the installed sdd version
 sdd providers      # lists the 10 supported providers
 sdd docs           # prints the full manual
 sdd docs --md SDD-USAGE.md   # writes the manual to a file
