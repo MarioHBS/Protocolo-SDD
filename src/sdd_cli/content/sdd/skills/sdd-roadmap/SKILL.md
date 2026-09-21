@@ -64,6 +64,9 @@ Write all output in the language set in `constitution.md → Settings → Langua
    counts. It adds only the macro view (goal, dependencies, what each stage
    delivers). Never hand-edit it into disagreement with §5.
 
+   Create `backlog.md` from `templates/backlog.template.md` if it is absent.
+   Keep deferred context there, rather than expanding a provisional-queue row.
+
 5. **(If the Estimation feature is on)** create `estimates.md` from
    `templates/estimates.template.md`, classifying stages by effort into
    blocks that match the roadmap (e.g. MVP, post-MVP, per feature). Fill the

@@ -7,6 +7,9 @@
 
 # Estimates — [PROJECT NAME]
 
+> Keep each update-log row under roughly 400 bytes. Put investigation detail in
+> the corresponding stage `report.md`.
+
 **Document:** Living schedule estimate
 **Version:** 1.0
 **Date:** [date]

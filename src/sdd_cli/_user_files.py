@@ -69,7 +69,7 @@ class HygieneResult:
 
 
 _OPEN_BOX_RE = re.compile(r"(?m)^[-*]\s+\[\s\]")
-_CLOSED_BOX_RE = re.compile(r"(?m)^[-*]\s+\[[xX]\]")
+_CLOSED_BOX_RE = re.compile(r"(?m)^[-*]\s+\[[xX!\-]\]")
 
 def _count_boxes(text: str) -> tuple[int, int]:
     """Return (open, closed) markdown checkbox counts."""

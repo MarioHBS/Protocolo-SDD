@@ -22,7 +22,7 @@ import json
 import types
 from pathlib import Path
 
-from sdd_cli.cli import cmd_doctor
+from sdd_cli.cli import _doctor_payload, cmd_doctor
 
 
 def _args(path: Path) -> types.SimpleNamespace:
@@ -197,3 +197,20 @@ def test_modern_without_kit_version_falls_back_to_unknown(capsys, tmp_path):
     out, _ = _run(capsys, tmp_path)
     assert "unknown" in out
     assert "v1 (no manifest)" not in out  # manifest existed, just sparse
+
+
+def test_closed_edd_stage_requires_every_eval_id_in_evidence(tmp_path):
+    root = _make_modern(tmp_path)
+    manifest_path = root / ".sdd" / ".sdd-manifest.json"
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["features"]["edd"] = True
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+    stage = root / ".sdd" / "stages" / "001-example"
+    stage.mkdir()
+    (stage / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (stage / "evals.md").write_text("- [ ] E-001\n- [ ] E-002\n", encoding="utf-8")
+    (stage / "checklist.md").write_text("# Checklist\n\nE-001\n", encoding="utf-8")
+    (stage / "report.md").write_text("# Report\n", encoding="utf-8")
+
+    findings = _doctor_payload(root)["findings"]
+    assert {item["eval"] for item in findings if item["code"] == "edd_eval_uncovered"} == {"E-002"}

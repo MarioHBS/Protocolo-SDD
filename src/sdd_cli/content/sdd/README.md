@@ -6,7 +6,8 @@ Each agent has only a thin shim (in `.claude/`, `.github/prompts/`, `.cursor/`,
 etc.) pointing back here.
 
 > **You are an AI agent reading this inside an IDE.** Before doing anything,
-> read this file, then `constitution.md`. Its `Current state` field tells you
+> read this file, then only the `Settings` and `Current state` prefix of
+> `constitution.md` (or run `sdd context`). Its `Current state` field tells you
 > which phase the project is in and which skill to load. Never skip phases.
 
 **Language rule:** these instructions are written in English for reliability.
@@ -16,6 +17,15 @@ language configured in `constitution.md → Settings → Language`. Do not switc
 the user's language because these instructions are in English. The structural
 skeletons (headings, fixed labels, format markers) of templates stay in English;
 only the content (the prose the project writes) follows the configured language.
+
+## Context loading policy
+
+Keep each session small. Read `README.md` and the constitution through `## 1.`
+at startup; load a later constitution section, a prior report, or a skill only
+when the current task needs it. Load `sdd-track` only when **Parallel tracks**
+is on. `roadmap.md`, `estimates.md`, `CHANGELOG.md`, and inactive
+`tracks/*/state.md` are cold files: never read them by default. Use
+`sdd context --budget` to inspect the estimated startup cost.
 
 ---
 
@@ -238,7 +248,11 @@ ready** — fix it before locking a spec or closing a stage.
 | MD024 | No duplicate headings in one document | two `## Introduction` sections | Rename or merge |
 | MD025 | Exactly **one** `# Title` (h1) per document | two `#` in the same file | Use `##` for the rest |
 | MD032 | Lists surrounded by blank lines | text glued directly to `* item` | Blank line before and after |
+| MD036 | No emphasis used as a heading | `**Title**` on its own line | Use a real `## Title` heading |
+| MD031 | Fenced blocks surrounded by blank lines | text glued to a fence | Add a blank line above and below |
 | MD040 | Fenced code blocks declare a language | bare ``` fence | ```json |
+| MD022 | Headings surrounded by blank lines | text immediately after `## Title` | Add one blank line above and below |
+| MD028 | No blank line inside a blockquote | `>` between quoted lines | Keep the quote contiguous or end it |
 | MD060 | Well-formed table pipes, spaces on both sides | `\|Col\|Value\|` | `\| Col \| Value \|` |
 
 These follow the [markdownlint](https://github.com/DavidAnson/markdownlint)

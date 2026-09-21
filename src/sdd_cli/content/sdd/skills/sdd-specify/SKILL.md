@@ -45,6 +45,13 @@ Write all artifacts in the language set in
 5. **Write the todo** from `templates/todo.template.md`: small, ordered tasks,
    each with a verifiable outcome.
 
+   If **Eval Driven Development** is on, also create `evals.md` and
+   `checklist.md`. Assign stable `E-NNN` IDs; an evaluation added later receives
+   the next free ID, never a renumbered one. `evals.md` is the source of truth;
+   the closing checklist records evidence against those IDs. Read any matching
+   entry in `backlog.md`, embed the relevant context in the spec, then remove
+   that backlog entry so it cannot be implemented twice.
+
 6. **Empirical verification + cold self-audit.** Before locking, review as if you
    had never seen the project:
    - Could an executor with no other context implement from this spec alone?

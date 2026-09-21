@@ -18,6 +18,10 @@ Write all artifacts in the language set in
    must be met **with evidence** or carry a recorded divergence. If something is
    pending, do not close — return to `IMPLEMENTING`.
 
+   If **Eval Driven Development** is on, walk every `E-NNN` in `evals.md` and
+   record its evidence in `checklist.md` or the report. Do not close while an
+   evaluation is absent from both records.
+
 2. **Ground-truth verification (mandatory).** For **each** artifact the report
    will claim was created/changed (migrations by number, functions, deploys,
    endpoints, files, jobs), **confirm it actually exists** — on the filesystem
@@ -107,7 +111,11 @@ Write all artifacts in the language set in
     any closed stage that still has open checkboxes.)
 
 12. **(If the Documentation feature is on)** consider whether this stage changed
-    anything the documentation set must reflect; if so, invoke `sdd-document`.
+   anything the documentation set must reflect; if so, invoke `sdd-document`.
+
+13. **Evaluation feedback (optional).** When the stage exposed kit friction,
+    run `sdd evaluate --write` and record a sanitized observation in
+    `.sdd/kit-evaluation/README.md`; this local directory is normally ignored.
 
 After the stage state leaves IMPLEMENTING, run `sdd session sync` to clear the
 formal interruption context (or use `sdd session close` after the report exists).

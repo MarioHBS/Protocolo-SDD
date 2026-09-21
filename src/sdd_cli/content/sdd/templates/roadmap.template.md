@@ -7,6 +7,8 @@
 **Delivery mode:** ( ) MVP first  ( ) straight to final product
 
 > Source of truth: `constitution.md` section 5.
+> This is a generated mirror. Do not add manual narrative or operational notes;
+> keep that detail in a stage report or `backlog.md`.
 
 ---
 

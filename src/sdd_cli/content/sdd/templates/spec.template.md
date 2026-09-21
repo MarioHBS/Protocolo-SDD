@@ -6,6 +6,7 @@
 
 - **Status:** draft   <!-- draft -> locked. Implementation only when "locked". -->
 - **Created:** [date]
+- **Origin:** escopo-original | lacuna-de-levantamento | mudanca-do-cliente | bug-ou-regressao | divida-tecnica
 - **Depends on:** [stages] · **Enables:** [stages]
 <!-- Use the line below only if this stage alters something already delivered: -->
 <!-- - **Supersedes (partially):** [stage/decision] — what changes, what remains -->
@@ -40,6 +41,9 @@
 ## 3. Scope
 
 **Included:**
+
+**Frozen-scope gate:** implementation may not add work outside this section;
+record an amendment with its Origin instead.
 
 - [...]
 

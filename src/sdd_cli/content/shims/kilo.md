@@ -9,7 +9,7 @@ Trigger `/sdd` in the Kilo Code chat to execute this workflow.
 Do this, in order:
 
 1. Read `.sdd/README.md` (methodology, ground-truth principle, state machine).
-2. Read `.sdd/constitution.md`; note `Settings > Language` and `Current state`.
+2. Run `sdd context` when available; otherwise read only `Settings` and `Current state` in `.sdd/constitution.md` (through `## 1.`).
 3. Load and follow the skill matching the current state, from `.sdd/skills/`:
    - INITIALIZING -> `sdd-init`
    - DECIDING     -> `sdd-decide`
@@ -21,6 +21,7 @@ Do this, in order:
 Cross-cutting utilities, valid in any state: `sdd-reconcile` (realign the
 indexes with disk) and `sdd-document` (only when the Documentation feature is
 on).
+Load `sdd-track` only when `Parallel tracks: on`; cold files stay unread unless needed.
 
 Inviolable rule: **no production code while the state is INITIALIZING or
 DECIDING.** Disk and live services are the truth; indexes and reports are caches.
