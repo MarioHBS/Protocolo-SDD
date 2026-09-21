@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from . import (
+    _dashboard,
     _deps,
     _docs_plan,
     _findings,
@@ -1372,61 +1373,42 @@ def cmd_document(args) -> None:
 
 
 def _dashboard_data(root: Path) -> dict[str, str]:
-    """Read-only shared data model for both dashboard renderers."""
-    doctor = _doctor_payload(root)
+    """Read-only shared data model for every dashboard renderer."""
     sdd = root / ".sdd"
-    context = _context_payload(root, budget=True) if sdd.is_dir() and (sdd / "constitution.md").is_file() else {}
-    stages = [path.name for path in (sdd / "stages").iterdir() if path.is_dir()] if (sdd / "stages").is_dir() else []
-    tracks = [path.name for path in (sdd / "tracks").iterdir() if path.is_dir()] if (sdd / "tracks").is_dir() else []
-    sections = _constitution_sections(sdd / "constitution.md") if (sdd / "constitution.md").is_file() else []
-    edd = [item for item in doctor["findings"] if item["code"].startswith("edd_")]
-    return {
-        "Overview": f"kit: {doctor.get('sdd', 'not initialized')}\nstate: {context.get('state') or 'unknown'}\nactive stage: {context.get('active_stage') or '(none)'}\nstartup: ~{context.get('startup_estimated_tokens', 0)} tokens",
-        "Constitution": "\n".join(f"{name}: {size} B" for name, size in sections) or "nothing to show",
-        "Stages / Tracks": f"stages ({len(stages)}): {', '.join(stages) or 'none'}\ntracks ({len(tracks)}): {', '.join(tracks) or 'none'}",
-        "EDD": "\n".join(f"{item['code']}: {item.get('stage', '')}" for item in edd) or "nothing to show",
-        "Doctor / Fix": "\n".join(f"{item['severity']}: {item['code']}" for item in doctor["findings"]) or "clean",
-        "Session": json.dumps(_session.load(root) or {"state": "none"}, ensure_ascii=False, indent=2),
-    }
+    has_constitution = (sdd / "constitution.md").is_file()
+    return _dashboard.build_views(
+        root, _doctor_payload(root),
+        _context_payload(root, budget=True) if has_constitution else {},
+        _constitution_sections(sdd / "constitution.md") if has_constitution else [],
+        _session.load(root),
+        bool((manifest.load(root) or {}).get("features", {}).get("edd")))
 
 
 def cmd_dashboard(args) -> None:
     root = Path(args.path).resolve()
     renderer = args.ui or (manifest.load(root) or {}).get("dashboard_renderer", "rich")
+    if renderer not in ("rich", "textual", "plain"):
+        die("--ui must be rich, textual or plain")
     if args.set_default:
         data = manifest.load(root)
         if not data:
             die("dashboard configuration requires an initialized project")
         data["dashboard_renderer"] = renderer
         manifest.save(root, data)
+    if renderer == "textual" and not (sys.stdin.isatty() and sys.stdout.isatty()):
+        # Textual takes over the terminal and waits for keys: without one it would hang.
+        die("the textual dashboard is interactive and needs a terminal; use --ui rich or --ui plain here")
     views = _dashboard_data(root)
-    if renderer == "rich":
-        try:
-            from rich.console import Console
-            from rich.table import Table
-        except ImportError:
-            die("install dashboard support: pip install 'sdd-cli[dashboard-rich]'")
-        table = Table(title="SDD Dashboard — Overview")
-        table.add_column("View")
-        table.add_column("Data")
-        for view, value in views.items():
-            table.add_row(view, value)
-        Console().print(table)
-    elif renderer == "textual":
-        try:
-            from textual.app import App, ComposeResult
-            from textual.widgets import Static, TabbedContent, TabPane
-        except ImportError:
-            die("install dashboard support: pip install 'sdd-cli[dashboard-textual]'")
-        class Dashboard(App):
-            def compose(self) -> ComposeResult:
-                with TabbedContent():
-                    for name, value in views.items():
-                        with TabPane(name):
-                            yield Static(value)
-        Dashboard().run()
-    else:
-        die("--ui must be rich or textual")
+    if renderer == "plain":
+        print(_dashboard.render_plain(views))
+        return
+    try:
+        if renderer == "rich":
+            _dashboard.render_rich(views)
+        else:
+            _dashboard.make_app(views).run()
+    except ImportError:
+        die(_dashboard.INSTALL_HINT.format(ui=renderer))
 
 
 def _section_body(section: str) -> str:
@@ -2494,7 +2476,8 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
 
     dash = sub.add_parser("dashboard", help="open the optional SDD dashboard")
     dash.add_argument("path", nargs="?", default=".", help="project root (default: .)")
-    dash.add_argument("--ui", choices=("rich", "textual"), help="dashboard renderer")
+    dash.add_argument("--ui", choices=("rich", "textual", "plain"),
+                      help="renderer: rich or textual (optional extras) or plain (no dependencies)")
     dash.add_argument("--set-default", action="store_true", help="save renderer in manifest")
     dash.set_defaults(func=cmd_dashboard)
 

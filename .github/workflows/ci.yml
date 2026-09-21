@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, "[0-9]+.[0-9]+.[0-9]+"]
+    branches: [main, "*.*.*"]
   pull_request:
-    branches: [main, "[0-9]+.[0-9]+.[0-9]+"]
+    branches: [main, "*.*.*"]
 
 jobs:
   test:
@@ -20,3 +20,19 @@ jobs:
       - run: python -m pip install pytest ruff
       - run: python -m pytest -q
       - run: ruff check src tests
+
+  dashboard:
+    # The rich and textual dashboard tests skip themselves without the optional
+    # extras, so this job installs them from the checkout (the same way a user does)
+    # and fails if any dashboard test is skipped.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install ".[dashboard]" pytest
+      - run: python -c "import rich, textual"
+      - run: |
+          python -m pytest tests/test_dashboard.py -q -rs | tee dashboard.log
+          ! grep -q -i skipped dashboard.log
