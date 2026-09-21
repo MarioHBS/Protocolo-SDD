@@ -18,6 +18,7 @@ from pathlib import Path
 from . import (
     _deps,
     _docs_plan,
+    _findings,
     _index_checks,
     _mojibake,
     _session,
@@ -646,10 +647,32 @@ def cmd_doctor(args) -> None:
     else:
         print(green("  ok    CHANGELOG.md present"))
 
+    # --- everything else the JSON report carries (size, structure, settings, EDD,
+    # backlog, documentation, tracks, worktrees...). Without this the human report
+    # said "clean." while `doctor --json` listed problems.
+    payload = _doctor_payload(root)
+    others = [f for f in payload["findings"] if f["code"] not in _DOCTOR_PRINTED_ABOVE]
+    if others:
+        print(bold("\nfindings"))
+        for item in _findings.group(others):
+            label = {"error": red("ERROR"), "warn": yellow("WARN "), "note": dim("note ")}[item["severity"]]
+            more = f" (x{item['count']})" if item["count"] > 1 else ""
+            print(f"  {label} {item['code']}{more}: {item['message']}")
+            if item["hint"]:
+                print(dim(f"        fix: {item['hint']}"))
+    status = max(status, payload["status"])
     if status:
         raise SystemExit(status)
-    print(bold("\nclean.") if not (hyg.closed_with_open_todo
-                                  or hyg.spec_without_todo) else "")
+    pending = [g for g in _findings.group(others) if g["severity"] == "warn"]
+    if hyg.closed_with_open_todo or hyg.spec_without_todo or pending:
+        print(yellow(f"\n{len(pending)} kind(s) of finding to review — see above."))
+    else:
+        print(bold("\nclean."))
+
+
+# Codes the human report already prints in its own sections above.
+_DOCTOR_PRINTED_ABOVE = {"mojibake_v1", "mojibake_v2", "invalid_utf8", "spec_without_todo", "closed_open_todo",
+                         "track_not_started", "track_not_incorporated", "session_inconsistent"}
 
 
 _STAGE_NUMBER_RE = re.compile(r"\b(\d{3}(?:-[A-Za-z])?)\b")
