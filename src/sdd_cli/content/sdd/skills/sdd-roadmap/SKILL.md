@@ -42,6 +42,15 @@ Write all output in the language set in `constitution.md → Settings → Langua
    `Depends on` with the track slugs it must follow), or after the specific
    stage it validates — never as a parallel sibling of the mutating tracks.
 
+   A third condition completes the test: the candidates' **footprints must be
+   disjoint**. For each track candidate, jot down its rough `Touches` (the
+   directories/files it will change, the shared numbers such as migrations it
+   will consume, the exclusive runtime resources it needs). Two candidates that
+   touch the same file, the same numbering sequence or the same exclusive
+   resource are **not** parallel — sequence them (`Depends on`) or put them in the
+   same track, one after the other. The precise footprint is declared later, at
+   `sdd-specify`, and enforced by `sdd track check`.
+
 3. **Fill the canonical index and the Provisional queue (§5 of the
    constitution).** Only the first stage — the one about to become `Active
    stage` in step 6 — gets a canonical row (`001`, status `pending`). Every
@@ -50,6 +59,11 @@ Write all output in the language set in `constitution.md → Settings → Langua
    candidate in step 2 gets its row there too, with `Notes: track candidate`,
    representing the whole future track (not its internal stages — those are
    decided only when the track is actually opened, per `sdd-track` step 1).
+   **Keep each provisional row to 2-3 sentences** (what, why, dependency) plus a
+   pointer to its section in `backlog.md` — a row is an index entry, not a place
+   for tasks or findings. If Eval Driven Development is on, add an optional
+   `Milestone` column and keep the stages of one milestone contiguous in the
+   queue: a milestone is a slice of the queue, not a label scattered across it.
    **This is the source of truth.** If a stage must be sequenced after two or
    more parallel tracks — either a **join stage** that waits for their
    result, or a **stability-sensitive stage** that needs the shared
