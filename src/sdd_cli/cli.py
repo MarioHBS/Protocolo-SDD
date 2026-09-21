@@ -793,6 +793,24 @@ def _doctor_payload(root: Path) -> dict:
             findings.append({"severity": "error", "code": "track_overlap", "detail": conflict})
     except ValueError as exc:
         findings.append({"severity": "warn", "code": "track_claims_invalid", "detail": str(exc)})
+    for duplicate in _tracks.duplicate_numbers(root):
+        findings.append({"severity": "error", "code": "sequence_duplicate", **duplicate})
+    branch = _tracks.current_branch(root)
+    if branch:
+        scopes = [(None, saved_session)] + [(slug, _session.load(root, slug))
+                                            for slug in _tracks.active_tracks(root)]
+        for slug, saved in scopes:
+            if not saved or saved.get("invalid"):
+                continue
+            expected = saved.get("branch")
+            if slug and not expected:
+                try:
+                    expected = _tracks.load(root, slug).get("branch")
+                except ValueError:
+                    expected = None
+            if expected and expected != branch:
+                findings.append({"severity": "warn", "code": "session_branch_mismatch",
+                                 "track": slug, "expected": expected, "current": branch})
     dot_git = root / ".git"
     if dot_git.is_file():
         findings.append({"severity": "warn", "code": "inside_linked_worktree",
@@ -804,7 +822,10 @@ def _doctor_payload(root: Path) -> dict:
         if copies:
             findings.append({"severity": "warn", "code": "nested_worktree_copies",
                              "path": str(worktree_dir.relative_to(root)).replace("\\", "/"),
-                             "count": len(copies)})
+                             "count": len(copies),
+                             "hint": "run 'sdd fix --gitignore' and exclude this folder from test, lint "
+                                     "and type-check globs (vitest/eslint/tsc/pytest); never read or edit "
+                                     ".sdd/ inside it"})
     return {"version": 1, "command": "doctor", "project": str(root),
             "sdd": (manifest_data or {}).get("kit_version", "v1 (no manifest)"),
             "status": 1 if any(x["severity"] == "error" for x in findings) else 0,
@@ -813,6 +834,45 @@ def _doctor_payload(root: Path) -> dict:
 
 def _emit_json(data: dict) -> None:
     print(json.dumps(data, ensure_ascii=False, sort_keys=True))
+
+
+_FILE_LINK_RE = re.compile(r"file:///[^\s)`>\"]+")
+_AGENT_WORKTREE_DIRS = (".kilo/worktrees", ".claude/worktrees", ".cursor/worktrees")
+
+
+def _relativize_file_links(text: str, root: Path) -> str:
+    """Rewrite absolute ``file:///`` links into links relative to ``.sdd/``.
+
+    The constitution lives in ``.sdd/``, so a target ``<root>/.sdd/stages/x`` becomes
+    ``stages/x`` and one outside ``.sdd/`` becomes ``../...``. A link from a moved
+    or foreign checkout is still recognised when it contains ``/.sdd/``. Anything
+    else is left alone.
+    """
+    from urllib.parse import unquote
+
+    root_posix = root.resolve().as_posix().lower().rstrip("/") + "/"
+
+    def convert(match: re.Match[str]) -> str:
+        target = unquote(match.group(0)[len("file:///"):])
+        lowered = target.lower()
+        if lowered.startswith(root_posix.lstrip("/")):
+            rel = target[len(root_posix.lstrip("/")):]
+        elif "/.sdd/" in lowered:
+            rel = ".sdd/" + target[lowered.index("/.sdd/") + len("/.sdd/"):]
+        else:
+            return match.group(0)
+        return rel[len(".sdd/"):] if rel.startswith(".sdd/") else "../" + rel
+
+    return _FILE_LINK_RE.sub(convert, text)
+
+
+def _missing_worktree_ignores(root: Path) -> list[str]:
+    """``.gitignore`` entries for agent worktree folders that exist but are not ignored."""
+    ignore = root / ".gitignore"
+    lines = {x.strip().strip("/") for x in ignore.read_text(encoding="utf-8", errors="replace").splitlines()} \
+        if ignore.is_file() else set()
+    return [f"/{name}/" for name in _AGENT_WORKTREE_DIRS
+            if (root / name).is_dir() and name not in lines]
 
 
 def cmd_fix(args) -> None:
@@ -826,7 +886,8 @@ def cmd_fix(args) -> None:
     use_eol = bool(getattr(args, "eol", False) or getattr(args, "all", False))
     use_links = bool(getattr(args, "links", False) or getattr(args, "all", False))
     use_features = bool(getattr(args, "features", False) or getattr(args, "all", False))
-    if not use_mojibake and not use_eol and not use_links and not use_features:
+    use_gitignore = bool(getattr(args, "gitignore", False))  # opt-in: never part of --all
+    if not (use_mojibake or use_eol or use_links or use_features or use_gitignore):
         use_mojibake = use_eol = use_links = use_features = True
     repairs: list[dict] = []
     unresolved: list[dict] = []
@@ -857,8 +918,7 @@ def cmd_fix(args) -> None:
     constitution = sdd / "constitution.md"
     if use_links and constitution.is_file():
         text = constitution.read_text(encoding="utf-8", errors="replace")
-        root_uri = root.resolve().as_uri().lower().rstrip("/") + "/"
-        changed = re.sub(r"file:///[^\s)`]+", lambda m: m.group(0)[len(root_uri):] if m.group(0).lower().startswith(root_uri) else m.group(0), text)
+        changed = _relativize_file_links(text, root)
         if changed != text:
             repairs.append({"kind": "absolute_file_links", "path": ".sdd/constitution.md"})
             if not dry_run:
@@ -881,6 +941,19 @@ def cmd_fix(args) -> None:
                 repairs.append({"kind": "feature_manifest_sync", "path": ".sdd/.sdd-manifest.json"})
                 if not dry_run:
                     manifest.save(root, data)
+    if use_gitignore:
+        if not (root / ".git").exists():
+            unresolved.append({"kind": "gitignore_without_git", "path": ".gitignore"})
+        else:
+            missing = _missing_worktree_ignores(root)
+            if missing:
+                repairs.append({"kind": "gitignore_worktrees", "path": ".gitignore", "entries": missing})
+                if not dry_run:
+                    ignore = root / ".gitignore"
+                    existing = ignore.read_text(encoding="utf-8") if ignore.is_file() else ""
+                    sep = "" if not existing or existing.endswith("\n") else "\n"
+                    ignore.write_text(existing + sep + "# Agent worktrees are full copies of the repo (and of .sdd/)\n"
+                                      + "\n".join(missing) + "\n", encoding="utf-8", newline="\n")
     status = 2 if unresolved else (1 if repairs else 0)
     result = {"version": 1, "command": "fix", "project": str(root), "dry_run": dry_run,
               "status": status, "repairs": repairs, "unresolved": unresolved}
@@ -910,6 +983,7 @@ def cmd_session(args) -> None:
             current = current if current and not current.get("invalid") else _session.new(state, stage)
             current["state"] = "IMPLEMENTING"
             current["active_stage"] = stage
+            current["branch"] = _tracks.current_branch(root)
             current["updated_at"] = _session.now()
             path = _session.save(root, current, track)
             print(f"synced {path.relative_to(root)}")
@@ -930,7 +1004,8 @@ def cmd_session(args) -> None:
                                    "started_at": data.get("updated_at") or _session.now(), "context": context}
             data.setdefault("stack", []).append({"stage": stage, "task": task, "context": context})
         data.update({"state": "PAUSED", "active_stage": stage, "interrupted_at": _session.now(),
-                     "interruption_reason": args.reason, "updated_at": _session.now()})
+                     "interruption_reason": args.reason, "updated_at": _session.now(),
+                     "branch": _tracks.current_branch(root)})
         if context:
             data["resume_hints"] = [context] + data.get("resume_hints", [])
         path = _session.save(root, data, track)
@@ -967,37 +1042,73 @@ def cmd_track(args) -> None:
     if args.track_command == "claim":
         if not (root / ".sdd" / "tracks" / args.slug).is_dir():
             die(f"track not found: {args.slug}")
-        data = _tracks.load(root, args.slug)
+        try:
+            data = _tracks.load(root, args.slug)
+        except ValueError as exc:
+            die(str(exc))
         claim = {"stage": args.stage, "paths": args.path_claim or [],
                  "sequences": args.seq or [], "runtime": args.runtime or [],
                  "stability_sensitive": bool(args.stability_sensitive)}
+        changed = False
         if claim not in data["claims"]:
             data["claims"].append(claim)
+            changed = True
+        if getattr(args, "branch", None) and data.get("branch") != args.branch:
+            data["branch"] = args.branch
+            changed = True
+        if changed:
             _tracks.save(root, args.slug, data)
         _emit_json(claim) if args.json else print(f"claimed {args.slug}: {args.stage}")
         return
+    if args.track_command == "incorporate":
+        try:
+            stage_dir = _find_stage(root, args.stage, args.slug)
+            if stage_dir is None:
+                die(f"cannot resolve stage {args.stage!r} in track {args.slug}")
+            result = _tracks.incorporate(root, args.slug, stage_dir, dry_run=args.dry_run)
+        except (ValueError, TimeoutError) as exc:
+            die(str(exc))
+        if args.json:
+            _emit_json(result)
+        else:
+            verb = "would move" if args.dry_run else "moved"
+            print(f"{verb} {result['from']} -> {result['to']}")
+            print(f"index row: {result['row']}")
+            if not args.dry_run:
+                print(dim("Next: drop this stage from the track's row in 'Active tracks' if it was the "
+                          "last one, and run sdd-reconcile to regenerate roadmap.md."))
+        return
     if args.track_command == "verify":
-        findings = _tracks.verify(root, args.slug, args.since)
+        try:
+            findings = _tracks.verify(root, args.slug, args.since)
+        except ValueError as exc:
+            die(str(exc))
         result = {"command": "track verify", "project": str(root), "track": args.slug,
                   "findings": findings, "status": 1 if findings else 0}
         if args.json:
             _emit_json(result)
         elif findings:
             for finding in findings:
-                print(f"{finding['kind']}: {finding['path']}")
+                who = ", ".join(finding["tracks"]) if "tracks" in finding else finding.get("track", "")
+                print(f"{finding['kind']}: {finding['path']} ({who})")
         else:
             print(f"track {args.slug} verified")
         if findings:
             raise SystemExit(1)
         return
-    conflicts = _tracks.check(root)
+    try:
+        conflicts = _tracks.check(root)
+    except ValueError as exc:
+        die(str(exc))
     result = {"command": "track check", "project": str(root), "conflicts": conflicts,
               "status": 1 if conflicts else 0}
     if args.json:
         _emit_json(result)
     elif conflicts:
         for conflict in conflicts:
-            print(f"conflict {conflict['kind']}: {' vs '.join(conflict['tracks'])}; sequence with Depends on")
+            detail = conflict.get("paths") or conflict.get("value") or ""
+            print(f"conflict {conflict['kind']}: {' vs '.join(conflict['tracks'])} {detail}".rstrip())
+        print(dim("Sequence the later stage after the earlier one: fill its 'Depends on' cell in section 5."))
     else:
         print("track claims clean")
     if conflicts:
@@ -2157,6 +2268,8 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     fx.add_argument("--eol", action="store_true", help="normalize UTF-8 files to LF")
     fx.add_argument("--links", action="store_true", help="make in-project file:/// links relative")
     fx.add_argument("--features", action="store_true", help="sync manifest feature flags from constitution")
+    fx.add_argument("--gitignore", action="store_true",
+                    help="opt-in: ignore agent worktree folders (.kilo/worktrees, ...) in .gitignore")
     fx.add_argument("--dry-run", action="store_true", help="report repairs without writing")
     fx.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     fx.set_defaults(func=cmd_fix)
@@ -2186,9 +2299,18 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     claim.add_argument("--seq", action="append", help="exclusive sequence name (repeatable)")
     claim.add_argument("--runtime", action="append", help="exclusive runtime resource (repeatable)")
     claim.add_argument("--stability-sensitive", action="store_true", help="cannot overlap any mutating claim")
+    claim.add_argument("--branch", help="Git branch this track works on (when it does not use the shared one)")
     claim.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     claim.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     claim.set_defaults(func=cmd_track)
+    incorporate = track_sub.add_parser(
+        "incorporate", help="move a closed track stage into the canonical queue (atomic)")
+    incorporate.add_argument("slug", help="track slug")
+    incorporate.add_argument("stage", help="local stage folder or slug inside the track")
+    incorporate.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    incorporate.add_argument("--dry-run", action="store_true", help="show the new number and row, write nothing")
+    incorporate.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    incorporate.set_defaults(func=cmd_track)
     check = track_sub.add_parser("check", help="fail when active track footprints overlap")
     check.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     check.add_argument("--json", action="store_true", help="emit machine-readable JSON")
