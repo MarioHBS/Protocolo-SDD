@@ -33,7 +33,6 @@ All checks read disk only; none trust the constitution's self-reported state.
 from __future__ import annotations
 
 import re
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -76,57 +75,28 @@ def _count_boxes(text: str) -> tuple[int, int]:
     return (len(_OPEN_BOX_RE.findall(text)), len(_CLOSED_BOX_RE.findall(text)))
 
 
-def _scan_tracks(sdd: Path) -> list[TrackDivergence]:
-    tracks_dir = sdd / "tracks"
-    if not tracks_dir.is_dir():
-        return []
+_HTML_COMMENT_RE = re.compile(r"(?s)<!--.*?-->")
 
-    findings: list[TrackDivergence] = []
-    now = time.time()
 
-    for d in sorted(tracks_dir.iterdir()):
-        if not d.is_dir() or d.name.startswith("."):
-            continue
-        slug = d.name
-        stages_dir = d / "stages"
-        stage_dirs = [s for s in stages_dir.iterdir() if s.is_dir()] \
-            if stages_dir.is_dir() else []
+def active_track_slugs(sdd: Path) -> set[str] | None:
+    """Slugs listed in the constitution's ``### Active tracks`` table.
 
-        if not stage_dirs:
-            findings.append(TrackDivergence(
-                track=slug, kind="empty",
-                detail=f"no stage folders under tracks/{slug}/stages/ — "
-                       "either the track was just opened and nothing has "
-                       "started yet, or all its stages were already "
-                       "incorporated into stages/. If the track's work is "
-                       "done, close the fork via sdd-reconcile and drop its "
-                       "row from Current state -> Active tracks.",
-            ))
-            continue
-
-        for s in sorted(stage_dirs):
-            if (s / "report.md").is_file():
-                findings.append(TrackDivergence(
-                    track=slug, kind="not_incorporated",
-                    detail=f"tracks/{slug}/stages/{s.name}/ has a report.md "
-                           "but was not incorporated into the canonical "
-                           "stages/ queue (see sdd-track, 'closing a stage "
-                           "inside a track')",
-                ))
-
-        state_md = d / "state.md"
-        unfinished = any(not (s / "report.md").is_file() for s in stage_dirs)
-        if unfinished and state_md.is_file():
-            age_days = (now - state_md.stat().st_mtime) / 86400
-            if age_days >= _STALE_TRACK_DAYS:
-                findings.append(TrackDivergence(
-                    track=slug, kind="stale",
-                    detail=f"tracks/{slug}/state.md not updated in "
-                           f"{int(age_days)}+ days while stages remain "
-                           "unfinished — possibly abandoned",
-                ))
-
-    return findings
+    Returns ``None`` when the table is absent or has no rows (unknown), so
+    callers fall back to per-track markers. A track that is *not* listed in a
+    populated table has been concluded and dropped from the index.
+    """
+    constitution = sdd / "constitution.md"
+    if not constitution.is_file():
+        return None
+    text = _HTML_COMMENT_RE.sub("", constitution.read_text(encoding="utf-8", errors="replace"))
+    heading = re.search(r"(?m)^###\s+Active tracks\s*$", text)
+    if not heading:
+        return None
+    rest = text[heading.end():]
+    end = re.search(r"(?m)^#{1,3}\s", rest)
+    block = rest[:end.start()] if end else rest
+    slugs = set(re.findall(r"(?m)^\|\s*`([^`|]+)`\s*\|", block))
+    return slugs or None
 
 
 def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
@@ -134,6 +104,7 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
     tracks_dir = sdd / "tracks"
     if not tracks_dir.is_dir():
         return []
+    active = active_track_slugs(sdd)
     findings: list[TrackDivergence] = []
     for directory in sorted(tracks_dir.iterdir()):
         if not directory.is_dir() or directory.name.startswith("."):
@@ -142,7 +113,8 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
         state = directory / "state.md"
         text = state.read_text(encoding="utf-8", errors="replace") if state.is_file() else ""
         closed = bool(re.search(r"(?im)^[-*]?\s*(?:status|state)\s*:\s*closed\s*$", text)
-                      or re.search(r"(?im)^[-*]?\s*incorporated\s*:\s*true\s*$", text))
+                      or re.search(r"(?im)^[-*]?\s*incorporated\s*:\s*true\s*$", text)
+                      or (active is not None and slug not in active))
         stages = directory / "stages"
         stage_dirs = [p for p in stages.iterdir() if p.is_dir()] if stages.is_dir() else []
         if not stage_dirs:
