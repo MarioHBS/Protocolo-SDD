@@ -18,6 +18,7 @@ from pathlib import Path
 from . import (
     _deps,
     _docs_plan,
+    _index_checks,
     _mojibake,
     _session,
     _tracks,
@@ -779,6 +780,8 @@ def _doctor_payload(root: Path) -> dict:
                                      "stage": stage.name, "eval": eval_id})
         if (sdd / "milestones").is_dir() and not (sdd / "avaliacao-desempenho.md").is_file():
             findings.append({"severity": "note", "code": "edd_missing_performance_doc"})
+    findings.extend(_index_checks.backlog_findings(sdd))
+    findings.extend(_index_checks.milestone_findings(sdd))
     saved_session = _session.load(root)
     for issue in _session.validate(root, saved_session):
         findings.append({"severity": "warn", "code": "session_inconsistent", "detail": issue})
