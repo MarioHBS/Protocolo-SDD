@@ -6,7 +6,8 @@ Each agent has only a thin shim (in `.claude/`, `.github/prompts/`, `.cursor/`,
 etc.) pointing back here.
 
 > **You are an AI agent reading this inside an IDE.** Before doing anything,
-> read this file, then `constitution.md`. Its `Current state` field tells you
+> read this file, then only the `Settings` and `Current state` prefix of
+> `constitution.md` (or run `sdd context`). Its `Current state` field tells you
 > which phase the project is in and which skill to load. Never skip phases.
 
 **Language rule:** these instructions are written in English for reliability.
@@ -16,6 +17,15 @@ language configured in `constitution.md → Settings → Language`. Do not switc
 the user's language because these instructions are in English. The structural
 skeletons (headings, fixed labels, format markers) of templates stay in English;
 only the content (the prose the project writes) follows the configured language.
+
+## Context loading policy
+
+Keep each session small. Read `README.md` and the constitution through `## 1.`
+at startup; load a later constitution section, a prior report, or a skill only
+when the current task needs it. Load `sdd-track` only when **Parallel tracks**
+is on. `roadmap.md`, `estimates.md`, `CHANGELOG.md`, and inactive
+`tracks/*/state.md` are cold files: never read them by default. Use
+`sdd context --budget` to inspect the estimated startup cost.
 
 ---
 
@@ -141,6 +151,7 @@ anyone re-explaining what happened before.
         +-- todo.md          — detailed task list for the stage
         +-- report.md        — closing report (becomes context for the next stage)
         +-- checklist.md     — (optional) verification log, one scenario per section
+        +-- evals.md         — (Eval Driven Development) the stage's acceptance criteria, E-NNN
 +-- tracks/              — (optional) parallel work; see "Parallel tracks" below
     +-- <slug>/
         +-- state.md          — free-form, owned only by that track's agent session
@@ -151,6 +162,22 @@ Optional management artifacts (created only when the matching feature is on):
 
 - `estimates.md` — living schedule estimate, updated by `sdd-close` with each
   stage's real duration.
+- **Eval Driven Development** (`Settings → Eval Driven Development`): per stage
+  `evals.md` (the single source of acceptance criteria, stable `E-NNN` IDs) and
+  `checklist.md` (evidence per ID); per milestone `milestones/<slug>/` with its
+  evaluation, and `avaliacao-desempenho.md` for the cross-milestone view. Eval and
+  todo items may be `[x]` met, `[-]` not applicable (with reason) or `[!]`
+  evaluated and not met (pointing to `report.md` §7); `sdd doctor` reports an
+  `E-NNN` that no checklist or report covers.
+- `backlog.md` — detail for stages still in the Provisional queue (context,
+  tasks, findings), one section per slug, so a queue row stays 2-3 sentences.
+  `sdd-specify` consumes a section and removes it.
+- `cross-cutting.md` — optional project checklist (theme, responsiveness,
+  accessibility, permissions...) turned into acceptance criteria by
+  `sdd-specify`; start from `templates/cross-cutting.template.md`.
+- `documentation.json` — the documentation plan agreed by `sdd document`:
+  which documents exist, where they live (they may be outside `.sdd/`) and which
+  stages must refresh them.
 - documentation set — shape decided with the user by `sdd-document`.
 
 Stage numbering: `001`, `002`, … **IDs are append-only and immutable** (stages,
@@ -194,6 +221,16 @@ protocol. In short:
   A stage accepted by *running the app* (manual/on-device QA, a release
   build, e2e, benchmarking) is never opened as a parallel sibling of a track
   that mutates shared code — it is sequenced after it via `Depends on`.
+- **Two stages share a track family only if they cannot affect each other at all.**
+  Each track declares a footprint (`sdd track claim`: paths, shared numeric
+  sequences, exclusive runtime resources) and `sdd track check` refuses
+  overlaps; `sdd track verify` compares the real Git changes with the claims;
+  `sdd track incorporate` and `sdd seq next` hand out shared numbers under a lock.
+  Colliding footprints are sequenced with `Depends on`, not tolerated.
+- Provider tools may create git worktrees on their own (Kilo, Claude Code,
+  Cursor). A worktree is a full copy, including a stale `.sdd/`: if the working
+  directory is a linked worktree, stop and use the main checkout. `sdd doctor`
+  reports nested worktree copies and `sdd fix --gitignore` ignores them.
 - The queue can fork into tracks and join back to sequential as many times
   as the roadmap needs — each fork/join is independent of the others.
 
@@ -238,7 +275,11 @@ ready** — fix it before locking a spec or closing a stage.
 | MD024 | No duplicate headings in one document | two `## Introduction` sections | Rename or merge |
 | MD025 | Exactly **one** `# Title` (h1) per document | two `#` in the same file | Use `##` for the rest |
 | MD032 | Lists surrounded by blank lines | text glued directly to `* item` | Blank line before and after |
+| MD036 | No emphasis used as a heading | `**Title**` on its own line | Use a real `## Title` heading |
+| MD031 | Fenced blocks surrounded by blank lines | text glued to a fence | Add a blank line above and below |
 | MD040 | Fenced code blocks declare a language | bare ``` fence | ```json |
+| MD022 | Headings surrounded by blank lines | text immediately after `## Title` | Add one blank line above and below |
+| MD028 | No blank line inside a blockquote | `>` between quoted lines | Keep the quote contiguous or end it |
 | MD060 | Well-formed table pipes, spaces on both sides | `\|Col\|Value\|` | `\| Col \| Value \|` |
 
 These follow the [markdownlint](https://github.com/DavidAnson/markdownlint)

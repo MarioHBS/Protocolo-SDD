@@ -6,6 +6,8 @@
 
 # Checklist — Stage NNN: [slug]
 
+- **Evals:** E-001, E-002
+
 > Record every interaction with the real system here. If a high-risk operations
 > subagent was used, note it.
 

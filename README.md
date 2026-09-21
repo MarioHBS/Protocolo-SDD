@@ -15,8 +15,9 @@ sdd docs                  # full manual
 - [English](INSTALL.en.md) — Windows / macOS / Linux × pipx / uv
 - [Español](INSTALL.es.md) — Windows / macOS / Linux × pipx / uv
 
-Commands: `init`, `providers`, `docs`, `doctor`, `fix`, `session`, `scaffold`,
-`deps`, `impact`, `health`, `dashboard`, `migrate --to v4`.
+Commands: `init`, `providers`, `manual` (`docs` alias), `context`, `doctor`,
+`fix`, `update`, `session`, `scaffold`, `deps`, `impact`, `health`, `dashboard`,
+`evaluate`, `document`, `track`, `seq`, and `migrate --to v4`.
 
 The CLI is deliberately dumb: it copies the `.sdd/` kit, places a thin shim for
 your agent(s), and records a manifest. All reasoning lives in `.sdd/skills/` and
@@ -31,4 +32,4 @@ open `todo.md` checkboxes, missing `todo.md` for spec'd stages, and whether
 - Managed files (replaced on migrate): `.sdd/README.md`, `skills/`, `templates/`, shims.
 - Your files (never touched): `constitution.md`, `roadmap.md`, `stages/`.
 
-Run `sdd docs` for everything else.
+Run `sdd manual` for everything else.

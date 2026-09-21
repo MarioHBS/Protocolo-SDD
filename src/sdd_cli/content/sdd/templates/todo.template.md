@@ -15,6 +15,8 @@
 
 - [ ] 1. [task] — *verified by:* [how you know it is done]
 - [ ] 2. [task] — *verified by:* [...]
+- [-] [not applicable task] — *reason:* [why]
+- [!] [divergent task] — *evidence and rationale:* report.md §7
 
 ## Final check (before closing)
 

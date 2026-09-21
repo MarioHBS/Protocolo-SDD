@@ -6,7 +6,13 @@
 
 - **Status:** draft   <!-- draft -> locked. Implementation only when "locked". -->
 - **Created:** [date]
+- **Origin:** escopo-original | lacuna-de-levantamento | mudanca-do-cliente | bug-ou-regressao | divida-tecnica
 - **Depends on:** [stages] · **Enables:** [stages]
+- **Touches:** <!-- declared footprint; REQUIRED when this stage lives in a parallel track. -->
+  - paths: [globs relative to the project root, e.g. `src/billing/**`]
+  - sequences: [shared numeric sequences this stage consumes, e.g. `migration`]
+  - runtime: [exclusive resources, e.g. `dev-server`, `db-write`, `device`]
+  - stability-sensitive: no   <!-- yes = accepted by running the app; cannot overlap a mutating track -->
 <!-- Use the line below only if this stage alters something already delivered: -->
 <!-- - **Supersedes (partially):** [stage/decision] — what changes, what remains -->
 
@@ -43,6 +49,10 @@
 
 - [...]
 
+**Frozen-scope gate:** once the spec is `locked`, implementation may not add work
+outside this section. Anything new becomes a new stage, or a recorded amendment
+with its own `Origin` — never a silent expansion.
+
 **Explicitly out of scope (do not do in this stage):**
 
 - [...]
@@ -68,6 +78,10 @@
 > Objective and verifiable. Each must be confirmable against the real system at
 > closing time. If you cannot write finite, clear criteria, the stage is too
 > broad — split it.
+>
+> **If Eval Driven Development is on, write the criteria once, in `evals.md`, and
+> replace the list below with the single line `See evals.md.`** Repeating them
+> here lets the two lists drift apart.
 
 - [ ] [criterion 1]
 - [ ] [criterion 2]

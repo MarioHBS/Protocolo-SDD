@@ -68,14 +68,30 @@ Write all output in the language set in `constitution.md → Settings → Langua
 6. **`todo.md` audit (closed stages).** For every stage that already has a
    `report.md` on disk (i.e. it is closed), confirm its `todo.md` is fully
    checked off. Audit-only — do **not** auto-mark. If a closed stage's `todo.md`
-   still has `- [ ]` items, raise a WARNING to the user:
+   still has `- [ ]` items (`[x]`, `[-]` not applicable and `[!]` evaluated and
+   not met all count as resolved), raise a WARNING to the user:
    *Stage NNN is closed (report.md present) but todo.md has K open checkbox(es);
    reconcile by completing the work or recording the divergence (sdd-implement
    / sdd-close §7).* This is the "027 pattern": the executor closed the stage
    along a private list and never reconciled the real `todo.md`. The canonical
    proof of done remains `report.md`; `todo.md` is its mirror, never its source.
 
-7. Record the reconciliation in §6 (and in `CHANGELOG.md` if the adjustment was
+7. **Backlog and milestones.** If `.sdd/backlog.md` exists, flag a section whose
+   slug is neither in the Provisional queue nor a pending canonical stage
+   (orphan), and a queue row that points to a section that does not exist. If
+   Eval Driven Development is on, flag stages of one milestone that are not
+   contiguous in the queue, and a milestone whose stages are all `done` but has
+   no evaluation file. Audit-only: raise, do not rewrite.
+
+8. **Tracks, numbering and worktrees** (only when tracks or shared sequences
+   exist). Run `sdd track check` (footprints must be disjoint) and `sdd doctor`
+   (duplicate numbers in a shared sequence, a session on the wrong branch, a
+   linked git worktree or nested worktree copies carrying a stale `.sdd/`). Treat
+   each as a finding to raise with the user; never resolve a collision by
+   silently renumbering something already applied elsewhere (for example a
+   migration run in production).
+
+9. Record the reconciliation in §6 (and in `CHANGELOG.md` if the adjustment was
    structural — a status flip driven by a decision change, not a routine sync) if
    it changed any status, and report the before/after to the user.
 

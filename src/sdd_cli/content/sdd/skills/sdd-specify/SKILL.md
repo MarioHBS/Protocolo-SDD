@@ -42,8 +42,35 @@ Write all artifacts in the language set in
 
 4. **Write the spec** from `templates/spec.template.md`. Set `Status: draft`.
 
+   - Fill **`Origin`** with one value of the closed vocabulary
+     (`escopo-original`, `lacuna-de-levantamento`, `mudanca-do-cliente`,
+     `bug-ou-regressao`, `divida-tecnica`). It is what later shows how much of a
+     project's cost was omission and how much was change — be honest with it.
+   - Fill **`Touches`** (paths, shared sequences, exclusive runtime resources,
+     stability-sensitive). It is **required** for a stage inside a parallel track:
+     run `sdd track claim <slug> --stage <local stage> --path <glob>...` and then
+     `sdd track check`. **MUST NOT** lock the spec while `sdd track check` fails —
+     sequence the stage after the one it collides with (`Depends on`) instead.
+   - If `.sdd/cross-cutting.md` exists (start from
+     `templates/cross-cutting.template.md`), turn each item into an acceptance
+     criterion or waive it in writing in the spec's §6.
+
 5. **Write the todo** from `templates/todo.template.md`: small, ordered tasks,
    each with a verifiable outcome.
+
+   If **Eval Driven Development** is on (`Settings → Eval Driven Development`),
+   also create `evals.md` and `checklist.md` from their templates. Assign stable
+   `E-NNN` IDs; an evaluation added later receives the next free ID, never a
+   renumbered one. **`evals.md` is the single source of the stage's acceptance
+   criteria**: the spec's §5 becomes the line `See evals.md.`, and the checklist
+   lists the IDs it covers in its `Evals:` field. An eval has one of five states:
+   open `[ ]`, met `[x]`, not applicable `[-]` (with the reason), evaluated and
+   not met `[!]` (pointing to `report.md` §7), or met but to be re-verified at
+   closing (`[x]` with the note `reverify`).
+
+   If `.sdd/backlog.md` has a section for this stage, read it, embed what still
+   applies in the spec, then **remove that section** so it cannot be implemented
+   twice.
 
 6. **Empirical verification + cold self-audit.** Before locking, review as if you
    had never seen the project:

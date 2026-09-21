@@ -22,7 +22,7 @@ import json
 import types
 from pathlib import Path
 
-from sdd_cli.cli import cmd_doctor
+from sdd_cli.cli import _doctor_payload, cmd_doctor
 
 
 def _args(path: Path) -> types.SimpleNamespace:
@@ -197,3 +197,92 @@ def test_modern_without_kit_version_falls_back_to_unknown(capsys, tmp_path):
     out, _ = _run(capsys, tmp_path)
     assert "unknown" in out
     assert "v1 (no manifest)" not in out  # manifest existed, just sparse
+
+
+def test_closed_edd_stage_requires_every_eval_id_in_evidence(tmp_path):
+    root = _make_modern(tmp_path)
+    manifest_path = root / ".sdd" / ".sdd-manifest.json"
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["features"]["edd"] = True
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+    stage = root / ".sdd" / "stages" / "001-example"
+    stage.mkdir()
+    (stage / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (stage / "evals.md").write_text("- [ ] E-001\n- [ ] E-002\n", encoding="utf-8")
+    (stage / "checklist.md").write_text("# Checklist\n\nE-001\n", encoding="utf-8")
+    (stage / "report.md").write_text("# Report\n", encoding="utf-8")
+
+    findings = _doctor_payload(root)["findings"]
+    assert {item["eval"] for item in findings if item["code"] == "edd_eval_uncovered"} == {"E-002"}
+
+
+def test_doctor_reports_overlapping_track_claims_and_nested_worktrees(tmp_path):
+    root = _make_modern(tmp_path)
+    for slug, path in (("api", "src/**"), ("web", "src/app.py")):
+        directory = root / ".sdd" / "tracks" / slug
+        directory.mkdir(parents=True)
+        (directory / "claims.json").write_text(json.dumps({"version": 1, "track": slug, "claims": [{"paths": [path]}]}), encoding="utf-8")
+    (root / ".kilo" / "worktrees" / "copy" / ".sdd").mkdir(parents=True)
+
+    findings = _doctor_payload(root)["findings"]
+    assert any(item["code"] == "track_overlap" and item["severity"] == "error" for item in findings)
+    assert any(item["code"] == "nested_worktree_copies" for item in findings)
+
+
+def test_track_dropped_from_active_table_is_not_reported_as_not_started(tmp_path):
+    from sdd_cli import _user_files
+
+    sdd = tmp_path / ".sdd"
+    (sdd / "tracks" / "done-track").mkdir(parents=True)
+    (sdd / "tracks" / "waiting-track").mkdir(parents=True)
+    (sdd / "constitution.md").write_text(
+        "## Current state\n\n### Active tracks\n\n"
+        "| Track | State |\n| --- | --- |\n| `waiting-track` | open |\n\n## 1. Vision\n",
+        encoding="utf-8")
+
+    slugs = {d.track for d in _user_files.scan_hygiene(sdd).track_divergences}
+    assert slugs == {"waiting-track"}
+
+
+def test_active_track_slugs_ignores_template_comment_rows(tmp_path):
+    from sdd_cli import _user_files
+
+    sdd = tmp_path / ".sdd"
+    sdd.mkdir()
+    (sdd / "constitution.md").write_text(
+        "### Active tracks\n\n<!--\n| `login` | x |\n-->\n\n| Track | State |\n| --- | --- |\n\n## 1. V\n",
+        encoding="utf-8")
+    assert _user_files.active_track_slugs(sdd) is None
+
+
+def test_human_report_lists_every_finding_the_json_report_carries(tmp_path, capsys):
+    """`sdd doctor` used to say "clean." while `--json` listed problems (KNN IP-004/IP-009)."""
+    sdd = tmp_path / ".sdd"
+    sdd.mkdir()
+    (sdd / "constitution.md").write_text(
+        "## Settings\n\n- **Estimation tracking:** on\n\n## Current state\n\n- **State:** SPECIFYING\n\n"
+        "## 1. Vision\n\nSee [spec](file:///old/checkout/.sdd/stages/001-x/spec.md).\n", encoding="utf-8")
+    (sdd / ".sdd-manifest.json").write_text(json.dumps(
+        {"kit_version": "v4.1.0", "features": {"estimation": False}, "providers": []}), encoding="utf-8")
+    payload_codes = {f["code"] for f in _doctor_payload(tmp_path)["findings"]}
+    assert {"feature_mismatch", "abs_file_links"} <= payload_codes
+
+    cmd_doctor(types.SimpleNamespace(path=str(tmp_path), json=False))
+    out = capsys.readouterr().out
+    assert "feature_mismatch" in out and "sdd fix --features" in out
+    assert "abs_file_links" in out and "sdd fix --links" in out
+    assert "\nclean." not in out
+
+
+def test_human_report_exits_nonzero_on_an_error_finding(tmp_path):
+    import pytest
+
+    sdd = tmp_path / ".sdd"
+    for slug in ("a", "b"):
+        (sdd / "tracks" / slug).mkdir(parents=True)
+        (sdd / "tracks" / slug / "claims.json").write_text(
+            json.dumps({"version": 1, "claims": [{"stage": "001", "paths": ["src/**"]}]}), encoding="utf-8")
+    (sdd / "constitution.md").write_text("## Settings\n\n## Current state\n\n## 1. V\n", encoding="utf-8")
+    with pytest.raises(SystemExit) as error:
+        cmd_doctor(types.SimpleNamespace(path=str(tmp_path), json=False))
+    assert error.value.code == 1

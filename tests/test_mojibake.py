@@ -7,9 +7,6 @@ Covers the three decisions locked in memory/mojibake-toolkit-decisions:
 """
 from __future__ import annotations
 
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -59,7 +56,7 @@ def test_v2_detected_at_byte_level():
 def test_v2_zero_false_positives_for_legitimate_a_tilde():
     """The only legitimate Ã in PT prose (the standalone letter in "NÃO") must
     NOT be flagged. Its following byte is `o` (0x6f), not c2/c3."""
-    raw = "Não fale NÃO agora.".encode("utf-8")
+    raw = "Não fale NÃO agora.".encode()
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as f:
         f.write(raw)
@@ -134,7 +131,7 @@ def test_classify_splits_v2_and_v1_only():
     import tempfile
     v2 = b"constitui\xc3\x83\xc2\xa7\xc3\x83\xc2\xa3o"
     v1 = b"Decis?es pr?prias"
-    clean = "Decisões próprias sem mojibake".encode("utf-8")
+    clean = "Decisões próprias sem mojibake".encode()
     files = []
     for content in (v2, v1, clean):
         with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as f:
@@ -171,7 +168,7 @@ def test_repair_v2_file_round_trips():
 
 def test_repair_v2_file_idempotent():
     import tempfile
-    corrupted = "cação".encode("utf-8").decode("latin-1").encode("utf-8")
+    corrupted = "cação".encode().decode("latin-1").encode("utf-8")
     with tempfile.NamedTemporaryFile(suffix=".md", delete=False) as f:
         f.write(corrupted)
         p = Path(f.name)

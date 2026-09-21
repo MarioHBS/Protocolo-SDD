@@ -1,19 +1,108 @@
 # Changelog — sdd-cli
 
-## [4.0.0] - Unreleased
-
-### Added
-- Structured sessions, JSON diagnostics, optional dashboard, EDD templates,
-  stage scaffolding, dependencies, decision impact and health score.
-- Major migration support from v2/v3 with safer provider refresh.
-
-### Changed
-- Default package requires Python 3.12; dashboard dependencies are extras.
-
 All notable changes to the sdd-cli kit. Versions follow a pragmatic
 `MAJOR.MINOR.PATCH`: breaking changes bump MAJOR, additive changes bump MINOR,
 small additive content changes and fixes bump PATCH. Any `estimates.md`
 produced by an older version remains valid — the templates are additive.
+
+## [4.1.0] — Unreleased
+
+Driven by two real projects (Antologias Biló, kit 3.3.0, 102 stages; KNN Warehouse,
+kit 4.0.0) and their improvement proposals. Minor release: additive, nothing in the
+CLI or the manifest format breaks; `sdd update` (from 4.0.0) or
+`sdd migrate --to v4` (from v2/v3) brings a project up to date.
+
+### Added
+
+- **Smaller sessions.** `sdd context [--budget] [--json]` prints only Settings and
+  Current state, the active stage's files and what each file costs (hot vs cold).
+  Shims and the kit README now say: read the constitution *through `## 1.`*, load
+  `sdd-track` only when tracks are on, keep `roadmap.md`, `estimates.md`,
+  `CHANGELOG.md` and inactive `tracks/*/state.md` cold. On the Biló project the
+  startup read drops from ~25k to ~5k estimated tokens; on KNN from ~12k to ~4.7k.
+  Section 5 rows carry no per-row links (paths are conventional) and stay under
+  200 bytes; narrative belongs in `CHANGELOG.md`, not in sections 5 or 6.
+- **Parallel tracks are checked, not trusted.** Stages in different tracks must be
+  unable to affect each other. `sdd track claim|check|verify|incorporate` declares
+  each track's footprint (paths, shared sequences, exclusive runtime resources),
+  fails on overlap, compares real Git changes with the claims and moves a closed
+  stage into the queue **atomically** (file lock, next free number).
+  `sdd seq next <name>` hands out shared numbers (database migrations) once;
+  sequences are declared in the constitution. `doctor` reports `track_overlap`,
+  `sequence_duplicate`, `session_branch_mismatch`, a linked git worktree and nested
+  agent worktree copies (Kilo creates full copies with their own stale `.sdd/`);
+  `sdd fix --gitignore` ignores them. `sdd-track` is rewritten around this.
+- **`sdd document`** — documentation as an active tool. It interviews the user (depth
+  recommended from the real project, audience, where files live — outside `.sdd/`
+  and even outside the project after confirmation — document list, numbering and
+  header conventions, which stages refresh each document, existing docs to adopt),
+  is resumable (`--resume`), accepts `--answers FILE` for agents and writes
+  `.sdd/documentation.json`. `sdd init --docs` offers it.
+- **Eval Driven Development and backlog in the skills.** `evals.md` is the single
+  source of a stage's criteria; `[-]` (not applicable) and `[!]` (evaluated, not
+  met) count as resolved; mid-stage evals get the next `E-NNN`; `backlog.md` is a
+  first-class artifact (one section per provisional stage); a frozen-scope gate and
+  an `Origin` field in the spec; an optional cross-cutting checklist; a credentials
+  audit when adopting the kit on an existing project. The README lists the
+  artifacts. New `doctor` findings: `edd_eval_uncovered`,
+  `edd_milestone_without_evaluation`, `milestone_not_contiguous`, `backlog_orphan`,
+  `queue_row_without_section`.
+- **Sturdier diagnostics.** Findings for an oversized constitution, duplicate
+  section headings, over-long table rows, absolute `file:///` links,
+  constitution/manifest feature drift, unmanaged provider shims and a CLI older than
+  its project. `sdd fix --links` writes links relative to `.sdd/`; `--features`
+  syncs the manifest from the constitution.
+- **`sdd dashboard`** has real views (overview and health, constitution sizes, stages
+  and tracks, EDD gaps, findings with their fix, session) in rich, textual or plain
+  (no dependencies) form. `--ui plain` needs no extras; a missing extra is an
+  explained error and textual without a terminal refuses instead of hanging.
+- Tests for `init`, `migrate`, `update` and `main`; headless dashboard tests; a CI job
+  that installs the dashboard extras and fails on any skipped dashboard test.
+
+### Changed
+
+- **`sdd doctor` (human mode) lists every finding**, grouped by code with the command
+  that fixes it, and exits non-zero on any error. It used to print "clean." while
+  `--json` listed problems.
+- **`--help` and the manual are complete.** Every command and subcommand has a
+  description and runnable examples; `USAGE.md` documents all commands, the doctor
+  codes and exit codes; `sdd manual` is the name of the manual and `sdd docs` a
+  deprecated alias (removed in v5). INSTALL (en, pt-BR, es) requires Python 3.12 and
+  shows the dashboard extras.
+- The v1 language heuristic scores language-specific markers case-insensitively.
+- Ruff rules are pinned in `pyproject.toml` so a new ruff release cannot turn CI red.
+
+### Fixed
+
+- `sdd context` no longer fails when `Active stage` is prose (`Etapa 091 (`slug`) ...`).
+- Concluded tracks (dropped from `Active tracks`) are no longer reported as
+  `track_not_started`; a dead track scanner that referenced an undefined constant
+  (`NameError` since 3.2.0) was removed.
+- The Kilo shim's opening sentence had become a heading.
+
+### Deferred
+
+Not in this release, recorded with the reason and the trigger to resume in the
+maintainer's notes (`ADIADOS-SDD-CLI.md`): a `sdd-discover` phase, splitting the
+kit README into a session card plus reference, a live edit guard for tracks (hook),
+an opt-in worktree mode, `sdd ws doctor`, a type-checker, per-major migrator matrix,
+and the package-distribution decision (PyPI or npm).
+
+## [4.0.0] — 2026-09-15
+
+### Added
+
+- Structured sessions (`sdd session`), JSON diagnostics (`sdd doctor --json`),
+  `sdd fix`, optional dashboard, EDD templates, stage scaffolding
+  (`sdd scaffold`), local dependencies (`sdd deps`), decision impact
+  (`sdd impact`) and a health score (`sdd health`).
+- Major migration support from v2/v3 (`sdd migrate --to v4`,
+  `sdd update --major`) with safer provider refresh.
+
+### Changed
+
+- The package requires Python 3.12 (PEP 701 f-strings); dashboard
+  dependencies are extras.
 
 ## [3.3.0] — 2026-08-31
 

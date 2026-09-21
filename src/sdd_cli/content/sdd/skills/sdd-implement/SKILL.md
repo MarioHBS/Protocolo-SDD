@@ -40,6 +40,29 @@ Write all artifacts in the language set in
   stage's artifact. When you finish, the canonical proof of "done" remains
   `report.md`; `todo.md` is its mirror.
 
+## Scope freeze and footprint
+
+- **The locked spec's scope is frozen.** Work that is not in the spec's
+  "Included" list does not get done silently: it becomes a new stage, or an
+  amendment recorded in the spec with its own `Origin` and the reason. Growing a
+  stage in place is how "one more small thing" turns into letter-suffix stages.
+- **Inside a parallel track**, run `sdd track check` before the first edit. **MUST
+  NOT** start while it fails. Stay inside the stage's declared `Touches`; needing
+  a file outside it means amending the claim (`sdd track claim`) and re-running
+  the check first, not editing and hoping.
+- **Shared numbers** (migrations, canonical stage numbers) are never guessed: get
+  the next one with `sdd seq next <name>`; two sessions guessing the same one is
+  a real, already-observed collision.
+
+## When Eval Driven Development is on
+
+- A defect or requirement that **no eval caught** earns a new eval: append the
+  next free `E-NNN` to `evals.md`, marked `(added during implementation)`, and
+  never rewrite existing IDs. The next stage of the same kind inherits the lesson.
+- In `todo.md` and `evals.md`, `[-]` means *not applicable* (write the reason) and
+  `[!]` means *evaluated and not met* (point to `report.md` §7). Both count as
+  resolved; neither may be faked as `[x]`.
+
 ## Rules
 
 - The executor agent is responsible for the build itself. This skill only

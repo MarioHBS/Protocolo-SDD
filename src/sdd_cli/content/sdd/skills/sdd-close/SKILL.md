@@ -18,6 +18,14 @@ Write all artifacts in the language set in
    must be met **with evidence** or carry a recorded divergence. If something is
    pending, do not close — return to `IMPLEMENTING`.
 
+   If **Eval Driven Development** is on, `evals.md` is the **single source** of
+   the criteria (the spec's §5 is only a pointer): walk every `E-NNN` in it and
+   record its evidence in `checklist.md` (its `Evals:` field lists the IDs it
+   covers) or in the report. Do not close while an evaluation is absent from both
+   records, or while one marked "reverify" has not been re-verified now. An
+   evaluation that failed stays `[!]` and points to `report.md` §7 — it is
+   resolved by being documented, never by being ticked `[x]`.
+
 2. **Ground-truth verification (mandatory).** For **each** artifact the report
    will claim was created/changed (migrations by number, functions, deploys,
    endpoints, files, jobs), **confirm it actually exists** — on the filesystem
@@ -32,9 +40,11 @@ Write all artifacts in the language set in
    debt (§8).
 
 4. **Verify `todo.md` is fully checked off.** Walk the stage's `todo.md` and
-   confirm every task is `- [x]`. The marking should already be current from
-   implementation (skill `sdd-implement`), not done here retroactively.
-   - If **all** items are `[x]`: proceed.
+   confirm every task is resolved: `- [x]` done, `- [-]` not applicable (with
+   the reason) or `- [!]` evaluated and not met (pointing to `report.md` §7). The
+   marking should already be current from implementation (skill
+   `sdd-implement`), not done here retroactively.
+   - If **all** items are resolved: proceed.
    - If **any** item is `- [ ]`: do **not** auto-mark it. If the work for that
      item was actually done and just not checked, mark it now and note it. If the
      work is genuinely incomplete, the stage is not ready to close — **suggest
@@ -43,14 +53,18 @@ Write all artifacts in the language set in
      "done" remains `report.md` on disk; `todo.md` is its mirror.
 
 5. **Update the canonical index (§5).** Mark the stage `done` **only because
-   `report.md` exists on disk**, with pointers to spec and report.
+   `report.md` exists on disk**. No per-row links: the spec and report paths are
+   conventional (`stages/NNN-<slug>/`).
 
    > **If this stage's folder lives under `tracks/<slug>/stages/`** (a
    > parallel track, see `sdd-track`), this step is the "incorporate" step
-   > instead: move/rename the folder into the canonical `stages/` queue
-   > with the next free number, append its §5 row, and **skip step 6**
-   > (roadmap regeneration is deferred to `sdd-reconcile` — see
-   > `sdd-track` step 3 for the full sequence). A stage folder directly
+   > instead. First run `sdd track verify <slug>` (every changed file must fall
+   > inside a declared claim). Then run `sdd track incorporate <slug> <stage>`:
+   > atomically, under a lock, it picks the next free number, moves the folder
+   > into the canonical `stages/` queue and appends the §5 row — two sessions can
+   > no longer take the same number. **Skip step 6** (roadmap regeneration is
+   > deferred to `sdd-reconcile` — see `sdd-track` step 3). Without the CLI, do the
+   > same by hand with the next free number. A stage folder directly
    > under `stages/` (with or without an out-of-order letter suffix) is
    > unaffected by this note — its close is byte-identical to before.
 
@@ -69,7 +83,10 @@ Write all artifacts in the language set in
    Write the entry text in the **project language**; keep the date format, em
    dashes and `affected stages:` label as the English skeleton. If nothing
    structural changed (a routine close), **skip** — the changelog is not a diary
-   of ordinary closes. Then, if a new dated band is warranted, update §6 of the
+   of ordinary closes. **Narrative never goes into §5 or §6** — incorporation
+   notes, renumberings and scope changes belong here, as one dated entry; a §5/§6
+   that accumulates prose is read in full at every session start and is the
+   costliest file to carry. Then, if a new dated band is warranted, update §6 of the
    constitution so it keeps pointing at `CHANGELOG.md` (§6 is the index, never
    the long history). Never rewrite the changelog's English skeleton.
 
@@ -79,7 +96,8 @@ Write all artifacts in the language set in
    **Promote it:** assign it the next free canonical `NNN` (the same shared
    pool a track incorporation draws from — see §5), append its row to the
    canonical table (status `pending`, carrying over its slug and `Depends
-   on`), and remove it from the Provisional queue. A row noted as a track
+   on`), and remove it from the Provisional queue. Leave its section in
+   `backlog.md` for `sdd-specify` to consume and remove. A row noted as a track
    candidate is not promoted this way — it is opened as a track instead, via
    `sdd-track`. If stages remain: `State: SPECIFYING`, `Active stage: <NNN
    just promoted>`, `Next action: load the sdd-specify skill`. If none
@@ -106,8 +124,15 @@ Write all artifacts in the language set in
     `roadmap.md`, `todo.md` and disk all agree. (Reconcile's todo audit will flag
     any closed stage that still has open checkboxes.)
 
-12. **(If the Documentation feature is on)** consider whether this stage changed
-    anything the documentation set must reflect; if so, invoke `sdd-document`.
+12. **(If the Documentation feature is on)** read `.sdd/documentation.json`
+    (created by `sdd document`) and list the documents whose `covers` include this
+    stage or whose subject it changed; update them, or record in the report why
+    they stay as they are, and invoke `sdd-document` for anything new. The plan's
+    paths may live outside `.sdd/`.
+
+13. **Evaluation feedback (optional).** When the stage exposed kit friction,
+    run `sdd evaluate --write` and record a sanitized observation in
+    `.sdd/kit-evaluation/README.md`; this local directory is normally ignored.
 
 After the stage state leaves IMPLEMENTING, run `sdd session sync` to clear the
 formal interruption context (or use `sdd session close` after the report exists).

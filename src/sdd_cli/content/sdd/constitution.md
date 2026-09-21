@@ -123,6 +123,10 @@
 
 ## 5. Stage index (CANONICAL)
 
+> Keep every table row under 200 bytes. Stage paths are conventional:
+> `stages/NNN-slug/spec.md` and `stages/NNN-slug/report.md`; never use absolute
+> `file:///` links here. Track-incorporation narrative belongs in `CHANGELOG.md`.
+>
 > This is the source of truth for progress. `roadmap.md` is generated from here.
 > A stage is `done` only if `stages/NNN-<slug>/report.md` exists on disk. Only
 > a stage that is active, already worked, or urgently inserted carries a
@@ -165,9 +169,12 @@
 > `sdd-track` when incorporating a track's last stage, and enforced as a
 > MUST-NOT-start rule by `sdd-specify`/`sdd-implement`.
 
-| Stage | Slug   | Status                       | Depends on | Spec | Report |
-|-------|--------|------------------------------|------------|------|--------|
-| 001   | [slug] | pending / in progress / done | —          | —    | —      |
+| Stage | Slug   | Status                       | Depends on |
+|-------|--------|------------------------------|------------|
+| 001   | [slug] | pending / in progress / done | —          |
+
+<!-- With Eval Driven Development, add a `Milestone` column and keep each milestone's
+     stages contiguous. There are no Spec/Report columns: the paths are conventional. -->
 
 ### Provisional queue (not yet numbered)
 
@@ -211,4 +218,7 @@
   amendments as 'Amendment N — ADR-XXX'". If unused, "not applicable".]
 - **Migration / artifact versioning:** [convention — e.g. "migrations numbered
   NNNN, versioned, never loose SQL"]
+- **Sequences:** none
+  <!-- Numbers that parallel tracks share and `sdd seq next` hands out, declared as
+       `name` = `dir/NNNN_*.ext` — e.g. `migration` = `db/migrations/NNNN_*.sql`. -->
 - **Validation environment:** [where stages are validated before closing]

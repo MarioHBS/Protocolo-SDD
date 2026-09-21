@@ -30,6 +30,14 @@ Write all output in the language set in `constitution.md → Settings → Langua
 
    Summarize your understanding and ask for confirmation before writing.
 
+   **Adopting the kit on an existing project** (code and Git history already
+   there): before the first stage, do a one-time **credentials audit** of the
+   working tree and the Git history — committed `.env*` files, private keys,
+   service-account files, tokens. Record only **where** (paths, commit ids), never
+   the secret values, in chat, logs or artifacts. Feed the result into the
+   security decision (`Q-NNN`/`D-NNN`) so an exposed credential is handled before
+   any stage builds on top of it.
+
 3. **Bootstrap the structure** (if missing): ensure `.sdd/constitution.md`,
    `.sdd/roadmap.md`, `.sdd/CHANGELOG.md` and `.sdd/stages/` exist. Fill **§1
    Project vision** with what was confirmed. Fill **§7 Project decision

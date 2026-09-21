@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sdd-cli"
-version = "4.0.0"
+version = "4.1.0"
 description = "Spec-Driven Development scaffolding for AI coding agents"
-authors = [{name = "Mário Henrique", email = "developer.mario.santos@example.com"}]
+authors = [{name = "Mário Henrique", email = "developer.mario.santos@gmail.com"}]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []          # stdlib only in the default install
@@ -21,3 +21,10 @@ sdd = "sdd_cli.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sdd_cli"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# Pinned so a new ruff release cannot turn CI red by widening its defaults.
+select = ["E4", "E7", "E9", "F", "I", "UP"]
