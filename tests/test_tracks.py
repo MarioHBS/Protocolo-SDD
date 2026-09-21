@@ -300,3 +300,12 @@ def test_relative_links_are_relative_to_sdd_dir(tmp_path):
     assert _relativize_file_links(text, tmp_path) == (
         "[a](stages/001-x/spec.md) [b](../src/app.ts) [c](stages/002-y/report.md) "
         "[d](file:///elsewhere/file.md)")
+
+
+def test_the_template_placeholder_is_not_a_declared_sequence(tmp_path):
+    from sdd_cli.content import CONTENT_DIR
+
+    (tmp_path / ".sdd").mkdir()
+    template = (CONTENT_DIR / "sdd" / "constitution.md").read_text(encoding="utf-8")
+    (tmp_path / ".sdd" / "constitution.md").write_text(template, encoding="utf-8")
+    assert _tracks.sequences(tmp_path) == {}   # the commented example must not become a sequence
