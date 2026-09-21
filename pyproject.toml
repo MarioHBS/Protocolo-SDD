@@ -21,3 +21,10 @@ sdd = "sdd_cli.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sdd_cli"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# Pinned so a new ruff release cannot turn CI red by widening its defaults.
+select = ["E4", "E7", "E9", "F", "I", "UP"]
