@@ -126,7 +126,7 @@
 > Keep every table row under 200 bytes. Stage paths are conventional:
 > `stages/NNN-slug/spec.md` and `stages/NNN-slug/report.md`; never use absolute
 > `file:///` links here. Track-incorporation narrative belongs in `CHANGELOG.md`.
-
+>
 > This is the source of truth for progress. `roadmap.md` is generated from here.
 > A stage is `done` only if `stages/NNN-<slug>/report.md` exists on disk. Only
 > a stage that is active, already worked, or urgently inserted carries a
