@@ -397,7 +397,8 @@ def cmd_init(args) -> None:
         print(_install_shim(root, p, recorded, args.force))
 
     initial_manifest = manifest.build(KIT_VERSION, language, [p.key for p in chosen], features, recorded)
-    initial_manifest["dashboard_renderer"] = getattr(args, "dashboard_ui", "rich") or "rich"
+    initial_manifest["dashboard_renderer"] = _normalize_dashboard_renderer(
+        getattr(args, "dashboard_ui", None)) or "static"
     manifest.save(root, initial_manifest)
 
     print(bold("\nDone.") + f"  language={language}  "
@@ -1372,6 +1373,22 @@ def cmd_document(args) -> None:
             print(dim(f"  kept existing {shown(path)}"))
 
 
+# Renderers are named by what they do, not by the library behind them: "static"
+# prints one read-only panel and exits (built with the `rich` library), "interactive"
+# takes over the terminal as a live TUI (built with `textual`), "plain" needs no
+# optional dependency at all. "rich"/"textual" are accepted as deprecated aliases
+# for "static"/"interactive" so a manifest or script written against an older kit
+# version keeps working -- they are never shown as the primary names in --help.
+DASHBOARD_RENDERERS = ("static", "interactive", "plain")
+_DASHBOARD_RENDERER_ALIASES = {"rich": "static", "textual": "interactive"}
+
+
+def _normalize_dashboard_renderer(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return _DASHBOARD_RENDERER_ALIASES.get(value, value)
+
+
 def _dashboard_data(root: Path) -> dict[str, str]:
     """Read-only shared data model for every dashboard renderer."""
     sdd = root / ".sdd"
@@ -1388,24 +1405,25 @@ def cmd_dashboard(args) -> None:
     root = Path(args.path).resolve()
     if not (root / ".sdd").is_dir():
         die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
-    renderer = args.ui or (manifest.load(root) or {}).get("dashboard_renderer", "rich")
-    if renderer not in ("rich", "textual", "plain"):
-        die("--ui must be rich, textual or plain")
+    stored = _normalize_dashboard_renderer((manifest.load(root) or {}).get("dashboard_renderer"))
+    renderer = _normalize_dashboard_renderer(args.ui) or stored or "static"
+    if renderer not in DASHBOARD_RENDERERS:
+        die("--ui must be static, interactive or plain")
     if args.set_default:
         data = manifest.load(root)
         if not data:
             die("dashboard configuration requires an initialized project")
         data["dashboard_renderer"] = renderer
         manifest.save(root, data)
-    if renderer == "textual" and not (sys.stdin.isatty() and sys.stdout.isatty()):
-        # Textual takes over the terminal and waits for keys: without one it would hang.
-        die("the textual dashboard is interactive and needs a terminal; use --ui rich or --ui plain here")
+    if renderer == "interactive" and not (sys.stdin.isatty() and sys.stdout.isatty()):
+        # The interactive dashboard takes over the terminal and waits for keys: without one it would hang.
+        die("the interactive dashboard needs a real terminal; use --ui static or --ui plain here")
     views = _dashboard_data(root)
     if renderer == "plain":
         print(_dashboard.render_plain(views))
         return
     try:
-        if renderer == "rich":
+        if renderer == "static":
             _dashboard.render_rich(views)
         else:
             _dashboard.make_app(views).run()
@@ -2013,7 +2031,7 @@ def cmd_migrate(args) -> None:
     features = {"estimation": False, "documentation": False, "tracks": False, "edd": False}
     features.update((old or {}).get("features", {}))
     mdata = manifest.build(KIT_VERSION, lang_code, prov_keys, features, recorded)
-    mdata["dashboard_renderer"] = (old or {}).get("dashboard_renderer", "rich")
+    mdata["dashboard_renderer"] = _normalize_dashboard_renderer((old or {}).get("dashboard_renderer")) or "static"
     if backup_dir:
         ledger = mdata.setdefault("backups", [])
         ledger.append({
@@ -2244,10 +2262,11 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "evaluate": ("Capture local, sanitized evidence about how the kit behaved in this project.",
                  "sdd evaluate\nsdd evaluate --write      # save .sdd/kit-evaluation/snapshot.json"),
     "dashboard": ("Open the read-only dashboard: overview, constitution sizes, stages and tracks, EDD, "
-                  "doctor findings (with the command that fixes each) and session. 'rich' and 'textual' need "
-                  "the optional extras; 'plain' needs nothing.",
-                  "sdd dashboard --ui plain          # no dependencies\nsdd dashboard --ui rich\n"
-                  "sdd dashboard --ui textual --set-default   # interactive, keep as the default"),
+                  "doctor findings (with the command that fixes each) and session. 'static' (one panel, "
+                  "prints once) and 'interactive' (live TUI) need the optional extras; 'plain' needs nothing. "
+                  "'rich'/'textual' still work as deprecated aliases for 'static'/'interactive'.",
+                  "sdd dashboard --ui plain          # no dependencies\nsdd dashboard --ui static\n"
+                  "sdd dashboard --ui interactive --set-default   # live TUI, keep as the default"),
 }
 
 
@@ -2288,8 +2307,8 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--tracks", action="store_true",
                    help="enable parallel tracks (sdd-track)")
     i.add_argument("--edd", action="store_true", help="enable Eval Driven Development")
-    i.add_argument("--dashboard-ui", choices=("rich", "textual"), default="rich",
-                   help="default optional dashboard renderer")
+    i.add_argument("--dashboard-ui", choices=("static", "interactive", "rich", "textual"), default="static",
+                   help="default optional dashboard renderer (static: one panel; interactive: live TUI)")
     i.add_argument("--force", action="store_true",
                    help="overwrite managed files and shims")
     i.add_argument("-y", "--yes", action="store_true",
@@ -2573,8 +2592,10 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
 
     dash = sub.add_parser("dashboard", help="open the optional SDD dashboard")
     dash.add_argument("path", nargs="?", default=".", help="project root (default: .)")
-    dash.add_argument("--ui", choices=("rich", "textual", "plain"),
-                      help="renderer: rich or textual (optional extras) or plain (no dependencies)")
+    dash.add_argument("--ui", choices=("static", "interactive", "plain", "rich", "textual"),
+                      help="renderer: static (one panel) or interactive (live TUI) -- optional extras "
+                           "needed -- or plain (no dependencies). 'rich'/'textual' are deprecated aliases "
+                           "for 'static'/'interactive'.")
     dash.add_argument("--set-default", action="store_true", help="save renderer in manifest")
     dash.set_defaults(func=cmd_dashboard)
 
