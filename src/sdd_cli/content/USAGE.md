@@ -52,7 +52,7 @@ Installs the kit into a project (default: current directory).
 | `--docs` | Enable documentation planning (offers `sdd document` at the end). |
 | `--tracks` | Enable parallel tracks (`sdd-track`). |
 | `--edd` | Enable Eval Driven Development. |
-| `--dashboard-ui NAME` | Default dashboard renderer (`rich` or `textual`). |
+| `--dashboard-ui NAME` | Default dashboard renderer (`static`, one panel, or `interactive`, a live TUI). |
 | `--force` | Overwrite managed files and shims. |
 | `-y`, `--yes` | Non-interactive; accept defaults. |
 
@@ -260,13 +260,15 @@ v5.
 
 ## Observe
 
-### `sdd dashboard [PATH] [--ui rich|textual] [--set-default]`
+### `sdd dashboard [PATH] [--ui static|interactive|plain] [--set-default]`
 
 A read-only dashboard over the same data as `doctor` and `context`: overview,
 constitution section sizes, stages and tracks, EDD, doctor findings with the
-command that fixes each, and the session. Requires the optional extras
-(`pipx install '.[dashboard]'`, or `pip install rich textual`). `--set-default`
-records the renderer in the manifest.
+command that fixes each, and the session. `static` prints one panel and exits;
+`interactive` is a live TUI that needs a real terminal; both need the optional
+extras (`pipx install '.[dashboard]'`, or `pip install rich textual`) — `plain`
+needs nothing. `rich`/`textual` still work as deprecated aliases for
+`static`/`interactive`. `--set-default` records the renderer in the manifest.
 
 ---
 
