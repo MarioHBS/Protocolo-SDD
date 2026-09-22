@@ -434,14 +434,22 @@ def cmd_providers(args) -> None:
 
 # -------------------------------------------------------------------- docs
 
+# Sentinel for "--md was given with no FILE": resolved in cmd_docs, not at parse
+# time, because the right default depends on whether .sdd/ exists in the cwd.
+_MD_DEFAULT = object()
+
+
 def cmd_docs(args) -> None:
     text = (CONTENT_DIR / "USAGE.md").read_text(encoding="utf-8")
     text = text.replace("{{VERSION}}", KIT_VERSION)
     text = text.replace("{{PROVIDERS}}", ", ".join(providers.keys()))
     if args.md:
-        out = Path(args.md if isinstance(args.md, str) else "SDD-USAGE.md")
+        if args.md is _MD_DEFAULT:
+            out = Path(".sdd/SDD-USAGE.md") if Path(".sdd").is_dir() else Path("SDD-USAGE.md")
+        else:
+            out = Path(args.md)
         out.write_text(text, encoding="utf-8", newline="\n")
-        print(f"{green('ok')}  wrote {out}")
+        print(f"{green('ok')}  wrote {out.resolve()}")
     else:
         print(text)
 
@@ -2213,7 +2221,7 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "providers": ("List the AI agents a shim can be installed for.",
                   "sdd providers\nsdd providers --plain      # bare keys, for scripts"),
     "manual": ("Print the full usage manual (the kit's USAGE.md).",
-               "sdd manual\nsdd manual --md SDD-USAGE.md"),
+               "sdd manual\nsdd manual --md      # writes .sdd/SDD-USAGE.md"),
     "context": ("Print only what a session needs to start: Settings and Current state, the active stage's "
                 "files and, with --budget, what each file costs in tokens (bytes/4, an estimate).",
                 "sdd context\nsdd context --budget       # hot (read at startup) vs cold files\nsdd context --json"),
@@ -2323,22 +2331,25 @@ def build_parser() -> argparse.ArgumentParser:
     d = sub.add_parser(
         "docs",
         help="deprecated alias of 'manual' (removed in v5)",
-        description="Deprecated alias of 'sdd manual': print the full SDD usage manual (the kit's USAGE.md).",
+        description="Deprecated alias of 'sdd manual', removed in v5: print the full "
+                     "SDD usage manual (the kit's USAGE.md).",
         epilog="""\
 examples:
   sdd docs                       # print the manual to stdout
-  sdd docs --md SDD-USAGE.md     # write it to a markdown file
-  sdd docs | head                # safe -- prints cleanly, no traceback
+  sdd docs --md                  # write .sdd/SDD-USAGE.md (or ./SDD-USAGE.md outside a project)
+  sdd docs --md notes/manual.md  # write it to a chosen path instead
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    d.add_argument("--md", nargs="?", const="SDD-USAGE.md", metavar="FILE",
-                   help="write the manual to a markdown file instead of stdout")
+    d.add_argument("--md", nargs="?", const=_MD_DEFAULT, metavar="FILE",
+                   help="write the manual to a markdown file instead of stdout "
+                        "(default: .sdd/SDD-USAGE.md, or ./SDD-USAGE.md outside a project)")
     d.set_defaults(func=cmd_docs)
 
     manual = sub.add_parser("manual", help="print the usage manual")
-    manual.add_argument("--md", nargs="?", const="SDD-USAGE.md", metavar="FILE",
-                        help="write the manual to a markdown file instead of stdout")
+    manual.add_argument("--md", nargs="?", const=_MD_DEFAULT, metavar="FILE",
+                        help="write the manual to a markdown file instead of stdout "
+                             "(default: .sdd/SDD-USAGE.md, or ./SDD-USAGE.md outside a project)")
     manual.set_defaults(func=cmd_manual)
 
     ctx = sub.add_parser("context", help="print the minimal session context")

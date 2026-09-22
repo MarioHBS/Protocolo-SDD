@@ -92,4 +92,16 @@ def test_manual_mentions_every_doctor_finding_code():
 def test_deprecated_docs_alias_says_so():
     parser = build_parser()
     docs = dict(_walk(parser))[("docs",)]
-    assert "deprecated" in (docs.description or "").lower()
+    description = (docs.description or "").lower()
+    assert "deprecated" in description
+    assert "v5" in description  # the -h text itself must say when it's removed, not just the full manual
+
+
+def test_docs_md_without_a_file_writes_inside_sdd(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".sdd").mkdir()
+    parser = build_parser()
+    args = parser.parse_args(["docs", "--md"])
+    args.func(args)
+    assert (tmp_path / ".sdd" / "SDD-USAGE.md").exists()
+    assert not (tmp_path / "SDD-USAGE.md").exists()
