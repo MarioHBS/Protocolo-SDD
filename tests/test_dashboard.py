@@ -100,18 +100,38 @@ def test_missing_extras_is_an_explained_error_not_a_traceback(tmp_path, monkeypa
 
     monkeypatch.setattr(_dashboard, "render_rich", boom)
     with pytest.raises(SystemExit) as error:
-        cmd_dashboard(types.SimpleNamespace(path=str(project), ui="rich", set_default=False))
+        cmd_dashboard(types.SimpleNamespace(path=str(project), ui="static", set_default=False))
     assert error.value.code == 1
     err = capsys.readouterr().err
     assert "sdd-cli[dashboard]" in err and "sdd dashboard --ui plain" in err
 
 
-def test_textual_without_a_terminal_refuses_instead_of_hanging(tmp_path, monkeypatch, capsys):
+def test_interactive_without_a_terminal_refuses_instead_of_hanging(tmp_path, monkeypatch, capsys):
     project = _project(tmp_path)
     monkeypatch.setattr("sys.stdin", types.SimpleNamespace(isatty=lambda: False))
     with pytest.raises(SystemExit):
-        cmd_dashboard(types.SimpleNamespace(path=str(project), ui="textual", set_default=False))
-    assert "needs a terminal" in capsys.readouterr().err
+        cmd_dashboard(types.SimpleNamespace(path=str(project), ui="interactive", set_default=False))
+    assert "needs a real terminal" in capsys.readouterr().err
+
+
+def test_rich_alias_still_works_and_normalizes_to_static(tmp_path, monkeypatch):
+    # A user found the library-named flags misleading (`rich` sounded like the more
+    # capable, interactive one) -- they were renamed to static/interactive, but a
+    # manifest or script written against the old name must keep working, forever.
+    project = _project(tmp_path)
+    monkeypatch.setattr(_dashboard, "render_rich", lambda *_a, **_k: None)
+    cmd_dashboard(types.SimpleNamespace(path=str(project), ui="rich", set_default=True))
+    manifest = json.loads((project / ".sdd" / ".sdd-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["dashboard_renderer"] == "static"
+
+
+def test_textual_alias_still_works_and_normalizes_to_interactive(tmp_path, monkeypatch):
+    project = _project(tmp_path)
+    monkeypatch.setattr("sys.stdin", types.SimpleNamespace(isatty=lambda: False))
+    with pytest.raises(SystemExit):
+        cmd_dashboard(types.SimpleNamespace(path=str(project), ui="textual", set_default=True))
+    manifest = json.loads((project / ".sdd" / ".sdd-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["dashboard_renderer"] == "interactive"
 
 
 def test_a_project_without_sdd_is_reported(tmp_path):
