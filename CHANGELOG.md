@@ -53,9 +53,14 @@ CLI or the manifest format breaks; `sdd update` (from 4.0.0) or
   its project. `sdd fix --links` writes links relative to `.sdd/`; `--features`
   syncs the manifest from the constitution.
 - **`sdd dashboard`** has real views (overview and health, constitution sizes, stages
-  and tracks, EDD gaps, findings with their fix, session) in rich, textual or plain
-  (no dependencies) form. `--ui plain` needs no extras; a missing extra is an
-  explained error and textual without a terminal refuses instead of hanging.
+  and tracks, EDD gaps, findings with their fix, session) in `static` (one panel,
+  built on `rich`), `interactive` (a live TUI, built on `textual`) or `plain` (no
+  dependencies) form. `--ui plain` needs no extras; a missing extra is an explained
+  error and `interactive` without a terminal refuses instead of hanging. The
+  renderers are named by what they do rather than by the library behind them —
+  `rich`/`textual` still work as deprecated aliases for `static`/`interactive` (a
+  real user found the library-named flags misleading: `rich` sounded like the more
+  capable, interactive one).
 - Tests for `init`, `migrate`, `update` and `main`; headless dashboard tests; a CI job
   that installs the dashboard extras and fails on any skipped dashboard test.
 
