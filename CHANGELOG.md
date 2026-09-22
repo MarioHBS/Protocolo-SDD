@@ -84,6 +84,12 @@ CLI or the manifest format breaks; `sdd update` (from 4.0.0) or
   `track_not_started`; a dead track scanner that referenced an undefined constant
   (`NameError` since 3.2.0) was removed.
 - The Kilo shim's opening sentence had become a heading.
+- `sdd docs --md`/`sdd manual --md` with no `FILE` now write `.sdd/SDD-USAGE.md`
+  instead of dropping `SDD-USAGE.md` in the project root (it was the one command
+  that didn't scope itself to `.sdd/`, and the loose file showed up untracked in
+  every `git status`). Falls back to `./SDD-USAGE.md` outside a project. The
+  success message now prints the resolved path, and `sdd docs -h` states the v5
+  removal itself instead of only the full manual.
 
 ### Deferred
 
