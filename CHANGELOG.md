@@ -1,5 +1,21 @@
 # Changelog — sdd-cli
 
+## [4.2.1] — Unreleased
+
+### Added
+
+- `sdd discover` explains the discovery flow and prints where the `sdd-discover` skill
+  file lives (this project's copy and the installed kit's), so it can be handed to any AI
+  provider. `sdd discover --check FILE` validates a `sdd-discovery/v1` file and prints its
+  summary without writing; `--against PROJECT` also compares the planned stage slugs with
+  the project's canonical index and provisional queue (missing / not covered).
+
+### Changed
+
+- Every provider shim and the kit README list `sdd-discover` as a cross-cutting utility, so
+  an agent inside an existing project knows it can re-check the scope. Before, the skill was
+  installed but nothing pointed to it.
+
 ## [4.2.0] — Unreleased
 
 ### Added
