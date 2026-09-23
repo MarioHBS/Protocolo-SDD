@@ -138,6 +138,8 @@ def cmd_discover(args) -> None:
 sdd-discover is a SKILL, not a command: an AI agent interviews you and writes two files.
   1. Give the skill to any AI chat (Claude, ChatGPT, Gemini, Cursor, Copilot, ...): attach or paste
      its SKILL.md and say "run this discovery for <my idea>". It works outside any project.
+     It also explains the choices you will make when installing SDD in the project (estimates/schedule,
+     parallel tracks, documentation, Eval Driven Development, language, AI tools) and records your answers.
   2. Review discovery.md (the human brief) and correct it in the chat.
   3. Keep discovery.json (contract sdd-discovery/v1) and check it here:
        sdd discover --check discovery.json
@@ -389,7 +391,7 @@ def _backup_managed(root: Path, sdd: Path,
         if kit_rel and kit_rel.exists() and cur_hash == manifest.hash_file(kit_rel):
             continue
         # Only back up hand-edited files (current differs from recorded).
-        if old and rel in old_files and cur_hash == old_files[rel]:
+        if old and rel in old_files and manifest.matches_recorded(f, old_files[rel]):
             continue  # unmodified since last install -- nothing to lose
         to_backup.append(f)
 
@@ -2250,7 +2252,7 @@ def cmd_migrate(args) -> None:
     if old:
         for rel, old_hash in old.get("managed_files", {}).items():
             f = root / rel
-            if f.exists() and manifest.hash_file(f) != old_hash:
+            if f.exists() and not manifest.matches_recorded(f, old_hash):
                 edited.append(rel)
     if edited:
         print(yellow("  Hand-edited managed files detected:"))
@@ -2424,7 +2426,7 @@ def cmd_update(args) -> None:
     edited: set[str] = {
         rel for rel, old_hash in managed_files.items()
         if _in_scope(rel) and (root / rel).exists()
-        and manifest.hash_file(root / rel) != old_hash
+        and not manifest.matches_recorded(root / rel, old_hash)
     }
 
     changed, added, removed_flagged, restored, preserved = [], [], [], [], []
@@ -2441,8 +2443,8 @@ def cmd_update(args) -> None:
             removed_flagged.append(rel)
             continue
         new_hash = manifest.hash_file(new_src)
-        if new_hash == old_hash:
-            continue  # unchanged across the version bump
+        if manifest.matches_recorded(new_src, old_hash):
+            continue  # unchanged across the version bump (line endings aside)
         cur = root / rel
         (restored if not cur.exists() else changed).append(rel)
         recorded[rel] = new_hash

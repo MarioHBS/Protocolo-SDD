@@ -252,3 +252,14 @@ def test_pyproject_version_matches_bundled_kit_version():
     pyproject_path = CONTENT_DIR.parent.parent.parent / "pyproject.toml"
     data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
     assert data["project"]["version"] == KIT_VERSION.lstrip("v")
+
+
+def test_line_ending_rewrites_do_not_make_managed_files_look_hand_edited(tmp_path):
+    from sdd_cli import manifest
+    recorded_form = tmp_path / "a.md"
+    recorded_form.write_bytes(b"one\r\ntwo\r\n")
+    recorded = manifest.hash_file(recorded_form)
+    recorded_form.write_bytes(b"one\ntwo\n")            # git/editor rewrote CRLF -> LF
+    assert manifest.matches_recorded(recorded_form, recorded)
+    recorded_form.write_bytes(b"one\nchanged\n")        # a real edit still counts
+    assert not manifest.matches_recorded(recorded_form, recorded)
