@@ -210,3 +210,47 @@ def test_dry_run_announces_removal_of_a_byte_identical_shim(tmp_path, capsys):
     assert "stray AGENTS.md" in capsys.readouterr().out
     _migrate(project)
     assert not (project / "AGENTS.md").exists()
+
+
+# ---- historical formats: v1 (no manifest, accent-lost `?`) and v2 (double-encoded UTF-8) ----
+
+V1_CONSTITUTION = (
+    "# Constitui?ao do projeto\n\n## 1. Vis?o do projeto\n\nSistema de reservas.\n\n"
+    "## 4. Quest?es em aberto\n\n- nenhuma\n\n## Estado atual\n\n- **Estado:** IMPLEMENTANDO\n"
+)
+
+
+def _legacy_project(root: Path, constitution: str) -> Path:
+    """A pre-manifest install: kit files with old content, user files, no `.sdd-manifest.json`."""
+    for rel, text in {".sdd/README.md": OLD_TEXT, ".sdd/skills/sdd-init/SKILL.md": OLD_TEXT,
+                      ".sdd/templates/spec.template.md": OLD_TEXT, ".sdd/constitution.md": constitution,
+                      ".sdd/roadmap.md": "# roteiro\n", ".sdd/stages/001-base/spec.md": "minha spec\n"}.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", newline="\n")
+    return root
+
+
+def test_v1_project_without_manifest_migrates_and_keeps_accent_loss_for_review(tmp_path):
+    project = _legacy_project(tmp_path, V1_CONSTITUTION)
+    _migrate(project)
+    data = _manifest(project)
+    assert data["kit_version"] == KIT_VERSION and data["language"] == "pt-BR"
+    assert (project / ".sdd" / ".migration-todo.md").is_file()
+    assert (project / ".sdd" / "constitution.md").read_text(encoding="utf-8") == V1_CONSTITUTION  # `?` is never guessed
+    assert (project / ".sdd" / "stages" / "001-base" / "spec.md").read_text(encoding="utf-8") == "minha spec\n"
+    assert (project / ".sdd" / "README.md").read_text(encoding="utf-8") != OLD_TEXT
+    assert list((project / ".sdd" / ".pre-migrate-backup").iterdir())  # old kit files were saved first
+
+
+
+def test_v2_double_encoding_aborts_without_writing_and_is_repaired_with_the_flag(tmp_path):
+    project = _legacy_project(tmp_path, "## 1. Vis\u00c3\u00a3o\n\nConstru\u00c3\u00a7\u00c3\u00a3o do sistema.\n")
+    before = _tree(project)
+    with pytest.raises(SystemExit):
+        _migrate(project)
+    assert _tree(project) == before  # nothing touched
+    _migrate(project, fix_mojibake=True)
+    text = (project / ".sdd" / "constitution.md").read_text(encoding="utf-8")
+    assert "Vis\u00e3o" in text and "Constru\u00e7\u00e3o" in text and "\u00c3" not in text
+    assert _manifest(project)["kit_version"] == KIT_VERSION
