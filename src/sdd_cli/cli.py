@@ -982,6 +982,10 @@ def _doctor_payload(root: Path) -> dict:
                 if expected != actual:
                     findings.append({"severity": "warn", "code": "feature_mismatch", "feature": key,
                                      "constitution": expected, "manifest": actual, "actionable": True})
+    drifted = _manifest_eol_drift(root, manifest_data)
+    if drifted:
+        findings.append({"severity": "note", "code": "manifest_eol_drift", "count": len(drifted),
+                         "path": drifted[0], "actionable": True})
     for p in providers.PROVIDERS:
         if p.key != "generic" and (root / p.shim_path).exists() and p.key not in (manifest_data or {}).get("providers", []):
             findings.append({"severity": "warn", "code": "provider_shim_unmanaged", "provider": p.key,
@@ -1125,6 +1129,16 @@ def _missing_worktree_ignores(root: Path) -> list[str]:
             if (root / name).is_dir() and name not in lines]
 
 
+def _manifest_eol_drift(root: Path, data: dict | None) -> list[str]:
+    """Managed files whose recorded hash matches only once line endings are ignored (Git/editor rewrote them)."""
+    drifted = []
+    for rel, recorded in sorted((data or {}).get("managed_files", {}).items()):
+        path = root / rel
+        if path.is_file() and manifest.hash_file(path) != recorded and manifest.matches_recorded(path, recorded):
+            drifted.append(rel)
+    return drifted
+
+
 def cmd_fix(args) -> None:
     """Repair only deterministic SDD file problems."""
     root = Path(args.path).resolve()
@@ -1137,8 +1151,9 @@ def cmd_fix(args) -> None:
     use_links = bool(getattr(args, "links", False) or getattr(args, "all", False))
     use_features = bool(getattr(args, "features", False) or getattr(args, "all", False))
     use_gitignore = bool(getattr(args, "gitignore", False))  # opt-in: never part of --all
-    if not (use_mojibake or use_eol or use_links or use_features or use_gitignore):
-        use_mojibake = use_eol = use_links = use_features = True
+    use_manifest = bool(getattr(args, "manifest", False) or getattr(args, "all", False))
+    if not (use_mojibake or use_eol or use_links or use_features or use_gitignore or use_manifest):
+        use_mojibake = use_eol = use_links = use_features = use_manifest = True
     repairs: list[dict] = []
     unresolved: list[dict] = []
     reports = _mojibake.scan_tree(sdd, suffixes=(".md", ".json"))
@@ -1191,6 +1206,15 @@ def cmd_fix(args) -> None:
                 repairs.append({"kind": "feature_manifest_sync", "path": ".sdd/.sdd-manifest.json"})
                 if not dry_run:
                     manifest.save(root, data)
+    if use_manifest:
+        data = manifest.load(root)
+        drifted = _manifest_eol_drift(root, data)
+        if drifted:
+            repairs.append({"kind": "manifest_eol_rehash", "path": ".sdd/.sdd-manifest.json", "files": len(drifted)})
+            if not dry_run:
+                for rel in drifted:
+                    data["managed_files"][rel] = manifest.hash_file(root / rel)
+                manifest.save(root, data)
     if use_gitignore:
         if not (root / ".git").exists():
             unresolved.append({"kind": "gitignore_without_git", "path": ".gitignore"})
@@ -2462,8 +2486,25 @@ def cmd_update(args) -> None:
         added.append(rel)
         recorded[rel] = manifest.hash_file(item)
 
+    # Provider shims (.claude/commands/sdd.md ...) are managed too: refresh the ones still as recorded.
+    shim_changed: list[tuple[str, Path]] = []
+    for key in m.get("providers", []):
+        prov = providers.get(key)
+        if not prov or prov.shim_path not in managed_files:
+            continue
+        src, dst = CONTENT_DIR / "shims" / prov.shim_source, root / prov.shim_path
+        if not src.is_file() or not dst.is_file():
+            continue
+        if not manifest.matches_recorded(dst, managed_files[prov.shim_path]):
+            preserved.append(prov.shim_path)
+        elif not manifest.matches_recorded(src, managed_files[prov.shim_path]):
+            shim_changed.append((prov.shim_path, src))
+            recorded[prov.shim_path] = manifest.hash_file(src)
+
     if args.dry_run:
         print(yellow("  DRY RUN -- nothing written.\n"))
+    for rel, _src in shim_changed:
+        print(f"  {green('would update' if args.dry_run else 'updated')}   {rel} {dim('(provider shim)')}")
     for rel in changed:
         print(f"  {green('would update' if args.dry_run else 'updated')}   {rel}")
     for rel in restored:
@@ -2482,7 +2523,7 @@ def cmd_update(args) -> None:
         print(dim(f"\nWould bump kit_version -> {KIT_VERSION}"))
         return
 
-    if not (changed or restored or added or preserved or removed_flagged):
+    if not (changed or restored or added or preserved or removed_flagged or shim_changed):
         print(dim("  (no managed file changes to apply)"))
 
     backup_dir = None
@@ -2497,6 +2538,8 @@ def cmd_update(args) -> None:
         cur = root / rel
         cur.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(new_src, cur)
+    for rel, src in shim_changed:
+        shutil.copy2(src, root / rel)
 
     managed_files.update(recorded)
     m["managed_files"] = managed_files
@@ -2505,7 +2548,7 @@ def cmd_update(args) -> None:
 
     print(bold("\nDone.") +
           f"  updated={len(changed)} restored={len(restored)} "
-          f"added={len(added)} preserved(hand-edited)={len(preserved)} "
+          f"added={len(added)} shims={len(shim_changed)} preserved(hand-edited)={len(preserved)} "
           f"flagged-removed={len(removed_flagged)}")
     print(dim(f"  kit_version -> {KIT_VERSION}"))
 
@@ -2544,7 +2587,8 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                 "files and, with --budget, what each file costs in tokens (bytes/4, an estimate).",
                 "sdd context\nsdd context --budget       # hot (read at startup) vs cold files\nsdd context --json"),
     "fix": ("Repair deterministic problems only: v2 mojibake, line endings, absolute file links, manifest "
-            "features that disagree with the constitution. Nothing ambiguous is touched.",
+            "features that disagree with the constitution, manifest hashes that differ only by line endings. "
+            "Nothing ambiguous is touched.",
             "sdd fix --dry-run                 # show what would change\nsdd fix --links                   # only the links\n"
             "sdd fix --gitignore               # ignore agent worktree folders"),
     "session": ("Keep a resumable work context (.session.json) so interrupted implementation can continue.",
@@ -2802,6 +2846,8 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     fx.add_argument("--eol", action="store_true", help="normalize UTF-8 files to LF")
     fx.add_argument("--links", action="store_true", help="make in-project file:/// links relative")
     fx.add_argument("--features", action="store_true", help="sync manifest feature flags from constitution")
+    fx.add_argument("--manifest", action="store_true",
+                    help="re-record hashes of managed files that differ from the manifest only by line endings")
     fx.add_argument("--gitignore", action="store_true",
                     help="opt-in: ignore agent worktree folders (.kilo/worktrees, ...) in .gitignore")
     fx.add_argument("--dry-run", action="store_true", help="report repairs without writing")
