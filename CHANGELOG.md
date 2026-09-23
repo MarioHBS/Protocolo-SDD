@@ -10,6 +10,16 @@
 - `sdd migrate --edd-source-of-truth` is an explicit, previewable and
   idempotent EDD conversion. Ambiguous stages are reported without writes.
 
+- `sdd dashboard --ui web [--out FILE]` writes a self-contained, read-only HTML
+  snapshot (default `.sdd/dashboard.html`; no server, no dependencies) built from
+  the same data as the other renderers; re-run it to refresh.
+
+### Fixed
+
+- `sdd migrate --dry-run` announced the removal of any `AGENTS.md`, even a real,
+  hand-written one; the real run only removed byte-identical kit shims. Preview
+  and run now share one check (`_stale_shims`) and list only files that would go.
+
 ### Changed
 
 - EDD templates reference `evals.md` as the authoritative E-NNN criteria list;

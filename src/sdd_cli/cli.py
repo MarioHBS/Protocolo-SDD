@@ -1527,7 +1527,7 @@ def cmd_document(args) -> None:
 # optional dependency at all. "rich"/"textual" are accepted as deprecated aliases
 # for "static"/"interactive" so a manifest or script written against an older kit
 # version keeps working -- they are never shown as the primary names in --help.
-DASHBOARD_RENDERERS = ("static", "interactive", "plain")
+DASHBOARD_RENDERERS = ("static", "interactive", "plain", "web")
 _DASHBOARD_RENDERER_ALIASES = {"rich": "static", "textual": "interactive"}
 
 
@@ -1549,6 +1549,10 @@ def _dashboard_data(root: Path) -> dict[str, str]:
         bool((manifest.load(root) or {}).get("features", {}).get("edd")))
 
 
+def sdd_dashboard_default(root: Path) -> Path:
+    return root / ".sdd" / "dashboard.html"
+
+
 def cmd_dashboard(args) -> None:
     root = Path(args.path).resolve()
     if not (root / ".sdd").is_dir():
@@ -1556,7 +1560,7 @@ def cmd_dashboard(args) -> None:
     stored = _normalize_dashboard_renderer((manifest.load(root) or {}).get("dashboard_renderer"))
     renderer = _normalize_dashboard_renderer(args.ui) or stored or "static"
     if renderer not in DASHBOARD_RENDERERS:
-        die("--ui must be static, interactive or plain")
+        die("--ui must be static, interactive, plain or web")
     if args.set_default:
         data = manifest.load(root)
         if not data:
@@ -1567,6 +1571,13 @@ def cmd_dashboard(args) -> None:
         # The interactive dashboard takes over the terminal and waits for keys: without one it would hang.
         die("the interactive dashboard needs a real terminal; use --ui static or --ui plain here")
     views = _dashboard_data(root)
+    if renderer == "web":
+        out = Path(args.out) if getattr(args, "out", None) else sdd_dashboard_default(root)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        out.write_text(_dashboard.render_html(views, stamp), encoding="utf-8", newline="\n")
+        print(f"{green('ok')}    wrote {out.resolve()} {dim('(static HTML snapshot; open it in the IDE or a browser)')}")
+        return
     if renderer == "plain":
         print(_dashboard.render_plain(views))
         return
@@ -2105,6 +2116,22 @@ def cmd_migrate_edd(args) -> None:
     print(green(f"Migrated {len(plans)} stage(s). evals.md is now authoritative."))
 
 
+def _stale_shims(root: Path, prov_keys: list[str]) -> list:
+    """Shims of providers the project no longer wants that are byte-identical to the kit's own.
+
+    A file that differs (e.g. a real, hand-written AGENTS.md) is the owner's and is never listed.
+    """
+    stale = []
+    for provider in providers.PROVIDERS:
+        if provider.key in prov_keys:
+            continue
+        p = root / provider.shim_path
+        src = CONTENT_DIR / "shims" / provider.shim_source
+        if p.is_file() and src.is_file() and manifest.hash_file(p) == manifest.hash_file(src):
+            stale.append(provider)
+    return stale
+
+
 def cmd_migrate(args) -> None:
     if getattr(args, "edd_source_of_truth", False):
         cmd_migrate_edd(args)
@@ -2196,9 +2223,9 @@ def cmd_migrate(args) -> None:
     if args.dry_run:
         print(yellow("  DRY RUN -- nothing written."))
         print("  Would replace: .sdd/README.md, .sdd/skills/**, .sdd/templates/**")
-        if "generic" not in prov_keys and (root / "AGENTS.md").exists():
-            print(dim("  Would also remove a stray AGENTS.md (byte-identical to "
-                      "the generic shim left by a prior buggy migrate)."))
+        for provider in _stale_shims(root, prov_keys):
+            print(dim(f"  Would also remove a stray {provider.shim_path} (byte-identical to "
+                      "the shim left by a prior buggy migrate)."))
         print("  Would preserve: .sdd/constitution.md, .sdd/roadmap.md, "
               ".sdd/CHANGELOG.md, .sdd/stages/**")
         print(f"  Would refresh shims for: {', '.join(prov_keys)}")
@@ -2238,15 +2265,10 @@ def cmd_migrate(args) -> None:
     # 4. refresh shims only for the detected/recorded providers; clean up stray
     #    shims left by prior installs/migrates when the project no longer wants
     #    that provider.
-    for provider in providers.PROVIDERS:
-        if provider.key not in prov_keys:
-            p = root / provider.shim_path
-            src = CONTENT_DIR / "shims" / provider.shim_source
-            if p.exists() and src.exists() and \
-                    manifest.hash_file(p) == manifest.hash_file(src):
-                p.unlink()
-                print(f"  {yellow('cleanup')} removed stale {provider.shim_path} "
-                      f"{dim('(byte-identical managed shim)')}")
+    for provider in _stale_shims(root, prov_keys):
+        (root / provider.shim_path).unlink()
+        print(f"  {yellow('cleanup')} removed stale {provider.shim_path} "
+              f"{dim('(byte-identical managed shim)')}")
     for key in prov_keys:
         p = providers.get(key)
         if p:
@@ -2839,10 +2861,11 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
 
     dash = sub.add_parser("dashboard", help="open the optional SDD dashboard")
     dash.add_argument("path", nargs="?", default=".", help="project root (default: .)")
-    dash.add_argument("--ui", choices=("static", "interactive", "plain", "rich", "textual"),
+    dash.add_argument("--ui", choices=("static", "interactive", "plain", "web", "rich", "textual"),
                       help="renderer: static (one panel) or interactive (live TUI) -- optional extras "
-                           "needed -- or plain (no dependencies). 'rich'/'textual' are deprecated aliases "
+                           "needed -- plain (no dependencies) or web (writes .sdd/dashboard.html, no server). 'rich'/'textual' are deprecated aliases "
                            "for 'static'/'interactive'.")
+    dash.add_argument("--out", help="with --ui web: HTML file to write (default: .sdd/dashboard.html)")
     dash.add_argument("--set-default", action="store_true", help="save renderer in manifest")
     dash.set_defaults(func=cmd_dashboard)
 

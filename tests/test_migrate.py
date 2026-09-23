@@ -192,3 +192,21 @@ def test_update_from_4_0_0_syncs_managed_files_and_adds_new_ones(tmp_path):
     for rel, text in {".sdd/backlog.md": "mine", ".sdd/documentation.json": "{}",
                       ".sdd/.reservations.json": "{}", ".sdd/tracks/login/claims.json": "{}"}.items():
         assert (tmp_path / rel).read_text(encoding="utf-8") == text, rel
+
+
+def test_dry_run_does_not_announce_removal_of_a_real_agents_md(tmp_path, capsys):
+    project = _v33_project(tmp_path)
+    (project / "AGENTS.md").write_text("# real, hand-written agent instructions\n", encoding="utf-8")
+    _migrate(project, dry_run=True)
+    assert "stray" not in capsys.readouterr().out
+    _migrate(project)
+    assert (project / "AGENTS.md").read_text(encoding="utf-8").startswith("# real")
+
+
+def test_dry_run_announces_removal_of_a_byte_identical_shim(tmp_path, capsys):
+    project = _v33_project(tmp_path)
+    (project / "AGENTS.md").write_bytes((CONTENT_DIR / "shims" / "generic.md").read_bytes())
+    _migrate(project, dry_run=True)
+    assert "stray AGENTS.md" in capsys.readouterr().out
+    _migrate(project)
+    assert not (project / "AGENTS.md").exists()
