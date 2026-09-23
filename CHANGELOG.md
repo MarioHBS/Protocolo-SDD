@@ -13,6 +13,11 @@
 - `sdd dashboard --ui web [--out FILE]` writes a self-contained, read-only HTML
   snapshot (default `.sdd/dashboard.html`; no server, no dependencies) built from
   the same data as the other renderers; re-run it to refresh.
+- `sdd document` asks directly whether money, health or regulation are involved; the
+  answer sets the recommended depth and beats the vocabulary guess (which remains the
+  fallback for `--answers` runs).
+- Migration coverage for historical formats: v1 (no manifest, accent-loss `?`) and v2
+  (double-encoded UTF-8) projects are exercised end to end in the test suite.
 
 ### Fixed
 
