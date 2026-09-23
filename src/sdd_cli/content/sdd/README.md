@@ -102,12 +102,17 @@ INITIALIZING -> DECIDING -> ROADMAP -> +- SPECIFYING -> IMPLEMENTING -> CLOSING 
      IMPLEMENTING -- (structural decision mid-flight) --> DECIDING -> IMPLEMENTING
 ```
 
-Three skills are **cross-cutting utilities**, not phases, and may be invoked in
+Four skills are **cross-cutting utilities**, not phases, and may be invoked in
 any state:
 
 - `sdd-reconcile` — realign the indexes with disk.
 - `sdd-document` — plan and produce project documentation (only when the
   Documentation feature is on; see Settings).
+- `sdd-discover` — pre-project (or re-check) discovery: an interview that writes
+  `discovery.md` for review and `discovery.json` (`sdd-discovery/v1`). It also runs
+  outside a project, in any AI chat; `sdd discover` explains the flow and prints the
+  skill's path, and `sdd discover --check FILE --against .` compares the planned
+  stages with this project's.
 - `sdd-track` — open, govern and merge **parallel tracks**: two or more
   stages worked at the same time by separate agent sessions, without git
   worktrees. See "Parallel tracks" below.
