@@ -117,6 +117,65 @@ def _discovery_summary(data: dict) -> str:
             "  creates: Settings, vision, decisions, questions, backlog.md, canonical index, provisional queue and stage folder")
 
 
+def _discovery_skill_paths(root: Path) -> list[tuple[str, Path]]:
+    """Where the sdd-discover skill can be read from: this project's copy and the installed kit's."""
+    paths = []
+    project_copy = root / ".sdd" / "skills" / "sdd-discover" / "SKILL.md"
+    if project_copy.is_file():
+        paths.append(("this project", project_copy))
+    paths.append(("installed kit", CONTENT_DIR / "sdd" / "skills" / "sdd-discover" / "SKILL.md"))
+    return paths
+
+
+def cmd_discover(args) -> None:
+    """Explain the discovery flow; with --check validate a discovery.json (read-only)."""
+    root = Path(args.path).resolve()
+    if not args.check:
+        if args.against:
+            die("--against needs --check FILE")
+        print(bold("Discovery: from an idea to a reviewed project brief"))
+        print("""
+sdd-discover is a SKILL, not a command: an AI agent interviews you and writes two files.
+  1. Give the skill to any AI chat (Claude, ChatGPT, Gemini, Cursor, Copilot, ...): attach or paste
+     its SKILL.md and say "run this discovery for <my idea>". It works outside any project.
+  2. Review discovery.md (the human brief) and correct it in the chat.
+  3. Keep discovery.json (contract sdd-discovery/v1) and check it here:
+       sdd discover --check discovery.json
+  4. New project:       sdd init PATH --discovery discovery.json
+     Existing project:  sdd discover --check discovery.json --against PATH   (read-only comparison
+                        of the stages it plans with the ones the project already has)
+""".rstrip())
+        print("\nSkill file (copy it wherever your AI provider reads instructions):")
+        for label, path in _discovery_skill_paths(root):
+            print(f"  {label + ':':<15}{path}")
+        return
+    data = _load_discovery(args.check)
+    print(_discovery_summary(data))
+    problems = [s["slug"] for s in data["stages"] if not (s.get("context") or s.get("tasks"))]
+    if problems:
+        print(yellow(f"  warning: stages with neither context nor tasks: {', '.join(problems)}"))
+    if not args.against:
+        print(green("ok") + "    discovery is valid; nothing was written.")
+        return
+    project = Path(args.against).resolve()
+    if not (project / ".sdd").is_dir():
+        die(f"no .sdd/ found in {project}")
+    known = _index_checks.stage_slugs(project / ".sdd")
+    planned = {s["slug"]: s["title"] for s in data["stages"]}
+    missing = {slug: title for slug, title in planned.items() if slug not in known}
+    extra = {slug: where for slug, where in known.items() if slug not in planned}
+    print(f"\nComparison with {project}:")
+    print(f"  planned by the discovery and already in the project: {len(planned) - len(missing)}")
+    print(f"  planned by the discovery but MISSING in the project ({len(missing)}):")
+    for slug, title in missing.items():
+        print(f"    - {slug}: {title}")
+    print(f"  in the project but NOT in the discovery ({len(extra)}):")
+    for slug, where in extra.items():
+        print(f"    - {slug} [{where}]")
+    print(dim("  Slugs are compared by name: a renamed or split stage shows up on both lists. "
+              "Nothing was written."))
+
+
 def _discovery_list(items: list[dict], fields: tuple[str, ...], prefix: str) -> str:
     rows = []
     for index, item in enumerate(items, 1):
@@ -2453,7 +2512,7 @@ def cmd_update(args) -> None:
 
 _ROOT_EPILOG = """\
 commands by purpose:
-  set up       init, providers, update, migrate
+  set up       init, discover, providers, update, migrate
   diagnose     doctor, fix, health, context, evaluate
   work         session, scaffold, track, seq, deps, impact
   document     document, manual
@@ -2474,6 +2533,11 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                   "sdd providers\nsdd providers --plain      # bare keys, for scripts"),
     "manual": ("Print the full usage manual (the kit's USAGE.md).",
                "sdd manual\nsdd manual --md      # writes .sdd/SDD-USAGE.md"),
+    "discover": ("Explain the discovery flow (the sdd-discover skill for any AI provider, where its file is) "
+                 "and validate a discovery.json; --against compares its stages with an existing project.",
+                 "sdd discover                                  # how it works + skill path\n"
+                 "sdd discover --check discovery.json           # validate, show the summary\n"
+                 "sdd discover --check discovery.json --against .   # is the project's stage list complete?"),
     "context": ("Print only what a session needs to start: Settings and Current state, the active stage's "
                 "files and, with --budget, what each file costs in tokens (bytes/4, an estimate).",
                 "sdd context\nsdd context --budget       # hot (read at startup) vs cold files\nsdd context --json"),
@@ -2605,6 +2669,12 @@ examples:
                         help="write the manual to a markdown file instead of stdout "
                              "(default: .sdd/SDD-USAGE.md, or ./SDD-USAGE.md outside a project)")
     manual.set_defaults(func=cmd_manual)
+
+    disc = sub.add_parser("discover", help="explain the discovery flow; validate a discovery.json")
+    disc.add_argument("path", nargs="?", default=".", help="project root, used to find the project's skill copy (default: .)")
+    disc.add_argument("--check", metavar="FILE", help="validate FILE (sdd-discovery/v1) and print its summary; writes nothing")
+    disc.add_argument("--against", metavar="PROJECT", help="with --check: compare the planned stages with PROJECT's (read-only)")
+    disc.set_defaults(func=cmd_discover)
 
     ctx = sub.add_parser("context", help="print the minimal session context")
     ctx.add_argument("path", nargs="?", default=".", help="project root (default: .)")

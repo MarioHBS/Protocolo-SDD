@@ -164,6 +164,18 @@ would be), `2` something needs a human.
 
 A score from the doctor findings: 100 minus 25 per error and 5 per warning.
 
+### `sdd discover [PATH] [--check FILE] [--against PROJECT]`
+
+Explains the discovery flow and prints where the `sdd-discover` skill file lives
+(this project's copy and the installed kit's), so it can be given to any AI
+provider: the skill interviews you and writes `discovery.md` (for review) and
+`discovery.json` (contract `sdd-discovery/v1`). `--check FILE` validates the JSON
+and prints its summary without writing anything. `--against PROJECT` also compares
+the planned stage slugs with the project's canonical index and provisional queue:
+which planned stages are missing, and which project stages the discovery does not
+cover. It is a comparison by name (a renamed or split stage appears on both lists).
+Import into a new project with `sdd init PATH --discovery FILE`.
+
 ### `sdd context [PATH] [--budget] [--json]`
 
 Prints what a session needs to start — Settings and Current state, the active
