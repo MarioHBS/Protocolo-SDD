@@ -10,8 +10,18 @@
   summary without writing; `--against PROJECT` also compares the planned stage slugs with
   the project's canonical index and provisional queue (missing / not covered).
 
+### Fixed
+
+- `sdd update` (and `migrate`'s hand-edit detection) compared raw file hashes, so a project whose
+  files had their line endings rewritten by Git or an editor (CRLF <-> LF) saw every managed file
+  as "hand-edited" and refused to refresh it. Hashes now match ignoring line endings; a real edit
+  still counts. Found on KNN_WAREHOUSE: 19 of 26 managed files were being preserved.
+
 ### Changed
 
+- The `sdd-discover` skill first explains the choices the owner must make at install time
+  (estimates/schedule, parallel tracks, documentation, EDD, language, AI providers, dashboard
+  renderer), recommends for the project and records the answers in `discovery.md` and `features`.
 - Every provider shim and the kit README list `sdd-discover` as a cross-cutting utility, so
   an agent inside an existing project knows it can re-check the scope. Before, the skill was
   installed but nothing pointed to it.
