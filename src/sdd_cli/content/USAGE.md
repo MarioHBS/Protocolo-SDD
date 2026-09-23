@@ -278,14 +278,17 @@ v5.
 
 ## Observe
 
-### `sdd dashboard [PATH] [--ui static|interactive|plain] [--set-default]`
+### `sdd dashboard [PATH] [--ui static|interactive|plain|web] [--out FILE] [--set-default]`
 
 A read-only dashboard over the same data as `doctor` and `context`: overview,
 constitution section sizes, stages and tracks, EDD, doctor findings with the
 command that fixes each, and the session. `static` prints one panel and exits;
 `interactive` is a live TUI that needs a real terminal; both need the optional
 extras (`pipx install '.[dashboard]'`, or `pip install rich textual`) — `plain`
-needs nothing. `rich`/`textual` still work as deprecated aliases for
+needs nothing. `web` writes a self-contained HTML snapshot (default
+`.sdd/dashboard.html`, or `--out FILE`), with no server and no dependencies: open
+the file in the IDE or a browser and re-run the command to refresh it.
+`rich`/`textual` still work as deprecated aliases for
 `static`/`interactive`. `--set-default` records the renderer in the manifest.
 
 ---
