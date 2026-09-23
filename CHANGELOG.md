@@ -10,6 +10,14 @@
   summary without writing; `--against PROJECT` also compares the planned stage slugs with
   the project's canonical index and provisional queue (missing / not covered).
 
+- `sdd update` now refreshes the provider shims (`.claude/commands/sdd.md`, `AGENTS.md`, ...) that
+  are still as recorded in the manifest; an edited shim is preserved. Before, a shim change reached
+  existing projects only through `sdd migrate` or `sdd init --force`.
+- `sdd doctor` reports `manifest_eol_drift` (note) when managed files differ from the manifest only
+  by line endings, and `sdd fix --manifest` re-records those hashes (part of `--all`).
+- A track parked on purpose can be marked `on hold` / `em espera` in its `Active tracks` row; the
+  doctor no longer reports it as `track_not_started`.
+
 ### Fixed
 
 - `sdd update` (and `migrate`'s hand-edit detection) compared raw file hashes, so a project whose
