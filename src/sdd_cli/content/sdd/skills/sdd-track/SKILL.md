@@ -212,6 +212,10 @@ type-check globs with copies of the code.
    is treated as concluded). Do **not** delete the finished `tracks/<slug>/`
    directories — leave them as historical evidence.
 
+A track parked on purpose (waiting for the client, another team, a decision) stays in
+`### Active tracks` with its State set to `on hold` (or `em espera`); the doctor then
+does not report it as `track_not_started`. Set the State back when work resumes.
+
 ## Fork/join — declaring a stage that depends on tracks finishing
 
 The queue is not always "sequential → one fork → merge → sequential" a
