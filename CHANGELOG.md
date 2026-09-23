@@ -1,5 +1,20 @@
 # Changelog — sdd-cli
 
+## [4.2.0] — Unreleased
+
+### Added
+
+- `sdd-discover` produces reviewed `discovery.md` and versioned
+  `sdd-discovery/v1` JSON. `sdd init PATH --discovery FILE.json` validates,
+  previews and confirms that import before it bootstraps project artifacts.
+- `sdd migrate --edd-source-of-truth` is an explicit, previewable and
+  idempotent EDD conversion. Ambiguous stages are reported without writes.
+
+### Changed
+
+- EDD templates reference `evals.md` as the authoritative E-NNN criteria list;
+  report evidence uses the same identifiers.
+
 All notable changes to the sdd-cli kit. Versions follow a pragmatic
 `MAJOR.MINOR.PATCH`: breaking changes bump MAJOR, additive changes bump MINOR,
 small additive content changes and fixes bump PATCH. Any `estimates.md`

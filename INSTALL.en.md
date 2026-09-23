@@ -84,6 +84,10 @@ JavaScript binary that does not exist in this project.
 
 ## Next step
 
+For a new idea, use the `sdd-discover` skill first. It creates a reviewed
+`discovery.md` and a `sdd-discovery/v1` `discovery.json`; import it only after
+review with `sdd init --discovery discovery.json` (add `-y` in automation).
+
 Inside a project folder:
 
 ```bash

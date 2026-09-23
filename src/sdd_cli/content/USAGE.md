@@ -52,6 +52,7 @@ Installs the kit into a project (default: current directory).
 | `--docs` | Enable documentation planning (offers `sdd document` at the end). |
 | `--tracks` | Enable parallel tracks (`sdd-track`). |
 | `--edd` | Enable Eval Driven Development. |
+| `--discovery FILE.json` | Import a validated `sdd-discovery/v1` pre-project contract; previews and confirms before writing. |
 | `--dashboard-ui NAME` | Default dashboard renderer (`static`, one panel, or `interactive`, a live TUI). |
 | `--force` | Overwrite managed files and shims. |
 | `-y`, `--yes` | Non-interactive; accept defaults. |
@@ -60,10 +61,18 @@ Installs the kit into a project (default: current directory).
 sdd init                                        # interactive
 sdd init --provider claude --language pt-BR -y  # agent-driven, no prompts
 sdd init --provider claude --provider cursor    # two agents, one .sdd/
+sdd init . --discovery discovery.json -y        # reviewed discovery, non-interactive import
 ```
 
 `init` never overwrites `constitution.md`, `roadmap.md` or `stages/`. Re-running
 on an initialized project tells you to use `update` or `migrate`.
+
+Use the `sdd-discover` skill before initialization to conduct the interview and
+produce both `discovery.md` (human review) and `discovery.json` (CLI import).
+The JSON contains project, language, features, vision, decisions, open questions,
+backlog and an ordered `stages` list. The first stage becomes canonical `001`;
+the rest form the provisional queue. `init` never waits for input without a TTY:
+an import then requires `--yes` after successful validation.
 
 ### `sdd providers [--plain]`
 
@@ -99,6 +108,15 @@ After migrating, a few constitution edits remain manual: the CLI writes
 `.sdd/.migration-todo.md`, which the agent walks the owner through one confirmed
 step at a time, ending with the `sdd-reconcile` skill.
 
+### `sdd migrate --edd-source-of-truth [PATH] [--dry-run] [-y]`
+
+An opt-in migration for existing EDD stages. It plans the conversion, prints the
+stages and E-NNN IDs, and asks for confirmation before writing (or requires `-y`
+without a TTY). It preserves unambiguous criteria in `evals.md`, replaces spec
+section 5 with `See \`evals.md\`.`, and changes TODO final verification to point at
+that source. A conflict between an existing eval list and the spec blocks all
+writes and is listed for a human decision. Re-running after success is idempotent.
+
 ---
 
 ## Diagnose
@@ -118,7 +136,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sdd fix --links`). |
 | Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sdd fix --features`). |
 | Kit | `provider_shim_unmanaged`, `cli_older_than_project` | A shim on disk the manifest does not manage; the CLI is older than the project's kit. |
-| EDD | `edd_missing_evals`, `edd_missing_checklist`, `edd_eval_uncovered`, `edd_missing_performance_doc`, `edd_milestone_without_evaluation`, `milestone_not_contiguous` | Evals without evidence; milestone problems. |
+| EDD | `edd_missing_evals`, `edd_missing_checklist`, `edd_eval_uncovered`, `edd_spec_not_pointer`, `edd_todo_not_evals`, `edd_missing_performance_doc`, `edd_milestone_without_evaluation`, `milestone_not_contiguous` | Evals without evidence, duplicate criteria, or milestone problems. |
 | Backlog | `backlog_orphan`, `queue_row_without_section` | Backlog and provisional queue disagree. |
 | Documentation | `docs_missing_file`, `docs_missing_header`, `docs_path_outside_project` | The documentation plan versus disk. |
 | Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch` | A saved session that no longer fits reality. |
