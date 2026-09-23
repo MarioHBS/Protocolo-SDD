@@ -57,6 +57,117 @@ LANGUAGES = {
 MANAGED_DIRS = ("skills", "templates")
 MANAGED_ROOT_FILES = ("README.md",)
 
+DISCOVERY_SCHEMA = "sdd-discovery/v1"
+
+
+def _load_discovery(path_value: str) -> dict:
+    """Load and validate the portable pre-project discovery contract.
+
+    This intentionally uses a small stdlib validator instead of a JSON-schema
+    dependency: the contract is consumed by the CLI's first write operation.
+    """
+    path = Path(path_value).resolve()
+    if not path.is_file():
+        die(f"discovery file does not exist: {path}")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        die(f"invalid discovery JSON: {exc.msg}")
+    if not isinstance(data, dict) or data.get("schema_version") != DISCOVERY_SCHEMA:
+        die(f"discovery must be an object with schema_version {DISCOVERY_SCHEMA!r}")
+    project = data.get("project")
+    if not isinstance(project, dict) or not isinstance(project.get("name"), str) or not project["name"].strip():
+        die("discovery.project.name must be a non-empty string")
+    if not isinstance(project.get("language"), str) or not project["language"].strip():
+        die("discovery.project.language must be a non-empty string")
+    vision = data.get("vision")
+    if not isinstance(vision, dict) or not all(isinstance(vision.get(k), str) and vision[k].strip()
+                                                for k in ("what_it_is", "who_it_is_for", "definition_of_done")):
+        die("discovery.vision must contain non-empty what_it_is, who_it_is_for and definition_of_done")
+    features = data.get("features", {})
+    if not isinstance(features, dict) or any(not isinstance(v, bool) for v in features.values()):
+        die("discovery.features must be an object of boolean flags")
+    stages = data.get("stages")
+    if not isinstance(stages, list) or not stages:
+        die("discovery.stages must be a non-empty list (the first stage becomes active)")
+    seen: set[str] = set()
+    for item in stages:
+        if not isinstance(item, dict) or not isinstance(item.get("slug"), str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", item["slug"]):
+            die("every discovery stage needs a lowercase kebab-case slug")
+        if item["slug"] in seen:
+            die(f"duplicate discovery stage slug: {item['slug']}")
+        seen.add(item["slug"])
+        if not isinstance(item.get("title"), str) or not item["title"].strip():
+            die(f"stage {item['slug']} needs a title")
+        if item.get("origin", "escopo-original") not in {"escopo-original", "lacuna-de-levantamento", "mudanca-do-cliente", "bug-ou-regressao", "divida-tecnica"}:
+            die(f"stage {item['slug']} has an invalid origin")
+        if "footprints" in item and not isinstance(item["footprints"], list):
+            die(f"stage {item['slug']}.footprints must be a list")
+    for key in ("decisions", "open_questions", "backlog"):
+        if key in data and not isinstance(data[key], list):
+            die(f"discovery.{key} must be a list")
+    return data
+
+
+def _discovery_summary(data: dict) -> str:
+    return (f"Discovery: {data['project']['name']}\n"
+            f"  decisions: {len(data.get('decisions', []))}\n"
+            f"  open questions: {len(data.get('open_questions', []))}\n"
+            f"  stages: 001-{data['stages'][0]['slug']} active + {max(0, len(data['stages']) - 1)} provisional\n"
+            "  creates: Settings, vision, decisions, questions, backlog.md, canonical index, provisional queue and stage folder")
+
+
+def _discovery_list(items: list[dict], fields: tuple[str, ...], prefix: str) -> str:
+    rows = []
+    for index, item in enumerate(items, 1):
+        values = [str(item.get(field, "")) for field in fields]
+        rows.append(f"| {prefix}-{index:03d} | " + " | ".join(values) + " |")
+    return "\n".join(rows) or f"| {prefix}-001 | [none recorded] |  |  |"
+
+
+def _apply_discovery(root: Path, data: dict) -> None:
+    """Fill only the user-owned bootstrap files created by this invocation."""
+    sdd = root / ".sdd"
+    project, vision, stages = data["project"], data["vision"], data["stages"]
+    first = stages[0]
+    constitution = sdd / "constitution.md"
+    text = constitution.read_text(encoding="utf-8")
+    text = text.replace("[PROJECT NAME]", project["name"])
+    text = text.replace("- **State:** INITIALIZING", "- **State:** SPECIFYING")
+    text = text.replace("- **Active stage:** (none)", f"- **Active stage:** 001-{first['slug']}")
+    text = text.replace("- **Next action:** load the `sdd-init` skill", "- **Next action:** load the `sdd-specify` skill")
+    text = text.replace("- **Last updated:** [date]", f"- **Last updated:** {datetime.now(UTC).date().isoformat()}", 1)
+    text = text.replace("- **What it is:** [one to three sentences]", f"- **What it is:** {vision['what_it_is']}")
+    text = text.replace("- **Who it is for:** [users / audience]", f"- **Who it is for:** {vision['who_it_is_for']}")
+    text = text.replace("- **Definition of done:** [what must be true for the project to be complete]", f"- **Definition of done:** {vision['definition_of_done']}")
+    decisions = data.get("decisions", [])
+    decision_rows = _discovery_list(decisions, ("decision", "choice", "rationale", "locked_on"), "D")
+    text = re.sub(r"\| D-001 \|[^\n]*\|", decision_rows, text)
+    questions = data.get("open_questions", [])
+    question_rows = _discovery_list(questions, ("question", "blocks_gate", "status"), "Q")
+    text = re.sub(r"\| Q-001 \|[^\n]*\|", question_rows, text)
+    canonical = f"| 001 | {first['slug']} | pending | — |"
+    text = re.sub(r"\| 001\s+\|[^\n]*\|", canonical, text)
+    provisional = []
+    for stage in stages[1:]:
+        provisional.append(f"| {stage['slug']} | pending | — | {stage['title']}; Origin: {stage.get('origin', 'escopo-original')} |")
+    queue = "\n".join(provisional) or "| — | — | — | No further provisional stages |"
+    text = re.sub(r"\| \[slug\] \| pending \|[^\n]*\|", queue, text, count=1)
+    constitution.write_text(text, encoding="utf-8", newline="\n")
+
+    backlog = ["# Backlog", "", "> Imported from discovery. Details remain here until `sdd-specify` consumes a stage.", ""]
+    for stage in stages:
+        tasks = stage.get("backlog", stage.get("tasks", []))
+        backlog += [f"## {stage['slug']}", "", f"**Origin.** {stage.get('origin', 'escopo-original')}",
+                    f"**Context.** {stage.get('context', stage['title'])}",
+                    f"**Footprints.** {', '.join(stage.get('footprints', [])) or 'not yet known'}", "", "**Tasks.**", ""]
+        backlog += [f"- [ ] {task}" for task in tasks] or ["- [ ] Refine during specification"]
+        backlog.append("")
+    (sdd / "backlog.md").write_text("\n".join(backlog), encoding="utf-8", newline="\n")
+    stage_dir = sdd / "stages" / f"001-{first['slug']}"
+    stage_dir.mkdir(exist_ok=False)
+    (stage_dir / ".gitkeep").touch()
+
 # Canonical v2 state machine (see .sdd/README.md). The shims must list every
 # one of these. IMPLEMENTING is an official v2 state -- the executor builds the
 # active stage here; sdd-close is loaded when it ends.
@@ -264,6 +375,17 @@ def cmd_init(args) -> None:
     if not root.exists():
         die(f"path does not exist: {root}")
 
+    discovery = _load_discovery(args.discovery) if getattr(args, "discovery", None) else None
+    if discovery:
+        # Confirmation happens before the kit creates even its first directory.
+        print(_discovery_summary(discovery))
+        if not args.yes:
+            if not sys.stdin.isatty():
+                die("--discovery without a TTY requires --yes after a valid discovery file")
+            if input("Create this project from the discovery? [y/N]: ").strip().lower() not in {"y", "yes"}:
+                print("aborted.")
+                return
+
     existing = manifest.load(root)
     if existing and not args.force:
         print(f"{yellow('note:')} .sdd/ already initialized "
@@ -275,7 +397,7 @@ def cmd_init(args) -> None:
     interactive = sys.stdin.isatty() and not args.yes
 
     # --- language -----------------------------------------------------
-    language = args.language
+    language = args.language or (discovery or {}).get("project", {}).get("language")
     if not language:
         if interactive:
             print(bold("\nLanguage for interactions and generated artifacts"))
@@ -316,7 +438,11 @@ def cmd_init(args) -> None:
         "tracks": bool(args.tracks),
         "edd": bool(getattr(args, "edd", False)),
     }
-    if interactive and not args.estimation and not args.docs and not args.tracks:
+    if discovery:
+        for key in features:
+            if key in discovery.get("features", {}):
+                features[key] = discovery["features"][key]
+    if interactive and not discovery and not args.estimation and not args.docs and not args.tracks:
         print(bold("\nOptional features") + dim("  (toggle later in the constitution)"))
         features["estimation"] = input(
             "  Track schedule estimates? [y/N]: ").strip().lower().startswith("y")
@@ -400,6 +526,10 @@ def cmd_init(args) -> None:
     initial_manifest["dashboard_renderer"] = _normalize_dashboard_renderer(
         getattr(args, "dashboard_ui", None)) or "static"
     manifest.save(root, initial_manifest)
+
+    if discovery:
+        _apply_discovery(root, discovery)
+        print(f"  {green('ok')}    discovery bootstrap (backlog, index, 001-{discovery['stages'][0]['slug']}/)")
 
     print(bold("\nDone.") + f"  language={language}  "
           f"estimation={'on' if features['estimation'] else 'off'}  "
@@ -812,6 +942,14 @@ def _doctor_payload(root: Path) -> dict:
                 continue
             if not (stage / "evals.md").is_file():
                 findings.append({"severity": "warn", "code": "edd_missing_evals", "stage": stage.name})
+            else:
+                spec_text = (stage / "spec.md").read_text(encoding="utf-8", errors="replace")
+                section, _criteria = _acceptance_section(spec_text)
+                if section and not re.search(r"(?im)^\s*See\s+`?evals\.md`?\.?\s*$", section.group(1)):
+                    findings.append({"severity": "warn", "code": "edd_spec_not_pointer", "stage": stage.name})
+                todo = stage / "todo.md"
+                if todo.is_file() and "evals.md" not in todo.read_text(encoding="utf-8", errors="replace"):
+                    findings.append({"severity": "warn", "code": "edd_todo_not_evals", "stage": stage.name})
             if (stage / "report.md").is_file() and not (stage / "checklist.md").is_file():
                 findings.append({"severity": "warn", "code": "edd_missing_checklist", "stage": stage.name})
             if (stage / "report.md").is_file() and (stage / "evals.md").is_file():
@@ -1196,6 +1334,8 @@ def cmd_scaffold(args) -> None:
     targets = [stage / "todo.md"]
     features = (manifest.load(root) or {}).get("features", {})
     if features.get("edd"):
+        if not criteria and not (stage / "evals.md").is_file():
+            die("EDD scaffold requires evals.md when spec section 5 points to it; use sdd-specify or migrate first")
         targets += [stage / "evals.md", stage / "checklist.md"]
     created: list[str] = []
     for target in targets:
@@ -1387,7 +1527,7 @@ def cmd_document(args) -> None:
 # optional dependency at all. "rich"/"textual" are accepted as deprecated aliases
 # for "static"/"interactive" so a manifest or script written against an older kit
 # version keeps working -- they are never shown as the primary names in --help.
-DASHBOARD_RENDERERS = ("static", "interactive", "plain")
+DASHBOARD_RENDERERS = ("static", "interactive", "plain", "web")
 _DASHBOARD_RENDERER_ALIASES = {"rich": "static", "textual": "interactive"}
 
 
@@ -1409,6 +1549,10 @@ def _dashboard_data(root: Path) -> dict[str, str]:
         bool((manifest.load(root) or {}).get("features", {}).get("edd")))
 
 
+def sdd_dashboard_default(root: Path) -> Path:
+    return root / ".sdd" / "dashboard.html"
+
+
 def cmd_dashboard(args) -> None:
     root = Path(args.path).resolve()
     if not (root / ".sdd").is_dir():
@@ -1416,7 +1560,7 @@ def cmd_dashboard(args) -> None:
     stored = _normalize_dashboard_renderer((manifest.load(root) or {}).get("dashboard_renderer"))
     renderer = _normalize_dashboard_renderer(args.ui) or stored or "static"
     if renderer not in DASHBOARD_RENDERERS:
-        die("--ui must be static, interactive or plain")
+        die("--ui must be static, interactive, plain or web")
     if args.set_default:
         data = manifest.load(root)
         if not data:
@@ -1427,6 +1571,13 @@ def cmd_dashboard(args) -> None:
         # The interactive dashboard takes over the terminal and waits for keys: without one it would hang.
         die("the interactive dashboard needs a real terminal; use --ui static or --ui plain here")
     views = _dashboard_data(root)
+    if renderer == "web":
+        out = Path(args.out) if getattr(args, "out", None) else sdd_dashboard_default(root)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        out.write_text(_dashboard.render_html(views, stamp), encoding="utf-8", newline="\n")
+        print(f"{green('ok')}    wrote {out.resolve()} {dim('(static HTML snapshot; open it in the IDE or a browser)')}")
+        return
     if renderer == "plain":
         print(_dashboard.render_plain(views))
         return
@@ -1880,7 +2031,113 @@ file (`.sdd/.migration-todo.md`). It is a one-shot migration artifact.
     return out
 
 
+def _acceptance_section(text: str) -> tuple[re.Match[str] | None, list[str]]:
+    section = re.search(r"(?ms)^## 5\. Acceptance criteria\s*$(.*?)(?=^## 6\.|\Z)", text)
+    if not section:
+        return None, []
+    criteria = re.findall(r"(?m)^[-*]\s+\[\s*\]\s+(.+?)\s*$", section.group(1))
+    return section, criteria
+
+
+def _edd_migration_plan(root: Path) -> tuple[list[dict], list[str]]:
+    """Return deterministic changes and human decisions; never writes."""
+    plans, ambiguities = [], []
+    for stage in sorted((root / ".sdd" / "stages").glob("*")) if (root / ".sdd" / "stages").is_dir() else []:
+        spec = stage / "spec.md"
+        if not spec.is_file():
+            continue
+        text = spec.read_text(encoding="utf-8", errors="replace")
+        section, criteria = _acceptance_section(text)
+        evals = stage / "evals.md"
+        if section is None:
+            ambiguities.append(f"{stage.name}: spec.md has no §5 Acceptance criteria")
+            continue
+        if re.search(r"(?im)^\s*See\s+`?evals\.md`?\.?\s*$", section.group(1)) and evals.is_file():
+            continue  # completed migration is idempotent
+        existing = evals.read_text(encoding="utf-8", errors="replace") if evals.is_file() else ""
+        eval_criteria = re.findall(r"(?m)^[-*]\s+\[[ x!\-]\]\s+E-\d{3}\s+[—-]\s+(.+?)(?:\s+[—-]\s+(?:type|phase|evidence):.*)?$", existing)
+        if existing and criteria and eval_criteria and criteria != eval_criteria:
+            ambiguities.append(f"{stage.name}: spec criteria and existing evals.md disagree")
+            continue
+        if existing and not eval_criteria:
+            ambiguities.append(f"{stage.name}: existing evals.md has no parseable E-NNN criteria")
+            continue
+        source = eval_criteria or criteria
+        if not source:
+            ambiguities.append(f"{stage.name}: no criteria to preserve in evals.md")
+            continue
+        if not evals.is_file():
+            lines = [f"# Evals — {stage.name}", "", "## Acceptance evaluations", ""]
+            lines += [f"- [ ] E-{i:03d} — {criterion} — type: inspection — phase: close — evidence: [record]"
+                      for i, criterion in enumerate(source, 1)]
+            existing = "\n".join(lines) + "\n"
+        plans.append({"stage": stage, "spec": spec, "evals": evals, "eval_text": existing,
+                      "section": section, "ids": [f"E-{i:03d}" for i in range(1, len(source) + 1)]})
+    return plans, ambiguities
+
+
+def cmd_migrate_edd(args) -> None:
+    root = Path(args.path).resolve()
+    if not (root / ".sdd").is_dir():
+        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+    plans, ambiguities = _edd_migration_plan(root)
+    print(bold(f"EDD source-of-truth migration — {root}"))
+    for plan in plans:
+        print(f"  {plan['stage'].name}: evals.md ({', '.join(plan['ids'])}); spec §5 → See evals.md.")
+    for issue in ambiguities:
+        print(yellow(f"  ambiguous: {issue}"))
+    if ambiguities:
+        print("No files changed. Resolve the listed ambiguity manually, then rerun.")
+        raise SystemExit(1)
+    if not plans:
+        print(green("Already migrated. Nothing to do."))
+        return
+    if args.dry_run:
+        print(yellow("DRY RUN — nothing written."))
+        return
+    if not args.yes:
+        if not sys.stdin.isatty():
+            die("EDD migration without a TTY requires --yes")
+        if input("Apply this EDD migration? [y/N]: ").strip().lower() not in {"y", "yes"}:
+            print("aborted.")
+            return
+    for plan in plans:
+        plan["evals"].write_text(plan["eval_text"], encoding="utf-8", newline="\n")
+        old = plan["section"].group(0)
+        replacement = "## 5. Acceptance criteria\n\nSee `evals.md`.\n\n"
+        plan["spec"].write_text(plan["spec"].read_text(encoding="utf-8").replace(old, replacement),
+                                 encoding="utf-8", newline="\n")
+        todo = plan["stage"] / "todo.md"
+        if todo.is_file():
+            todo_text = todo.read_text(encoding="utf-8", errors="replace")
+            todo_text = todo_text.replace("All spec acceptance criteria met, with evidence",
+                                          "All evaluations in `evals.md` resolved, with evidence")
+            todo.write_text(todo_text, encoding="utf-8", newline="\n")
+    print(green(f"Migrated {len(plans)} stage(s). evals.md is now authoritative."))
+
+
+def _stale_shims(root: Path, prov_keys: list[str]) -> list:
+    """Shims of providers the project no longer wants that are byte-identical to the kit's own.
+
+    A file that differs (e.g. a real, hand-written AGENTS.md) is the owner's and is never listed.
+    """
+    stale = []
+    for provider in providers.PROVIDERS:
+        if provider.key in prov_keys:
+            continue
+        p = root / provider.shim_path
+        src = CONTENT_DIR / "shims" / provider.shim_source
+        if p.is_file() and src.is_file() and manifest.hash_file(p) == manifest.hash_file(src):
+            stale.append(provider)
+    return stale
+
+
 def cmd_migrate(args) -> None:
+    if getattr(args, "edd_source_of_truth", False):
+        cmd_migrate_edd(args)
+        return
+    if not args.to:
+        die("choose --to v4, or use --edd-source-of-truth")
     root = Path(args.path).resolve()
     sdd = root / ".sdd"
     if not sdd.exists():
@@ -1966,9 +2223,9 @@ def cmd_migrate(args) -> None:
     if args.dry_run:
         print(yellow("  DRY RUN -- nothing written."))
         print("  Would replace: .sdd/README.md, .sdd/skills/**, .sdd/templates/**")
-        if "generic" not in prov_keys and (root / "AGENTS.md").exists():
-            print(dim("  Would also remove a stray AGENTS.md (byte-identical to "
-                      "the generic shim left by a prior buggy migrate)."))
+        for provider in _stale_shims(root, prov_keys):
+            print(dim(f"  Would also remove a stray {provider.shim_path} (byte-identical to "
+                      "the shim left by a prior buggy migrate)."))
         print("  Would preserve: .sdd/constitution.md, .sdd/roadmap.md, "
               ".sdd/CHANGELOG.md, .sdd/stages/**")
         print(f"  Would refresh shims for: {', '.join(prov_keys)}")
@@ -2008,15 +2265,10 @@ def cmd_migrate(args) -> None:
     # 4. refresh shims only for the detected/recorded providers; clean up stray
     #    shims left by prior installs/migrates when the project no longer wants
     #    that provider.
-    for provider in providers.PROVIDERS:
-        if provider.key not in prov_keys:
-            p = root / provider.shim_path
-            src = CONTENT_DIR / "shims" / provider.shim_source
-            if p.exists() and src.exists() and \
-                    manifest.hash_file(p) == manifest.hash_file(src):
-                p.unlink()
-                print(f"  {yellow('cleanup')} removed stale {provider.shim_path} "
-                      f"{dim('(byte-identical managed shim)')}")
+    for provider in _stale_shims(root, prov_keys):
+        (root / provider.shim_path).unlink()
+        print(f"  {yellow('cleanup')} removed stale {provider.shim_path} "
+              f"{dim('(byte-identical managed shim)')}")
     for key in prov_keys:
         p = providers.get(key)
         if p:
@@ -2315,6 +2567,8 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--tracks", action="store_true",
                    help="enable parallel tracks (sdd-track)")
     i.add_argument("--edd", action="store_true", help="enable Eval Driven Development")
+    i.add_argument("--discovery", metavar="FILE.json",
+                   help="import a validated sdd-discovery/v1 contract; confirmation is required unless --yes")
     i.add_argument("--dashboard-ui", choices=("static", "interactive", "rich", "textual"), default="static",
                    help="default optional dashboard renderer (static: one panel; interactive: live TUI)")
     i.add_argument("--force", action="store_true",
@@ -2395,14 +2649,18 @@ migration todo:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     m.add_argument("path", nargs="?", default=".", help="project root (default: .)")
-    m.add_argument("--to", required=True, metavar="VERSION",
+    m.add_argument("--to", metavar="VERSION",
                    help="target kit version; current release is v4")
+    m.add_argument("--edd-source-of-truth", action="store_true",
+                   help="opt-in migration: make evals.md the authoritative E-NNN criteria list")
     m.add_argument("--provider", action="append", metavar="KEY",
                    help="replace installed provider shims (repeatable)")
     m.add_argument("--dry-run", action="store_true",
                    help="show what would change, write nothing")
     m.add_argument("--fix-mojibake", action="store_true",
                    help="repair double-encoding (v2) mojibake inline before migrating")
+    m.add_argument("-y", "--yes", action="store_true",
+                   help="accept the explicitly previewed EDD migration without a TTY")
     m.set_defaults(func=cmd_migrate)
 
     u = sub.add_parser(
@@ -2603,10 +2861,11 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
 
     dash = sub.add_parser("dashboard", help="open the optional SDD dashboard")
     dash.add_argument("path", nargs="?", default=".", help="project root (default: .)")
-    dash.add_argument("--ui", choices=("static", "interactive", "plain", "rich", "textual"),
+    dash.add_argument("--ui", choices=("static", "interactive", "plain", "web", "rich", "textual"),
                       help="renderer: static (one panel) or interactive (live TUI) -- optional extras "
-                           "needed -- or plain (no dependencies). 'rich'/'textual' are deprecated aliases "
+                           "needed -- plain (no dependencies) or web (writes .sdd/dashboard.html, no server). 'rich'/'textual' are deprecated aliases "
                            "for 'static'/'interactive'.")
+    dash.add_argument("--out", help="with --ui web: HTML file to write (default: .sdd/dashboard.html)")
     dash.add_argument("--set-default", action="store_true", help="save renderer in manifest")
     dash.set_defaults(func=cmd_dashboard)
 

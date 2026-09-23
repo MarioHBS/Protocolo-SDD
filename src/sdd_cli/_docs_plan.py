@@ -228,9 +228,15 @@ def project_signals(root: Path) -> dict:
             "language": language.group(1) if language else ""}
 
 
-def recommend_depth(signals: dict) -> tuple[str, str]:
-    """A recommendation with its reason, drawn from the real project (bias: less)."""
-    terms = signals.get("risk_terms", [])
+def recommend_depth(signals: dict, high_stakes: bool | None = None) -> tuple[str, str]:
+    """A recommendation with its reason, drawn from the real project (bias: less).
+
+    ``high_stakes`` is the owner's direct answer to "is money, health or regulation involved?";
+    when given it beats the vocabulary guess, which stays as the fallback (``--answers`` runs).
+    """
+    if high_stakes:
+        return ("comprehensive", "you said money, health or regulation are involved")
+    terms = [] if high_stakes is False else signals.get("risk_terms", [])
     if len(terms) >= 3:
         return ("comprehensive",
                 "the vision and decisions touch regulated or high-cost-of-error subjects "
@@ -334,8 +340,13 @@ def run_interview(root: Path, console: Console, *, state: dict | None = None,
         if save_state:
             save_state(state)
 
+    if step("risk"):
+        answers["high_stakes"] = console.confirm(
+            "Are money, health or regulation involved (a wrong or missing document costs a lot)?",
+            bool(signals["risk_terms"]))
+        finish("risk")
     if step("depth"):
-        depth, reason = recommend_depth(signals)
+        depth, reason = recommend_depth(signals, answers.get("high_stakes"))
         console.say(f"Project: {signals['stages']} stage(s), {signals['tracks']} track(s), "
                     f"{len(signals['existing'])} existing doc file(s).")
         console.say(f"Recommendation: {depth} — {reason}.")
@@ -345,6 +356,7 @@ def run_interview(root: Path, console: Console, *, state: dict | None = None,
     if step("audience"):
         answers["audience"] = console.choose("Who reads it (owner/collaborator/auditor)", AUDIENCES, "owner")
         answers["cost_of_error"] = console.choose("Cost of a wrong or missing document", ("low", "medium", "high"),
+                                                  "high" if answers.get("high_stakes") else
                                                   {0: "low", 1: "medium", 2: "medium"}.get(len(signals["risk_terms"]), "high"))
         answers["language"] = console.ask("Language of the documents", signals["language"] or "en")
         finish("audience")

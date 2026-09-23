@@ -178,3 +178,29 @@ def test_textual_dashboard_runs_headlessly_and_every_tab_renders(tmp_path):
     rendered, screenshots = asyncio.run(drive())
     assert rendered == views          # each tab shows exactly its own view
     assert len(screenshots) == 6      # and the screen really changes from tab to tab
+
+
+def test_web_renderer_writes_a_self_contained_html_snapshot(tmp_path, capsys):
+    project = _project(tmp_path)
+    cmd_dashboard(types.SimpleNamespace(path=str(project), ui="web", set_default=False, out=None))
+    page = (project / ".sdd" / "dashboard.html").read_text(encoding="utf-8")
+    assert "dashboard.html" in capsys.readouterr().out
+    assert page.startswith("<!doctype html>") and "<script" not in page and "http" not in page.split("<body>")[0]
+    for name in _dashboard.VIEW_NAMES:
+        assert name in page
+    assert "002-api" in page
+
+
+def test_web_renderer_refreshes_on_each_run_and_honours_out(tmp_path):
+    project = _project(tmp_path)
+    out = project / "site" / "state.html"
+    args = types.SimpleNamespace(path=str(project), ui="web", set_default=False, out=str(out))
+    cmd_dashboard(args)
+    assert "003-new" not in out.read_text(encoding="utf-8")
+    (project / ".sdd" / "stages" / "003-new").mkdir()
+    cmd_dashboard(args)
+    assert "003-new" in out.read_text(encoding="utf-8")
+
+
+def test_web_renderer_escapes_project_text(tmp_path):
+    assert "<b>" not in _dashboard.render_html({"Overview": "<b>x</b> & y"}, "now")

@@ -33,6 +33,9 @@
 
 ## 4. Acceptance criteria vs evidence
 
+> With EDD on, reference authoritative IDs from `evals.md` (for example,
+> `E-001` plus evidence); do not duplicate criterion text.
+
 - [x] [criterion] — *evidence:* [...]
 
 ## 5. Local decisions made during implementation

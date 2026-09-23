@@ -41,6 +41,8 @@ _TEXT: dict[str, tuple[str, str]] = {
                                "reinstall the CLI from the current checkout"),
     "cold_file_oversized": ("{path} is {bytes} bytes", "keep it cold; trim its log rows"),
     "edd_missing_evals": ("stage {stage} has no evals.md", "sdd scaffold {stage}"),
+    "edd_spec_not_pointer": ("stage {stage} repeats acceptance criteria instead of pointing to evals.md", "sdd migrate --edd-source-of-truth --dry-run"),
+    "edd_todo_not_evals": ("stage {stage} final TODO check does not reference evals.md", "sdd migrate --edd-source-of-truth --dry-run"),
     "edd_missing_checklist": ("closed stage {stage} has no checklist.md", "add the checklist from its template"),
     "edd_eval_uncovered": ("{eval} of stage {stage} has no evidence in checklist.md or report.md",
                            "record its evidence, or mark it [-] / [!] in evals.md"),

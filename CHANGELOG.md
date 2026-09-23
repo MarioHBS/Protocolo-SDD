@@ -1,5 +1,35 @@
 # Changelog — sdd-cli
 
+## [4.2.0] — Unreleased
+
+### Added
+
+- `sdd-discover` produces reviewed `discovery.md` and versioned
+  `sdd-discovery/v1` JSON. `sdd init PATH --discovery FILE.json` validates,
+  previews and confirms that import before it bootstraps project artifacts.
+- `sdd migrate --edd-source-of-truth` is an explicit, previewable and
+  idempotent EDD conversion. Ambiguous stages are reported without writes.
+
+- `sdd dashboard --ui web [--out FILE]` writes a self-contained, read-only HTML
+  snapshot (default `.sdd/dashboard.html`; no server, no dependencies) built from
+  the same data as the other renderers; re-run it to refresh.
+- `sdd document` asks directly whether money, health or regulation are involved; the
+  answer sets the recommended depth and beats the vocabulary guess (which remains the
+  fallback for `--answers` runs).
+- Migration coverage for historical formats: v1 (no manifest, accent-loss `?`) and v2
+  (double-encoded UTF-8) projects are exercised end to end in the test suite.
+
+### Fixed
+
+- `sdd migrate --dry-run` announced the removal of any `AGENTS.md`, even a real,
+  hand-written one; the real run only removed byte-identical kit shims. Preview
+  and run now share one check (`_stale_shims`) and list only files that would go.
+
+### Changed
+
+- EDD templates reference `evals.md` as the authoritative E-NNN criteria list;
+  report evidence uses the same identifiers.
+
 All notable changes to the sdd-cli kit. Versions follow a pragmatic
 `MAJOR.MINOR.PATCH`: breaking changes bump MAJOR, additive changes bump MINOR,
 small additive content changes and fixes bump PATCH. Any `estimates.md`

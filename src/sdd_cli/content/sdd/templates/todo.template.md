@@ -20,6 +20,6 @@
 
 ## Final check (before closing)
 
-- [ ] All spec acceptance criteria met, with evidence
+- [ ] All evaluations in `evals.md` resolved, with evidence (when EDD is on)
 - [ ] Ground truth confirmed (claimed artifacts actually exist)
 - [ ] Nothing delivered by earlier stages was broken

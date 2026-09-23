@@ -42,6 +42,7 @@ def _console(answers: list[str], transcript: list[str] | None = None) -> _docs_p
 
 # Answers for a small project, in interview order.
 SMALL = [
+    "",                 # high stakes? accept the default (no)
     "",                 # depth: accept the recommendation (minimal)
     "owner", "low", "",  # audience, cost of error, language (pt-BR from the constitution)
     "manual",           # base folder
@@ -96,7 +97,7 @@ def test_interview_builds_a_validated_plan(tmp_path):
 
 def test_documents_can_be_added_removed_and_relocated(tmp_path):
     _project(tmp_path)
-    answers = ["", "owner", "low", "", "docs",
+    answers = ["", "", "owner", "low", "", "docs",
                "a", "glossary.md", "domain terms",          # add
                "e 1", "README.md", "readme", "README.md",   # edit: keep, own location
                "",                                          # accept list
@@ -104,7 +105,7 @@ def test_documents_can_be_added_removed_and_relocated(tmp_path):
     plan = _docs_plan.run_interview(tmp_path, _console(answers))
     assert [d["path"] for d in plan["documents"]] == ["README.md", "glossary.md"]
     assert plan["documents"][0]["location"] == "README.md"
-    removed = ["", "owner", "low", "", "docs", "r 1", "", "n", "", "", "", "y", "", "", ""]
+    removed = ["", "", "owner", "low", "", "docs", "r 1", "", "n", "", "", "", "y", "", "", ""]
     assert _docs_plan.run_interview(tmp_path, _console(removed))["documents"] == []
 
 
@@ -113,7 +114,7 @@ def test_a_location_outside_the_project_needs_explicit_confirmation(tmp_path):
     project.mkdir()
     _project(project)
     outside = str(tmp_path / "shared-docs")
-    common = ["", "owner", "low", ""]
+    common = ["", "", "owner", "low", ""]
     tail = ["", "n", "", "", "", "y", "", "", ""]
     declined = _docs_plan.run_interview(project, _console(common + [outside, "n"] + tail))
     assert declined["base_path"] == "docs" and declined["allow_outside_project"] is False
@@ -127,7 +128,7 @@ def test_existing_docs_can_be_adopted_and_are_not_stubbed(tmp_path):
     _project(tmp_path)
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "legacy.md").write_text("# Legacy\n", encoding="utf-8")
-    answers = ["", "owner", "low", "", "docs", "", "n", "", "", "", "y", "", "", "y", "y"]
+    answers = ["", "", "owner", "low", "", "docs", "", "n", "", "", "", "y", "", "", "y", "y"]
     plan = _docs_plan.run_interview(tmp_path, _console(answers))
     adopted = [d for d in plan["documents"] if d["origin"] == "adopted"]
     assert [d["location"] for d in adopted] == ["docs/legacy.md"]
@@ -140,11 +141,11 @@ def test_interrupted_interview_resumes_where_it_stopped(tmp_path):
     _project(tmp_path)
     saved: dict = {}
     with pytest.raises(_docs_plan.InterviewAborted):
-        _docs_plan.run_interview(tmp_path, _console(SMALL[:5]),  # stops while asking the document list
+        _docs_plan.run_interview(tmp_path, _console(SMALL[:6]),  # stops while asking the document list
                                  save_state=lambda s: saved.update(json.loads(json.dumps(s))))
-    assert saved["done"] == ["depth", "audience", "location"]
+    assert saved["done"] == ["risk", "depth", "audience", "location"]
     asked: list[str] = []
-    plan = _docs_plan.run_interview(tmp_path, _console(SMALL[5:], asked), state=saved)
+    plan = _docs_plan.run_interview(tmp_path, _console(SMALL[6:], asked), state=saved)
     assert plan["base_path"] == "manual"  # remembered, not asked again
     assert not any("Base folder" in line or "Documentation depth" in line for line in asked)
 
@@ -243,3 +244,10 @@ def test_doctor_audits_the_plan(tmp_path):
     assert "docs_path_outside_project" in codes
     assert "docs_missing_file" in codes      # a.md was never created
     assert "docs_missing_header" in codes    # b.md has no Version / Last updated
+
+
+def test_the_owner_answer_about_stakes_beats_the_vocabulary_guess():
+    base = {"stages": 1, "tracks": 0, "stack": [], "existing": [], "risk_terms": ["payment"]}
+    assert _docs_plan.recommend_depth(base, True)[0] == "comprehensive"
+    assert _docs_plan.recommend_depth(base, False)[0] == "minimal"
+    assert _docs_plan.recommend_depth(base)[0] == "medium"  # no answer (--answers): vocabulary fallback

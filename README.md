@@ -19,6 +19,14 @@ Commands: `init`, `providers`, `manual` (`docs` alias), `context`, `doctor`,
 `fix`, `update`, `session`, `scaffold`, `deps`, `impact`, `health`, `dashboard`,
 `evaluate`, `document`, `track`, `seq`, and `migrate --to v4`.
 
+For a project that has not been initialized yet, use the reusable `sdd-discover`
+skill to produce `discovery.md` for review and `discovery.json` for import, then
+run `sdd init PATH --discovery discovery.json`. The CLI validates the versioned
+contract and shows the planned bootstrap before it writes; use `--yes` for a
+non-interactive import. With EDD enabled, `evals.md` is the authoritative
+`E-NNN` criteria list. Existing stages are changed only by the explicit,
+previewable `sdd migrate --edd-source-of-truth` command.
+
 The CLI is deliberately dumb: it copies the `.sdd/` kit, places a thin shim for
 your agent(s), and records a manifest. All reasoning lives in `.sdd/skills/` and
 runs inside the agent.

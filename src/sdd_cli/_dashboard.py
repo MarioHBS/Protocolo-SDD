@@ -1,4 +1,4 @@
-"""The read-only dashboard: one data model, three renderers.
+"""The read-only dashboard: one data model, four renderers.
 
 ``build_views`` turns the doctor/context data the CLI already computes into six
 plain-text views. ``render_plain`` needs nothing, ``render_rich`` and ``make_app``
@@ -105,6 +105,27 @@ def render_plain(views: dict[str, str]) -> str:
     for name, text in views.items():
         out += ["", f"== {name} ==", text]
     return "\n".join(out)
+
+
+def render_html(views: dict[str, str], generated: str) -> str:
+    """One self-contained HTML page (inline CSS, no scripts, no network): open it in the IDE or a browser."""
+    from html import escape
+
+    nav = "".join(f'<a href="#v{i}">{escape(name)}</a>' for i, name in enumerate(views))
+    body = "".join(f'<section id="v{i}"><h2>{escape(name)}</h2><pre>{escape(text)}</pre></section>'
+                   for i, (name, text) in enumerate(views.items()))
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1"><title>SDD Dashboard</title>'
+        "<style>:root{--bg:#fff;--fg:#1f2328;--card:#f6f8fa;--line:#d0d7de;--accent:#0969da}"
+        "@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--card:#161b22;--line:#30363d;--accent:#58a6ff}}"
+        "body{margin:0 auto;max-width:960px;padding:16px;background:var(--bg);color:var(--fg);"
+        "font:15px/1.5 system-ui,sans-serif}nav{display:flex;flex-wrap:wrap;gap:8px 16px;margin:12px 0}"
+        "a{color:var(--accent)}section{background:var(--card);border:1px solid var(--line);"
+        "border-radius:8px;padding:0 16px 8px;margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;"
+        "font:13px/1.45 ui-monospace,Consolas,monospace}small{color:var(--accent)}</style></head><body>"
+        f"<h1>SDD Dashboard</h1><small>read-only snapshot generated {escape(generated)} "
+        f"- regenerate with <code>sdd dashboard --ui web</code></small><nav>{nav}</nav>{body}</body></html>")
 
 
 def render_rich(views: dict[str, str], console=None) -> None:
