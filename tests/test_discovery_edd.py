@@ -7,7 +7,7 @@ import types
 
 import pytest
 
-from sdd_cli.cli import cmd_init, cmd_migrate
+from sdd_cli.cli import cmd_discover, cmd_init, cmd_migrate
 
 
 def _init_args(path, discovery, **more):
@@ -88,3 +88,53 @@ def test_edd_migration_blocks_conflicting_lists(tmp_path):
     with pytest.raises(SystemExit):
         cmd_migrate(args)
     assert "Acceptance criteria" in (stage / "spec.md").read_text(encoding="utf-8")
+
+
+# ---- `sdd discover` (4.2.1): explain, validate, compare -- never write ----
+
+def _discovery_file(tmp_path, *slugs):
+    path = tmp_path / "discovery.json"
+    path.write_text(json.dumps({
+        "schema_version": "sdd-discovery/v1", "project": {"name": "X", "language": "en"},
+        "vision": {"what_it_is": "a", "who_it_is_for": "b", "definition_of_done": "c"},
+        "stages": [{"slug": s, "title": s.title(), "context": "ctx"} for s in slugs]}), encoding="utf-8")
+    return path
+
+
+def _discover(**kw):
+    values = {"path": ".", "check": None, "against": None}
+    values.update(kw)
+    return types.SimpleNamespace(**values)
+
+
+def test_discover_without_arguments_explains_the_flow_and_prints_the_skill_path(capsys):
+    cmd_discover(_discover())
+    out = capsys.readouterr().out
+    assert "sdd discover --check" in out and "sdd init PATH --discovery" in out
+    assert "sdd-discover" in out and "SKILL.md" in out
+
+
+def test_discover_check_validates_and_writes_nothing(tmp_path, capsys):
+    path = _discovery_file(tmp_path, "one", "two")
+    before = sorted(p.name for p in tmp_path.iterdir())
+    cmd_discover(_discover(check=str(path)))
+    assert "stages: 001-one active + 1 provisional" in capsys.readouterr().out
+    assert sorted(p.name for p in tmp_path.iterdir()) == before
+    path.write_text("{}", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        cmd_discover(_discover(check=str(path)))
+
+
+def test_discover_against_lists_missing_and_uncovered_stages(tmp_path, capsys):
+    project = tmp_path / "proj"
+    (project / ".sdd").mkdir(parents=True)
+    (project / ".sdd" / "constitution.md").write_text(
+        "## 5. Canonical index\n\n| Stage | Slug | Status |\n|---|---|---|\n| 001 | base | done |\n\n"
+        "### Provisional queue\n\n| Order | Slug | Notes |\n|---|---|---|\n| 1 | reports | later |\n"
+        "\n## 6. Log\n", encoding="utf-8")
+    cmd_discover(_discover(check=str(_discovery_file(tmp_path, "base", "billing")), against=str(project)))
+    out = capsys.readouterr().out
+    assert "MISSING in the project (1)" in out and "billing" in out
+    assert "NOT in the discovery (1)" in out and "reports [provisional queue]" in out
+    with pytest.raises(SystemExit):
+        cmd_discover(_discover(against=str(project)))

@@ -117,6 +117,67 @@ def _discovery_summary(data: dict) -> str:
             "  creates: Settings, vision, decisions, questions, backlog.md, canonical index, provisional queue and stage folder")
 
 
+def _discovery_skill_paths(root: Path) -> list[tuple[str, Path]]:
+    """Where the sdd-discover skill can be read from: this project's copy and the installed kit's."""
+    paths = []
+    project_copy = root / ".sdd" / "skills" / "sdd-discover" / "SKILL.md"
+    if project_copy.is_file():
+        paths.append(("this project", project_copy))
+    paths.append(("installed kit", CONTENT_DIR / "sdd" / "skills" / "sdd-discover" / "SKILL.md"))
+    return paths
+
+
+def cmd_discover(args) -> None:
+    """Explain the discovery flow; with --check validate a discovery.json (read-only)."""
+    root = Path(args.path).resolve()
+    if not args.check:
+        if args.against:
+            die("--against needs --check FILE")
+        print(bold("Discovery: from an idea to a reviewed project brief"))
+        print("""
+sdd-discover is a SKILL, not a command: an AI agent interviews you and writes two files.
+  1. Give the skill to any AI chat (Claude, ChatGPT, Gemini, Cursor, Copilot, ...): attach or paste
+     its SKILL.md and say "run this discovery for <my idea>". It works outside any project.
+     It also explains the choices you will make when installing SDD in the project (estimates/schedule,
+     parallel tracks, documentation, Eval Driven Development, language, AI tools) and records your answers.
+  2. Review discovery.md (the human brief) and correct it in the chat.
+  3. Keep discovery.json (contract sdd-discovery/v1) and check it here:
+       sdd discover --check discovery.json
+  4. New project:       sdd init PATH --discovery discovery.json
+     Existing project:  sdd discover --check discovery.json --against PATH   (read-only comparison
+                        of the stages it plans with the ones the project already has)
+""".rstrip())
+        print("\nSkill file (copy it wherever your AI provider reads instructions):")
+        for label, path in _discovery_skill_paths(root):
+            print(f"  {label + ':':<15}{path}")
+        return
+    data = _load_discovery(args.check)
+    print(_discovery_summary(data))
+    problems = [s["slug"] for s in data["stages"] if not (s.get("context") or s.get("tasks"))]
+    if problems:
+        print(yellow(f"  warning: stages with neither context nor tasks: {', '.join(problems)}"))
+    if not args.against:
+        print(green("ok") + "    discovery is valid; nothing was written.")
+        return
+    project = Path(args.against).resolve()
+    if not (project / ".sdd").is_dir():
+        die(f"no .sdd/ found in {project}")
+    known = _index_checks.stage_slugs(project / ".sdd")
+    planned = {s["slug"]: s["title"] for s in data["stages"]}
+    missing = {slug: title for slug, title in planned.items() if slug not in known}
+    extra = {slug: where for slug, where in known.items() if slug not in planned}
+    print(f"\nComparison with {project}:")
+    print(f"  planned by the discovery and already in the project: {len(planned) - len(missing)}")
+    print(f"  planned by the discovery but MISSING in the project ({len(missing)}):")
+    for slug, title in missing.items():
+        print(f"    - {slug}: {title}")
+    print(f"  in the project but NOT in the discovery ({len(extra)}):")
+    for slug, where in extra.items():
+        print(f"    - {slug} [{where}]")
+    print(dim("  Slugs are compared by name: a renamed or split stage shows up on both lists. "
+              "Nothing was written."))
+
+
 def _discovery_list(items: list[dict], fields: tuple[str, ...], prefix: str) -> str:
     rows = []
     for index, item in enumerate(items, 1):
@@ -330,7 +391,7 @@ def _backup_managed(root: Path, sdd: Path,
         if kit_rel and kit_rel.exists() and cur_hash == manifest.hash_file(kit_rel):
             continue
         # Only back up hand-edited files (current differs from recorded).
-        if old and rel in old_files and cur_hash == old_files[rel]:
+        if old and rel in old_files and manifest.matches_recorded(f, old_files[rel]):
             continue  # unmodified since last install -- nothing to lose
         to_backup.append(f)
 
@@ -921,6 +982,10 @@ def _doctor_payload(root: Path) -> dict:
                 if expected != actual:
                     findings.append({"severity": "warn", "code": "feature_mismatch", "feature": key,
                                      "constitution": expected, "manifest": actual, "actionable": True})
+    drifted = _manifest_eol_drift(root, manifest_data)
+    if drifted:
+        findings.append({"severity": "note", "code": "manifest_eol_drift", "count": len(drifted),
+                         "path": drifted[0], "actionable": True})
     for p in providers.PROVIDERS:
         if p.key != "generic" and (root / p.shim_path).exists() and p.key not in (manifest_data or {}).get("providers", []):
             findings.append({"severity": "warn", "code": "provider_shim_unmanaged", "provider": p.key,
@@ -1064,6 +1129,16 @@ def _missing_worktree_ignores(root: Path) -> list[str]:
             if (root / name).is_dir() and name not in lines]
 
 
+def _manifest_eol_drift(root: Path, data: dict | None) -> list[str]:
+    """Managed files whose recorded hash matches only once line endings are ignored (Git/editor rewrote them)."""
+    drifted = []
+    for rel, recorded in sorted((data or {}).get("managed_files", {}).items()):
+        path = root / rel
+        if path.is_file() and manifest.hash_file(path) != recorded and manifest.matches_recorded(path, recorded):
+            drifted.append(rel)
+    return drifted
+
+
 def cmd_fix(args) -> None:
     """Repair only deterministic SDD file problems."""
     root = Path(args.path).resolve()
@@ -1076,8 +1151,9 @@ def cmd_fix(args) -> None:
     use_links = bool(getattr(args, "links", False) or getattr(args, "all", False))
     use_features = bool(getattr(args, "features", False) or getattr(args, "all", False))
     use_gitignore = bool(getattr(args, "gitignore", False))  # opt-in: never part of --all
-    if not (use_mojibake or use_eol or use_links or use_features or use_gitignore):
-        use_mojibake = use_eol = use_links = use_features = True
+    use_manifest = bool(getattr(args, "manifest", False) or getattr(args, "all", False))
+    if not (use_mojibake or use_eol or use_links or use_features or use_gitignore or use_manifest):
+        use_mojibake = use_eol = use_links = use_features = use_manifest = True
     repairs: list[dict] = []
     unresolved: list[dict] = []
     reports = _mojibake.scan_tree(sdd, suffixes=(".md", ".json"))
@@ -1130,6 +1206,15 @@ def cmd_fix(args) -> None:
                 repairs.append({"kind": "feature_manifest_sync", "path": ".sdd/.sdd-manifest.json"})
                 if not dry_run:
                     manifest.save(root, data)
+    if use_manifest:
+        data = manifest.load(root)
+        drifted = _manifest_eol_drift(root, data)
+        if drifted:
+            repairs.append({"kind": "manifest_eol_rehash", "path": ".sdd/.sdd-manifest.json", "files": len(drifted)})
+            if not dry_run:
+                for rel in drifted:
+                    data["managed_files"][rel] = manifest.hash_file(root / rel)
+                manifest.save(root, data)
     if use_gitignore:
         if not (root / ".git").exists():
             unresolved.append({"kind": "gitignore_without_git", "path": ".gitignore"})
@@ -2191,7 +2276,7 @@ def cmd_migrate(args) -> None:
     if old:
         for rel, old_hash in old.get("managed_files", {}).items():
             f = root / rel
-            if f.exists() and manifest.hash_file(f) != old_hash:
+            if f.exists() and not manifest.matches_recorded(f, old_hash):
                 edited.append(rel)
     if edited:
         print(yellow("  Hand-edited managed files detected:"))
@@ -2365,7 +2450,7 @@ def cmd_update(args) -> None:
     edited: set[str] = {
         rel for rel, old_hash in managed_files.items()
         if _in_scope(rel) and (root / rel).exists()
-        and manifest.hash_file(root / rel) != old_hash
+        and not manifest.matches_recorded(root / rel, old_hash)
     }
 
     changed, added, removed_flagged, restored, preserved = [], [], [], [], []
@@ -2382,8 +2467,8 @@ def cmd_update(args) -> None:
             removed_flagged.append(rel)
             continue
         new_hash = manifest.hash_file(new_src)
-        if new_hash == old_hash:
-            continue  # unchanged across the version bump
+        if manifest.matches_recorded(new_src, old_hash):
+            continue  # unchanged across the version bump (line endings aside)
         cur = root / rel
         (restored if not cur.exists() else changed).append(rel)
         recorded[rel] = new_hash
@@ -2401,8 +2486,25 @@ def cmd_update(args) -> None:
         added.append(rel)
         recorded[rel] = manifest.hash_file(item)
 
+    # Provider shims (.claude/commands/sdd.md ...) are managed too: refresh the ones still as recorded.
+    shim_changed: list[tuple[str, Path]] = []
+    for key in m.get("providers", []):
+        prov = providers.get(key)
+        if not prov or prov.shim_path not in managed_files:
+            continue
+        src, dst = CONTENT_DIR / "shims" / prov.shim_source, root / prov.shim_path
+        if not src.is_file() or not dst.is_file():
+            continue
+        if not manifest.matches_recorded(dst, managed_files[prov.shim_path]):
+            preserved.append(prov.shim_path)
+        elif not manifest.matches_recorded(src, managed_files[prov.shim_path]):
+            shim_changed.append((prov.shim_path, src))
+            recorded[prov.shim_path] = manifest.hash_file(src)
+
     if args.dry_run:
         print(yellow("  DRY RUN -- nothing written.\n"))
+    for rel, _src in shim_changed:
+        print(f"  {green('would update' if args.dry_run else 'updated')}   {rel} {dim('(provider shim)')}")
     for rel in changed:
         print(f"  {green('would update' if args.dry_run else 'updated')}   {rel}")
     for rel in restored:
@@ -2421,7 +2523,7 @@ def cmd_update(args) -> None:
         print(dim(f"\nWould bump kit_version -> {KIT_VERSION}"))
         return
 
-    if not (changed or restored or added or preserved or removed_flagged):
+    if not (changed or restored or added or preserved or removed_flagged or shim_changed):
         print(dim("  (no managed file changes to apply)"))
 
     backup_dir = None
@@ -2436,6 +2538,8 @@ def cmd_update(args) -> None:
         cur = root / rel
         cur.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(new_src, cur)
+    for rel, src in shim_changed:
+        shutil.copy2(src, root / rel)
 
     managed_files.update(recorded)
     m["managed_files"] = managed_files
@@ -2444,7 +2548,7 @@ def cmd_update(args) -> None:
 
     print(bold("\nDone.") +
           f"  updated={len(changed)} restored={len(restored)} "
-          f"added={len(added)} preserved(hand-edited)={len(preserved)} "
+          f"added={len(added)} shims={len(shim_changed)} preserved(hand-edited)={len(preserved)} "
           f"flagged-removed={len(removed_flagged)}")
     print(dim(f"  kit_version -> {KIT_VERSION}"))
 
@@ -2453,7 +2557,7 @@ def cmd_update(args) -> None:
 
 _ROOT_EPILOG = """\
 commands by purpose:
-  set up       init, providers, update, migrate
+  set up       init, discover, providers, update, migrate
   diagnose     doctor, fix, health, context, evaluate
   work         session, scaffold, track, seq, deps, impact
   document     document, manual
@@ -2474,11 +2578,17 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                   "sdd providers\nsdd providers --plain      # bare keys, for scripts"),
     "manual": ("Print the full usage manual (the kit's USAGE.md).",
                "sdd manual\nsdd manual --md      # writes .sdd/SDD-USAGE.md"),
+    "discover": ("Explain the discovery flow (the sdd-discover skill for any AI provider, where its file is) "
+                 "and validate a discovery.json; --against compares its stages with an existing project.",
+                 "sdd discover                                  # how it works + skill path\n"
+                 "sdd discover --check discovery.json           # validate, show the summary\n"
+                 "sdd discover --check discovery.json --against .   # is the project's stage list complete?"),
     "context": ("Print only what a session needs to start: Settings and Current state, the active stage's "
                 "files and, with --budget, what each file costs in tokens (bytes/4, an estimate).",
                 "sdd context\nsdd context --budget       # hot (read at startup) vs cold files\nsdd context --json"),
     "fix": ("Repair deterministic problems only: v2 mojibake, line endings, absolute file links, manifest "
-            "features that disagree with the constitution. Nothing ambiguous is touched.",
+            "features that disagree with the constitution, manifest hashes that differ only by line endings. "
+            "Nothing ambiguous is touched.",
             "sdd fix --dry-run                 # show what would change\nsdd fix --links                   # only the links\n"
             "sdd fix --gitignore               # ignore agent worktree folders"),
     "session": ("Keep a resumable work context (.session.json) so interrupted implementation can continue.",
@@ -2606,6 +2716,12 @@ examples:
                              "(default: .sdd/SDD-USAGE.md, or ./SDD-USAGE.md outside a project)")
     manual.set_defaults(func=cmd_manual)
 
+    disc = sub.add_parser("discover", help="explain the discovery flow; validate a discovery.json")
+    disc.add_argument("path", nargs="?", default=".", help="project root, used to find the project's skill copy (default: .)")
+    disc.add_argument("--check", metavar="FILE", help="validate FILE (sdd-discovery/v1) and print its summary; writes nothing")
+    disc.add_argument("--against", metavar="PROJECT", help="with --check: compare the planned stages with PROJECT's (read-only)")
+    disc.set_defaults(func=cmd_discover)
+
     ctx = sub.add_parser("context", help="print the minimal session context")
     ctx.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     ctx.add_argument("--budget", action="store_true", help="include hot/cold file byte and token estimates")
@@ -2730,6 +2846,8 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     fx.add_argument("--eol", action="store_true", help="normalize UTF-8 files to LF")
     fx.add_argument("--links", action="store_true", help="make in-project file:/// links relative")
     fx.add_argument("--features", action="store_true", help="sync manifest feature flags from constitution")
+    fx.add_argument("--manifest", action="store_true",
+                    help="re-record hashes of managed files that differ from the manifest only by line endings")
     fx.add_argument("--gitignore", action="store_true",
                     help="opt-in: ignore agent worktree folders (.kilo/worktrees, ...) in .gitignore")
     fx.add_argument("--dry-run", action="store_true", help="report repairs without writing")

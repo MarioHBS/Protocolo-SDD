@@ -87,6 +87,22 @@ def _queue_rows(text: str) -> list[dict[str, str]]:
     return rows
 
 
+def stage_slugs(sdd: Path) -> dict[str, str]:
+    """Every stage slug the project knows -> where it lives (canonical index or provisional queue)."""
+    constitution = sdd / "constitution.md"
+    if not constitution.is_file():
+        return {}
+    text = _read(constitution)
+    found: dict[str, str] = {}
+    for row in _canonical_rows(text):
+        if row.get("slug"):
+            found[_first_slug(row["slug"])] = f"canonical {row.get('stage') or row.get('etapa') or ''}".strip()
+    for row in _queue_rows(text):
+        if row.get("slug"):
+            found.setdefault(_first_slug(row["slug"]), "provisional queue")
+    return found
+
+
 def _stage_name(row: dict[str, str]) -> str:
     number = row.get("stage") or row.get("etapa") or ""
     return f"{number}-{_first_slug(row.get('slug', ''))}".strip("-")

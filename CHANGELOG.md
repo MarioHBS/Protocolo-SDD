@@ -1,5 +1,39 @@
 # Changelog — sdd-cli
 
+## [4.2.1] — Unreleased
+
+### Added
+
+- `sdd discover` explains the discovery flow and prints where the `sdd-discover` skill
+  file lives (this project's copy and the installed kit's), so it can be handed to any AI
+  provider. `sdd discover --check FILE` validates a `sdd-discovery/v1` file and prints its
+  summary without writing; `--against PROJECT` also compares the planned stage slugs with
+  the project's canonical index and provisional queue (missing / not covered).
+
+- `sdd update` now refreshes the provider shims (`.claude/commands/sdd.md`, `AGENTS.md`, ...) that
+  are still as recorded in the manifest; an edited shim is preserved. Before, a shim change reached
+  existing projects only through `sdd migrate` or `sdd init --force`.
+- `sdd doctor` reports `manifest_eol_drift` (note) when managed files differ from the manifest only
+  by line endings, and `sdd fix --manifest` re-records those hashes (part of `--all`).
+- A track parked on purpose can be marked `on hold` / `em espera` in its `Active tracks` row; the
+  doctor no longer reports it as `track_not_started`.
+
+### Fixed
+
+- `sdd update` (and `migrate`'s hand-edit detection) compared raw file hashes, so a project whose
+  files had their line endings rewritten by Git or an editor (CRLF <-> LF) saw every managed file
+  as "hand-edited" and refused to refresh it. Hashes now match ignoring line endings; a real edit
+  still counts. Found on KNN_WAREHOUSE: 19 of 26 managed files were being preserved.
+
+### Changed
+
+- The `sdd-discover` skill first explains the choices the owner must make at install time
+  (estimates/schedule, parallel tracks, documentation, EDD, language, AI providers, dashboard
+  renderer), recommends for the project and records the answers in `discovery.md` and `features`.
+- Every provider shim and the kit README list `sdd-discover` as a cross-cutting utility, so
+  an agent inside an existing project knows it can re-check the scope. Before, the skill was
+  installed but nothing pointed to it.
+
 ## [4.2.0] — Unreleased
 
 ### Added

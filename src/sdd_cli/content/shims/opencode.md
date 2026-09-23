@@ -21,6 +21,7 @@ Cross-cutting utilities, valid in any state: `sdd-reconcile` (realign the
 indexes with disk) and `sdd-document` (only when the Documentation feature is
 on).
 Load `sdd-track` only when `Parallel tracks: on`; cold files stay unread unless needed.
+Use `sdd-discover` (`sdd discover` explains it) to re-check the project's scope: it interviews the owner and writes `discovery.md`/`discovery.json`; compare with `sdd discover --check FILE --against .`.
 If the working directory is a linked git worktree (`.git` is a file, not a folder), `.sdd/` here is a stale copy: stop and continue from the main checkout.
 
 Inviolable rule: **no production code while the state is INITIALIZING or

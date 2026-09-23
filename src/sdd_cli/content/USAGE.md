@@ -84,7 +84,9 @@ per line — for an agent that must discover a valid `--provider` value itself.
 Syncs managed files (`README.md`, `skills/`, `templates/`, shims) when the bundled
 kit is a **minor or patch** step over what is installed. It diffs old-bundled
 against new-bundled per file, touches only what changed and **backs up** any file
-you edited by hand under `.sdd/.pre-migrate-backup/<timestamp>/`. New managed
+you edited by hand under `.sdd/.pre-migrate-backup/<timestamp>/`. Provider shims
+(for example `.claude/commands/sdd.md`) are refreshed the same way when they still
+match what the manifest recorded; an edited shim is kept. New managed
 files (a new template, for example) are added. It never touches `constitution.md`,
 `roadmap.md`, `stages/`, `backlog.md`, `documentation.json` or any other file of
 yours. It refuses to cross a major version — use `migrate` for that (`--major`
@@ -135,7 +137,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | Size | `constitution_oversized`, `long_table_cell`, `cold_file_oversized` | Files or rows that inflate every session. |
 | Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sdd fix --links`). |
 | Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sdd fix --features`). |
-| Kit | `provider_shim_unmanaged`, `cli_older_than_project` | A shim on disk the manifest does not manage; the CLI is older than the project's kit. |
+| Kit | `manifest_eol_drift` (note; `sdd fix --manifest`), `provider_shim_unmanaged`, `cli_older_than_project` | A shim on disk the manifest does not manage; the CLI is older than the project's kit. |
 | EDD | `edd_missing_evals`, `edd_missing_checklist`, `edd_eval_uncovered`, `edd_spec_not_pointer`, `edd_todo_not_evals`, `edd_missing_performance_doc`, `edd_milestone_without_evaluation`, `milestone_not_contiguous` | Evals without evidence, duplicate criteria, or milestone problems. |
 | Backlog | `backlog_orphan`, `queue_row_without_section` | Backlog and provisional queue disagree. |
 | Documentation | `docs_missing_file`, `docs_missing_header`, `docs_path_outside_project` | The documentation plan versus disk. |
@@ -154,6 +156,7 @@ Repairs **deterministic** problems only; run with `--dry-run` first.
 | `--eol` | CRLF/BOM to LF in `.sdd/` files. |
 | `--links` | `file:///` links in the constitution become links relative to `.sdd/`. |
 | `--features` | Manifest features follow the constitution's Settings (the file you edit by hand). |
+| `--manifest` | Re-records the hash of managed files that differ from the manifest only by line endings (`manifest_eol_drift`). |
 | `--gitignore` | Opt-in: ignore agent worktree folders (`.kilo/worktrees`, ...) in `.gitignore`. |
 | `--all` | Everything except `--gitignore` (the default with no flag). |
 
@@ -163,6 +166,18 @@ would be), `2` something needs a human.
 ### `sdd health [PATH] [--json]`
 
 A score from the doctor findings: 100 minus 25 per error and 5 per warning.
+
+### `sdd discover [PATH] [--check FILE] [--against PROJECT]`
+
+Explains the discovery flow and prints where the `sdd-discover` skill file lives
+(this project's copy and the installed kit's), so it can be given to any AI
+provider: the skill interviews you and writes `discovery.md` (for review) and
+`discovery.json` (contract `sdd-discovery/v1`). `--check FILE` validates the JSON
+and prints its summary without writing anything. `--against PROJECT` also compares
+the planned stage slugs with the project's canonical index and provisional queue:
+which planned stages are missing, and which project stages the discovery does not
+cover. It is a comparison by name (a renamed or split stage appears on both lists).
+Import into a new project with `sdd init PATH --discovery FILE`.
 
 ### `sdd context [PATH] [--budget] [--json]`
 

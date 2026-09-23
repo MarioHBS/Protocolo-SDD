@@ -99,12 +99,32 @@ def active_track_slugs(sdd: Path) -> set[str] | None:
     return slugs or None
 
 
+_ON_HOLD_RE = re.compile(r"(?i)\b(on[ -]hold|paused|em espera|pausad[ao])\b")
+
+
+def on_hold_track_slugs(sdd: Path) -> set[str]:
+    """Tracks the owner parked on purpose: 'on hold' / 'em espera' in their ``Active tracks`` row."""
+    constitution = sdd / "constitution.md"
+    if not constitution.is_file():
+        return set()
+    text = _HTML_COMMENT_RE.sub("", constitution.read_text(encoding="utf-8", errors="replace"))
+    heading = re.search(r"(?m)^###\s+Active tracks\s*$", text)
+    if not heading:
+        return set()
+    rest = text[heading.end():]
+    end = re.search(r"(?m)^#{1,3}\s", rest)
+    block = rest[:end.start()] if end else rest
+    return {m.group(1) for m in re.finditer(r"(?m)^\|\s*`([^`|]+)`\s*\|(.*)$", block)
+            if _ON_HOLD_RE.search(m.group(2))}
+
+
 def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
     """Classify empty tracks deterministically; closed tracks are clean."""
     tracks_dir = sdd / "tracks"
     if not tracks_dir.is_dir():
         return []
     active = active_track_slugs(sdd)
+    on_hold = on_hold_track_slugs(sdd)
     findings: list[TrackDivergence] = []
     for directory in sorted(tracks_dir.iterdir()):
         if not directory.is_dir() or directory.name.startswith("."):
@@ -118,7 +138,7 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
         stages = directory / "stages"
         stage_dirs = [p for p in stages.iterdir() if p.is_dir()] if stages.is_dir() else []
         if not stage_dirs:
-            if not closed:
+            if not closed and slug not in on_hold:
                 findings.append(TrackDivergence(
                     slug, "not_started",
                     f"no stage folders under tracks/{slug}/stages/; the track has not started",

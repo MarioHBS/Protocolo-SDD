@@ -25,6 +25,22 @@ def hash_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
 
+def hash_variants(path: Path) -> set[str]:
+    """Hashes of a file as it is, with every line ending LF, and with every line ending CRLF.
+
+    Git (autocrlf) and editors rewrite line endings without changing what a file says, so a
+    recorded hash may belong to any of these forms.
+    """
+    data = path.read_bytes()
+    lf = data.replace(b"\r\n", b"\n")
+    return {hashlib.sha256(x).hexdigest()[:16] for x in (data, lf, lf.replace(b"\n", b"\r\n"))}
+
+
+def matches_recorded(path: Path, recorded: str) -> bool:
+    """True when ``path`` still holds what was recorded, ignoring line-ending rewrites."""
+    return recorded in hash_variants(path)
+
+
 def parse_version(v: str) -> tuple[int, int, int]:
     """Parse 'v3.0.2' or '3.0.2' into (3, 0, 2).
 

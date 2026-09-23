@@ -26,6 +26,8 @@ import tomllib
 import types
 from pathlib import Path
 
+import pytest
+
 from sdd_cli import manifest
 from sdd_cli.cli import cmd_update
 from sdd_cli.content import CONTENT_DIR, KIT_VERSION
@@ -252,3 +254,69 @@ def test_pyproject_version_matches_bundled_kit_version():
     pyproject_path = CONTENT_DIR.parent.parent.parent / "pyproject.toml"
     data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
     assert data["project"]["version"] == KIT_VERSION.lstrip("v")
+
+
+def test_line_ending_rewrites_do_not_make_managed_files_look_hand_edited(tmp_path):
+    from sdd_cli import manifest
+    recorded_form = tmp_path / "a.md"
+    recorded_form.write_bytes(b"one\r\ntwo\r\n")
+    recorded = manifest.hash_file(recorded_form)
+    recorded_form.write_bytes(b"one\ntwo\n")            # git/editor rewrote CRLF -> LF
+    assert manifest.matches_recorded(recorded_form, recorded)
+    recorded_form.write_bytes(b"one\nchanged\n")        # a real edit still counts
+    assert not manifest.matches_recorded(recorded_form, recorded)
+
+
+# ---- 4.2.1: provider shims are refreshed by update; EOL drift is visible and fixable ----
+
+def _seed_with_shim(tmp_path: Path, *, edit_shim: bool = False) -> Path:
+    from sdd_cli import providers
+    root = _seed_project(tmp_path, _one_patch_below(KIT_VERSION))
+    prov = providers.get("claude")
+    shim = root / prov.shim_path
+    shim.parent.mkdir(parents=True, exist_ok=True)
+    old = (CONTENT_DIR / "shims" / prov.shim_source).read_text(encoding="utf-8") + "\nold shim line\n"
+    shim.write_text(old + ("hand edit\n" if edit_shim else ""), encoding="utf-8", newline="\n")
+    data = manifest.load(root)
+    data["providers"] = ["claude"]
+    tmp = root / "_old.md"
+    tmp.write_text(old, encoding="utf-8", newline="\n")
+    data["managed_files"][prov.shim_path] = manifest.hash_file(tmp)
+    tmp.unlink()
+    manifest.save(root, data)
+    return root
+
+
+def test_update_refreshes_an_unedited_provider_shim(capsys, tmp_path):
+    root = _seed_with_shim(tmp_path)
+    out, code = _run(capsys, root)
+    assert code is None and "(provider shim)" in out
+    shim = root / ".claude" / "commands" / "sdd.md"
+    assert "old shim line" not in shim.read_text(encoding="utf-8")
+
+
+def test_update_preserves_a_hand_edited_shim(capsys, tmp_path):
+    root = _seed_with_shim(tmp_path, edit_shim=True)
+    out, _ = _run(capsys, root)
+    assert "hand-edited" in out and ".claude/commands/sdd.md" in out
+    assert "hand edit" in (root / ".claude" / "commands" / "sdd.md").read_text(encoding="utf-8")
+
+
+def test_doctor_reports_eol_drift_and_fix_manifest_rerecords_it(tmp_path):
+    from sdd_cli.cli import _doctor_payload, cmd_fix
+    root = _seed_project(tmp_path, KIT_VERSION)
+    readme = root / ".sdd" / "README.md"
+    data = manifest.load(root)
+    readme.write_bytes(readme.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    data["managed_files"][".sdd/README.md"] = manifest.hash_file(readme)   # recorded as CRLF
+    manifest.save(root, data)
+    readme.write_bytes(readme.read_bytes().replace(b"\r\n", b"\n"))         # Git rewrote it to LF
+    codes = [f["code"] for f in _doctor_payload(root)["findings"]]
+    assert "manifest_eol_drift" in codes
+    args = types.SimpleNamespace(path=str(root), dry_run=False, json=False, mojibake=False, eol=False,
+                                 links=False, features=False, gitignore=False, manifest=True, all=False)
+    with pytest.raises(SystemExit) as done:
+        cmd_fix(args)
+    assert done.value.code == 1  # `fix` exits 1 when it repaired something
+    assert manifest.load(root)["managed_files"][".sdd/README.md"] == manifest.hash_file(readme)
+    assert "manifest_eol_drift" not in [f["code"] for f in _doctor_payload(root)["findings"]]

@@ -309,3 +309,15 @@ def test_the_template_placeholder_is_not_a_declared_sequence(tmp_path):
     template = (CONTENT_DIR / "sdd" / "constitution.md").read_text(encoding="utf-8")
     (tmp_path / ".sdd" / "constitution.md").write_text(template, encoding="utf-8")
     assert _tracks.sequences(tmp_path) == {}   # the commented example must not become a sequence
+
+
+def test_track_parked_on_hold_is_not_reported_as_not_started(tmp_path):
+    from sdd_cli import _user_files
+    for slug in ("parked", "forgotten"):
+        (tmp_path / ".sdd" / "tracks" / slug).mkdir(parents=True)
+    (tmp_path / ".sdd" / "constitution.md").write_text(
+        "### Active tracks\n\n| Track | State |\n| --- | --- |\n| `parked` | on hold (waiting for the client) |\n"
+        "| `forgotten` | open |\n\n## 1. V\n", encoding="utf-8")
+    flagged = [d.track for d in _user_files._scan_tracks_v4(tmp_path / ".sdd") if d.kind == "not_started"]
+    assert flagged == ["forgotten"]
+    assert _user_files.on_hold_track_slugs(tmp_path / ".sdd") == {"parked"}
