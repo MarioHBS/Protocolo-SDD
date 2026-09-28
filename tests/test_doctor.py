@@ -256,7 +256,7 @@ def test_active_track_slugs_ignores_template_comment_rows(tmp_path):
 
 
 def test_human_report_lists_every_finding_the_json_report_carries(tmp_path, capsys):
-    """`sdd doctor` used to say "clean." while `--json` listed problems (KNN IP-004/IP-009)."""
+    """`sdd doctor` used to say "clean." while `--json` listed problems (reported by a real project)."""
     sdd = tmp_path / ".sdd"
     sdd.mkdir()
     (sdd / "constitution.md").write_text(
