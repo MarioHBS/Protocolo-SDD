@@ -1,0 +1,23 @@
+# sdd-cli
+
+Spec-Driven Development scaffolding for AI coding agents.
+Personal tool — stdlib only, no dependencies.
+
+```bash
+pipx install .            # from this folder
+sdd init                  # inside any project
+sdd docs                  # full manual
+```
+
+Commands: `init`, `providers`, `docs`, `migrate --to v2`.
+
+The CLI is deliberately dumb: it copies the `.sdd/` kit, places a thin shim for
+your agent(s), and records a manifest. All reasoning lives in `.sdd/skills/` and
+runs inside the agent.
+
+- Skill instructions: **English** (reliability across agents).
+- Your artifacts: the language chosen at `init` (`Settings > Language`).
+- Managed files (replaced on migrate): `.sdd/README.md`, `skills/`, `templates/`, shims.
+- Your files (never touched): `constitution.md`, `roadmap.md`, `stages/`.
+
+Run `sdd docs` for everything else.
