@@ -36,6 +36,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import _headings
+
 
 @dataclass
 class TodoDivergence:
@@ -89,14 +91,18 @@ def active_track_slugs(sdd: Path) -> set[str] | None:
     if not constitution.is_file():
         return None
     text = _HTML_COMMENT_RE.sub("", constitution.read_text(encoding="utf-8", errors="replace"))
-    heading = re.search(r"(?m)^###\s+Active tracks\s*$", text)
+    heading = _headings.find_heading(text, "active_tracks", 3)
     if not heading:
         return None
     rest = text[heading.end():]
     end = re.search(r"(?m)^#{1,3}\s", rest)
     block = rest[:end.start()] if end else rest
     slugs = set(re.findall(r"(?m)^\|\s*`([^`|]+)`\s*\|", block))
-    return slugs or None
+    if slugs:
+        return slugs
+    if re.search(r"(?im)^\|\s*nenhuma trilha aberta hoje\s*\|", block):
+        return set()
+    return None
 
 
 _ON_HOLD_RE = re.compile(r"(?i)\b(on[ -]hold|paused|em espera|pausad[ao])\b")
@@ -108,7 +114,7 @@ def on_hold_track_slugs(sdd: Path) -> set[str]:
     if not constitution.is_file():
         return set()
     text = _HTML_COMMENT_RE.sub("", constitution.read_text(encoding="utf-8", errors="replace"))
-    heading = re.search(r"(?m)^###\s+Active tracks\s*$", text)
+    heading = _headings.find_heading(text, "active_tracks", 3)
     if not heading:
         return set()
     rest = text[heading.end():]
@@ -132,7 +138,9 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
         slug = directory.name
         state = directory / "state.md"
         text = state.read_text(encoding="utf-8", errors="replace") if state.is_file() else ""
-        closed = bool(re.search(r"(?im)^[-*]?\s*(?:status|state)\s*:\s*closed\s*$", text)
+        state_text = text.replace("**", "")
+        closed = bool(re.search(r"(?im)^[-*]?\s*(?:status|state|estado|situação)\s*:\s*"
+                                r"(?:closed|encerrad[ao])\s*$", state_text)
                       or re.search(r"(?im)^[-*]?\s*incorporated\s*:\s*true\s*$", text)
                       or (active is not None and slug not in active))
         stages = directory / "stages"

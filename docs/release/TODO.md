@@ -6,7 +6,7 @@ Order: R2-01 first (protects data), then R2-02 and R2-03 (same family), then the
 ## Items
 
 - [x] R2-01 — roadmap backup and warning before Task 7; full diff and explicit confirmation before removing unique content
-- [ ] R2-02 — one table of EN/PT heading aliases used by every detector; `ENCERRADA` marker; empty "no track" row
+- [x] R2-02 — one table of EN/PT heading aliases used by every detector; `ENCERRADA` marker; empty "no track" row
 - [ ] R2-03 — `track incorporate` refuses an empty row before moving the folder; localized headers; clearer `verify`
 - [ ] R2-04 — separate message for `manual` managed entries in `migrate`
 - [ ] R2-05 — version labels derived from the kit (README title, `Migration TODO — <from> -> <to>`, omitted-task note)

@@ -77,3 +77,18 @@ def test_doctor_includes_the_index_findings(tmp_path):
     _project(tmp_path, "## Provisória — gone-stage\n")
     codes = {f["code"] for f in _doctor_payload(tmp_path)["findings"]}
     assert "backlog_orphan" in codes
+
+
+def test_portuguese_stage_and_queue_headings_bound_the_canonical_table(tmp_path):
+    from sdd_cli import _tracks
+
+    constitution = CONSTITUTION.replace("Stage index", "Índice de etapas") \
+        .replace("Provisional queue", "Fila provisória")
+    sdd = _project(tmp_path, "## deploy-frontend\n", constitution)
+    assert "audit" in _index_checks.stage_slugs(sdd)
+    assert _index_checks.stage_slugs(sdd)["deploy-frontend"] == "provisional queue"
+    assert any(f["code"] == "queue_row_without_section"
+               for f in _index_checks.backlog_findings(sdd))
+    span = _tracks._stage_index_span(constitution)
+    assert span is not None
+    assert constitution[span[0]:span[1]].startswith("| 003 | auth")

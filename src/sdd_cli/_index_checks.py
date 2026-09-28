@@ -17,6 +17,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from . import _headings
+
 _HTML_COMMENT_RE = re.compile(r"(?s)<!--.*?-->")
 _SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _PENDING_RE = re.compile(r"(?i)pending|pendente|em andamento|in progress")
@@ -54,10 +56,12 @@ def _tables(block: str) -> list[list[dict[str, str]]]:
 def _section(text: str, heading: str) -> str:
     """Body under the first heading that matches ``heading`` up to the next heading
     of the same or a higher level."""
-    match = re.search(rf"(?m)^(#{{2,3}})\s+{heading}[^\n]*$", text)
+    level = 2 if heading == "stage_index" else 3
+    match = _headings.find_heading(text, heading, level)
+    if not match and heading == "stage_index":
+        match = re.search(r"(?m)^##\s+5\.[^\n]*$", text)
     if not match:
         return ""
-    level = len(match.group(1))
     rest = text[match.end():]
     end = re.search(rf"(?m)^#{{1,{level}}}\s", rest)
     return rest[:end.start()] if end else rest
@@ -72,8 +76,10 @@ def _read(path: Path) -> str:
 
 
 def _canonical_rows(text: str) -> list[dict[str, str]]:
-    body = re.split(r"(?m)^###\s+Provisional", _section(text, r"5\.")
-                    or "", maxsplit=1)[0]
+    body = _section(text, "stage_index")
+    provisional = _headings.find_heading(body, "provisional_queue", 3)
+    if provisional:
+        body = body[:provisional.start()]
     rows: list[dict[str, str]] = []
     for table in _tables(body):
         rows.extend(table)
@@ -82,7 +88,7 @@ def _canonical_rows(text: str) -> list[dict[str, str]]:
 
 def _queue_rows(text: str) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
-    for table in _tables(_section(text, "Provisional queue")):
+    for table in _tables(_section(text, "provisional_queue")):
         rows.extend(table)
     return rows
 

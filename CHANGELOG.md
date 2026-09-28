@@ -8,6 +8,9 @@
   up the original roadmap. Migration and reconciliation instructions require
   a full diff and explicit approval before removing unique narrative, block
   groupings or custom columns.
+- R2-02: track and stage-index detectors recognize the kit's English and
+  Portuguese headings. The doctor recognizes `ENCERRADA` in track state and
+  treats an explicit "nenhuma trilha aberta hoje" row as an empty active list.
 
 ## [4.2.1] — Unreleased
 

@@ -321,3 +321,37 @@ def test_track_parked_on_hold_is_not_reported_as_not_started(tmp_path):
     flagged = [d.track for d in _user_files._scan_tracks_v4(tmp_path / ".sdd") if d.kind == "not_started"]
     assert flagged == ["forgotten"]
     assert _user_files.on_hold_track_slugs(tmp_path / ".sdd") == {"parked"}
+
+
+def test_portuguese_track_heading_closed_marker_and_on_hold(tmp_path):
+    from sdd_cli import _tracks, _user_files
+
+    sdd = tmp_path / ".sdd"
+    for slug in ("incorporada", "encerrada", "em-espera", "aberta"):
+        (sdd / "tracks" / slug).mkdir(parents=True)
+    (sdd / "tracks" / "encerrada" / "state.md").write_text(
+        "- **Status:** ENCERRADA\n", encoding="utf-8")
+    (sdd / "constitution.md").write_text(
+        "## Current state\n\n### Trilhas ativas\n\n"
+        "| Trilha | Estado |\n| --- | --- |\n"
+        "| `em-espera` | em espera |\n| `aberta` | ativa |\n"
+        "\n## 1. Visão\n", encoding="utf-8")
+
+    assert _user_files.active_track_slugs(sdd) == {"em-espera", "aberta"}
+    assert _user_files.on_hold_track_slugs(sdd) == {"em-espera"}
+    assert _tracks.active_tracks(tmp_path) == ["aberta", "em-espera"]
+    assert [(d.track, d.kind) for d in _user_files._scan_tracks_v4(sdd)] == [
+        ("aberta", "not_started")]
+
+
+def test_explicit_portuguese_no_tracks_row_is_empty_index(tmp_path):
+    from sdd_cli import _tracks, _user_files
+
+    sdd = tmp_path / ".sdd"
+    (sdd / "tracks" / "old").mkdir(parents=True)
+    (sdd / "constitution.md").write_text(
+        "### Trilhas ativas\n\n| Trilha | Estado |\n| --- | --- |\n"
+        "| nenhuma trilha aberta hoje | — |\n\n## 1. Visão\n", encoding="utf-8")
+    assert _user_files.active_track_slugs(sdd) == set()
+    assert _tracks.active_tracks(tmp_path) == []
+    assert _user_files._scan_tracks_v4(sdd) == []

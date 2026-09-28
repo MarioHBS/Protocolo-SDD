@@ -20,7 +20,7 @@ import subprocess
 from collections import Counter
 from pathlib import Path
 
-from . import _lock, _user_files
+from . import _headings, _lock, _user_files
 
 LOCK_NAME = ".lock"
 LEDGER_NAME = ".reservations.json"
@@ -349,12 +349,17 @@ _LOCAL_PREFIX_RE = re.compile(r"^\d+(?:-[A-Za-z])?-")
 
 def _stage_index_span(text: str) -> tuple[int, int] | None:
     """Character span of the canonical stage table's last row (insertion point)."""
-    heading = re.search(r"(?m)^##\s+5\.[^\n]*$", text)
+    heading = _headings.find_heading(text, "stage_index", 2)
+    if not heading:
+        heading = re.search(r"(?m)^##\s+5\.[^\n]*$", text)
     if not heading:
         return None
     rest = text[heading.end():]
-    end = re.search(r"(?m)^(?:###\s+Provisional|##\s)", rest)
-    region_end = heading.end() + (end.start() if end else len(rest))
+    provisional = _headings.find_heading(rest, "provisional_queue", 3)
+    next_section = re.search(r"(?m)^##\s", rest)
+    boundaries = [match.start() for match in (provisional, next_section) if match]
+    end_at = min(boundaries) if boundaries else len(rest)
+    region_end = heading.end() + end_at
     last = None
     for row in re.finditer(r"(?m)^\|.*\|[ \t]*$", text[heading.end():region_end]):
         last = row

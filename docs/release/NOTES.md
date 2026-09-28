@@ -17,3 +17,11 @@ The regression fixture has block grouping, a custom `Habilita` column and
 1,132 lines of stage detail. The test checks the preview writes nothing,
 the original roadmap and backup match byte for byte, and Task 7 gives the
 review instruction. Verification results for the full release remain pending.
+
+## R2-02 — localized constitution headings
+
+Track, stage-index and backlog detectors share exact EN/PT heading aliases.
+The Portuguese fixtures cover an incorporated track absent from `Trilhas
+ativas`, `Status: ENCERRADA`, `em espera`, and the explicit "nenhuma trilha
+aberta hoje" row. A separate fixture covers `Índice de etapas` and `Fila
+provisória`, including the boundary between their tables.
