@@ -1,5 +1,5 @@
 """`sdd migrate --to v4` and `sdd update`, driven on a synthetic project shaped like the
-real Antologias Biló install (kit v3.3.0, one provider, hand-written user files).
+real project install (kit v3.3.0, one provider, hand-written user files).
 
 Nothing here copies client data: the project is generated from scratch.
 """

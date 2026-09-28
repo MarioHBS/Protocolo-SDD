@@ -7,7 +7,7 @@ produced by an older version remains valid — the templates are additive.
 
 ## [4.1.0] — Unreleased
 
-Driven by two real projects (Antologias Biló, kit 3.3.0, 102 stages; KNN Warehouse,
+Driven by two real projects (one on kit 3.3.0 with 102 stages, one on
 kit 4.0.0) and their improvement proposals. Minor release: additive, nothing in the
 CLI or the manifest format breaks; `sdd update` (from 4.0.0) or
 `sdd migrate --to v4` (from v2/v3) brings a project up to date.
@@ -18,8 +18,8 @@ CLI or the manifest format breaks; `sdd update` (from 4.0.0) or
   Current state, the active stage's files and what each file costs (hot vs cold).
   Shims and the kit README now say: read the constitution *through `## 1.`*, load
   `sdd-track` only when tracks are on, keep `roadmap.md`, `estimates.md`,
-  `CHANGELOG.md` and inactive `tracks/*/state.md` cold. On the Biló project the
-  startup read drops from ~25k to ~5k estimated tokens; on KNN from ~12k to ~4.7k.
+  `CHANGELOG.md` and inactive `tracks/*/state.md` cold. On the larger project the
+  startup read drops from ~25k to ~5k estimated tokens; on the smaller one from ~12k to ~4.7k.
   Section 5 rows carry no per-row links (paths are conventional) and stay under
   200 bytes; narrative belongs in `CHANGELOG.md`, not in sections 5 or 6.
 - **Parallel tracks are checked, not trusted.** Stages in different tracks must be
