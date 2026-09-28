@@ -75,8 +75,12 @@ Write all output in the language set in `constitution.md → Settings → Langua
 
 4. **Generate `roadmap.md` from §5** (using `templates/roadmap.template.md`).
    The roadmap is a **derivation** of §5 — same statuses, same slugs, same
-   counts. It adds only the macro view (goal, dependencies, what each stage
-   delivers). Never hand-edit it into disagreement with §5.
+   counts. It adds the macro view (goal, dependencies, what each stage
+   delivers). For an existing roadmap, compare the entire file with the
+   proposal. Preserve narrative, block groupings and custom columns that
+   exist only there. Show the exact diff and get explicit owner confirmation
+   before removing any of that content. Never let statuses or slugs disagree
+   silently with §5.
 
    Create `backlog.md` from `templates/backlog.template.md` if it is absent.
    Keep deferred context there, rather than expanding a provisional-queue row.

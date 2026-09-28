@@ -352,7 +352,8 @@ def _kit_hash(rel_source: Path) -> str:
 
 
 def _backup_managed(root: Path, sdd: Path,
-                    old: dict | None, recorded: dict) -> tuple[Path | None, list[str]]:
+                    old: dict | None, recorded: dict,
+                    include_roadmap: bool = False) -> tuple[Path | None, list[str]]:
     """Back up existing managed files before overwriting. Returns (backup_dir,
     backed-up relative paths). When ``old`` is None (v1, no manifest) every
     existing managed file is backed up -- there is no baseline to diff against.
@@ -395,6 +396,12 @@ def _backup_managed(root: Path, sdd: Path,
             continue  # unmodified since last install -- nothing to lose
         to_backup.append(f)
 
+    # Migration's later agent task may rewrite this user-owned file. Always
+    # retain its original bytes, regardless of the manifest or kit hash.
+    roadmap = sdd / "roadmap.md"
+    if include_roadmap and roadmap.is_file() and roadmap not in to_backup:
+        to_backup.append(roadmap)
+
     if not to_backup:
         return (None, [])
 
@@ -411,6 +418,17 @@ def _backup_managed(root: Path, sdd: Path,
         shutil.copy2(f, dst)
         backed.append(rel)
     return (bdir, backed)
+
+
+def _roadmap_non_table_lines(path: Path) -> tuple[int, int]:
+    """Count physical lines and non-table lines at risk in a roadmap.
+
+    This is deliberately conservative: headings and boilerplate count too,
+    while custom cells in tables require separate review of the full diff.
+    """
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    return len(lines), sum(bool(line.strip()) and not line.lstrip().startswith("|")
+                           for line in lines)
 
 
 def _normalize_file(path: Path) -> bool:
@@ -1859,8 +1877,8 @@ def _write_migration_todo(root: Path, sdd: Path, old: dict | None,
 > 6. The canonical v2 state enum is:
 >    INITIALIZING, DECIDING, ROADMAP, SPECIFYING, IMPLEMENTING, CLOSING.
 > 7. When every task below is done, read `.sdd/README.md` and invoke the
->    `sdd-reconcile` skill to re-derive section 5 from disk and regenerate
->    `roadmap.md`. Then delete this file.
+>    `sdd-reconcile` skill to re-derive section 5 from disk. Review any
+>    proposed `roadmap.md` changes as described in Task 7. Then delete this file.
 >
 > Project root: `{root}`
 > Detected language: {lang_code} ({lang_conf})
@@ -2096,15 +2114,36 @@ a no-op; report only what changes.
 """)
 
     # D7 -- run sdd-reconcile
-    sections.append("""---
+    roadmap = sdd / "roadmap.md"
+    roadmap_lines = _roadmap_non_table_lines(roadmap) if roadmap.is_file() else None
+    roadmap_warning = (
+        f"The current roadmap has {roadmap_lines[0]} lines, including "
+        f"{roadmap_lines[1]} nonempty lines outside Markdown tables. "
+        "Headings and boilerplate are included in that count; custom table "
+        "columns or cells may also contain unique text."
+        if roadmap_lines else "No existing roadmap.md was found."
+    )
+    backup_note = (
+        f"The original bytes are saved at "
+        f"`{(backup_dir / '.sdd' / 'roadmap.md').relative_to(root).as_posix()}`."
+        if backup_dir and roadmap_lines else ""
+    )
+    sections.append(f"""---
 
 ## Task 7 -- Reconcile indexes
 
 After Tasks 1-6 are applied and confirmed, read `.sdd/README.md`, then invoke
 the `sdd-reconcile` skill. It re-derives section 5 of the constitution from the
-stages on disk and regenerates `roadmap.md` from section 5. Show the owner the
-updated section 5 and the regenerated `roadmap.md` before declaring the
-migration done.
+stages on disk. {roadmap_warning} {backup_note}
+
+Before changing `roadmap.md`, compare the entire current file with the proposed
+version from section 5. Preserve narrative, block groupings and custom columns
+that exist only in the roadmap. Show the owner the exact diff and identify any
+content the proposal would remove. Apply a change that removes such content
+only after the owner explicitly confirms that loss. If the owner declines,
+leave `roadmap.md` intact and record the divergence; do not mark Task 7 done.
+Show the owner the updated section 5 and final `roadmap.md` before declaring
+the migration done.
 
 Once the owner confirms section 5 and `roadmap.md` are correct, DELETE this
 file (`.sdd/.migration-todo.md`). It is a one-shot migration artifact.
@@ -2287,6 +2326,14 @@ def cmd_migrate(args) -> None:
         print(dim("  No v1 manifest -- all existing managed files will be backed "
                   "up before replacing (no baseline to diff against).\n"))
 
+    roadmap = sdd / "roadmap.md"
+    if roadmap.is_file():
+        total, non_table = _roadmap_non_table_lines(roadmap)
+        print(yellow(f"  Roadmap review: {total} lines; {non_table} nonempty "
+                     "lines outside Markdown tables."))
+        print(dim("    These lines and any custom table cells may be lost if "
+                  "Task 7 regenerates the roadmap from section 5."))
+
     if getattr(args, "provider", None):
         prov_keys = []
         for key in args.provider:
@@ -2318,12 +2365,16 @@ def cmd_migrate(args) -> None:
         if no_manifest:
             bdir_sample = (sdd / ".pre-migrate-backup" / "<timestamp>")
             print(f"  Would back up existing managed files to {bdir_sample}/")
+        if roadmap.is_file():
+            print("  Would back up .sdd/roadmap.md to "
+                  ".sdd/.pre-migrate-backup/<timestamp>/.sdd/roadmap.md")
         print("  Would generate .sdd/.migration-todo.md (constitution edits, "
               "to be conducted interactively by the agent with the owner).")
         return
 
     # 2. back up managed files BEFORE overwriting (esp. when no manifest).
-    backup_dir, backed = _backup_managed(root, sdd, old, recorded={})
+    backup_dir, backed = _backup_managed(root, sdd, old, recorded={},
+                                        include_roadmap=True)
     if backup_dir:
         print(f"  {green('backup')} {backup_dir.relative_to(root)}/ "
               f"{dim('(' + str(len(backed)) + ' files)')}")

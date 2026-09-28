@@ -36,11 +36,16 @@ Write all output in the language set in `constitution.md → Settings → Langua
 
 3. **Fix the caches to match disk:**
    - Adjust §5 (canonical) to the real status.
-   - Regenerate `roadmap.md` from §5. **This is the single point where
+   - Synchronize `roadmap.md` with §5. **This is the single point where
      roadmap regeneration happens for tracked stages** — `sdd-track`
      deliberately defers it here instead of doing it per-track-close, so
      two tracks incorporating around the same time never race on this
-     file.
+     file. First compare the entire current roadmap with the proposed version.
+     Preserve prose, block groupings, custom columns and other content that
+     exists only there. If a full regeneration would remove any of it, show
+     the exact diff to the owner and wait for explicit confirmation before
+     applying that removal. If declined, leave the roadmap intact and report
+     the divergence. A backup does not authorize deletion.
    - Fix `Current state` (and trim it if it has turned into a diary). If a
      track's fork is now fully merged (every sibling stage incorporated),
      remove its row from `### Active tracks` — do not leave stale rows for

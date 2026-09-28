@@ -7,8 +7,9 @@
 **Delivery mode:** ( ) MVP first  ( ) straight to final product
 
 > Source of truth: `constitution.md` section 5.
-> This is a generated mirror. Do not add manual narrative or operational notes;
-> keep that detail in a stage report or `backlog.md`.
+> Stage slugs and statuses follow `constitution.md` section 5. Preserve any
+> unique narrative, block groupings or custom columns in an existing roadmap;
+> review the full diff before removing content.
 
 ---
 

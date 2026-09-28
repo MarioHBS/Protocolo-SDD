@@ -124,8 +124,9 @@ any state:
 The whole method depends on **one** canonical index:
 
 - **`constitution.md §5` is the canonical index** of stages and their status.
-- **`roadmap.md` is derived from §5** — never hand-edited. `sdd-close` and
-  `sdd-reconcile` regenerate it from §5.
+- **`roadmap.md` tracks §5** for stage slugs and statuses. `sdd-close` and
+  `sdd-reconcile` synchronize it while preserving unique narrative and custom
+  columns; removal of that content requires an exact diff and owner approval.
 - **A stage is `done` only if `stages/NNN-<slug>/report.md` exists on disk.**
   No stage is marked done by assertion.
 
@@ -146,7 +147,7 @@ anyone re-explaining what happened before.
 .sdd/
 +-- README.md            — this file (the methodology)
 +-- constitution.md      — settings + state + decisions + CANONICAL index (§5)
-+-- roadmap.md           — high-level stage view (DERIVED from §5, never by hand)
++-- roadmap.md           — stage view synced with §5; unique content preserved
 +-- CHANGELOG.md         — long-form structural change history (§6 is an index here)
 +-- skills/              — one skill per phase + cross-cutting utilities
 +-- templates/           — models for spec, todo, roadmap, report, checklist, changelog

@@ -1,5 +1,14 @@
 # Changelog — sdd-cli
 
+## [4.2.2] — In progress
+
+### Fixed
+
+- R2-01: `sdd migrate` previews the non-table roadmap content at risk and backs
+  up the original roadmap. Migration and reconciliation instructions require
+  a full diff and explicit approval before removing unique narrative, block
+  groupings or custom columns.
+
 ## [4.2.1] — Unreleased
 
 ### Added

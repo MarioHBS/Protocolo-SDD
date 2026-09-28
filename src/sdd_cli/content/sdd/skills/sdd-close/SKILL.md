@@ -68,8 +68,12 @@ Write all artifacts in the language set in
    > under `stages/` (with or without an out-of-order letter suffix) is
    > unaffected by this note — its close is byte-identical to before.
 
-6. **Regenerate `roadmap.md` from §5.** Never hand-edit the roadmap; derive it so
-   statuses, slugs and counts match. (Or invoke `sdd-reconcile`.)
+6. **Synchronize `roadmap.md` with §5.** Derive statuses, slugs and counts from
+   §5 (or invoke `sdd-reconcile`). Compare the full current roadmap with the
+   proposed result. Preserve prose, block groupings and custom columns that
+   exist only there. Show the exact diff and get explicit owner confirmation
+   before removing any such content; if declined, leave it intact and report
+   the divergence.
 
 7. **Trim `Current state`.** It is a pointer (~5 lines). All closing narrative
    belongs in `report.md` and, if structural, in `CHANGELOG.md` (see step 8) —

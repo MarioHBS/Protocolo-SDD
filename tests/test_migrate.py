@@ -124,6 +124,37 @@ def test_a_hand_edited_managed_file_is_backed_up_before_it_is_replaced(tmp_path)
     assert edited.read_text(encoding="utf-8") != "MY LOCAL TWEAK\n"
 
 
+def test_migration_preserves_long_custom_roadmap_and_warns_before_reconcile(tmp_path, capsys):
+    _v33_project(tmp_path)
+    roadmap = tmp_path / ".sdd" / "roadmap.md"
+    narrative = "\n".join(f"Entrega da etapa {n}: decisão exclusiva." for n in range(1132))
+    original = ("# Roteiro\n\n## Bloco A\n\n"
+                "| Etapa | Slug | Habilita |\n|---|---|---|\n"
+                "| 001 | base | próximo bloco |\n\n"
+                "## Detalhamento por etapa\n" + narrative + "\n")
+    roadmap.write_text(original, encoding="utf-8", newline="\n")
+    before = _tree(tmp_path)
+
+    _migrate(tmp_path, dry_run=True)
+    preview = capsys.readouterr().out
+    assert "1141 lines; 1135 nonempty lines outside Markdown tables" in preview
+    assert "Would back up .sdd/roadmap.md" in preview
+    assert "custom table cells may be lost" in preview
+    assert _tree(tmp_path) == before
+
+    _migrate(tmp_path)
+    assert roadmap.read_text(encoding="utf-8") == original
+    ledger = _manifest(tmp_path)["backups"][-1]
+    assert ".sdd/roadmap.md" in ledger["files"]
+    backup = tmp_path / ledger["dir"] / ".sdd" / "roadmap.md"
+    assert backup.read_bytes() == roadmap.read_bytes()
+    todo = (tmp_path / ".sdd" / ".migration-todo.md").read_text(encoding="utf-8")
+    assert "1135 nonempty lines outside Markdown tables" in todo
+    assert backup.relative_to(tmp_path).as_posix() in todo
+    assert "only after the owner explicitly confirms that loss" in todo
+    assert "custom columns" in todo
+
+
 def test_switching_provider_removes_only_an_untouched_old_shim(tmp_path):
     _v33_project(tmp_path)
     kit_kilo = (CONTENT_DIR / "shims" / "kilo.md").read_text(encoding="utf-8")
