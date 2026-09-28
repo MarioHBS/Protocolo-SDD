@@ -14,11 +14,11 @@ escopo definido?
 | **Independência** | Detectores, textos de agente e comandos novos quase não se tocam. Juntar não traz ganho e multiplica o risco de regressão. |
 | **Ciclo de feedback curto** | Os projetos usam o kit todos os dias; os atritos da migração v3.2.0 → v4.2.1 de P5 foram registrados no mesmo dia. Release pequena devolve feedback em dias. |
 | **Propagação de arquivos gerenciados** | Tudo que muda README, shims ou skills chega aos projetos por `sdd update`. Agrupar essas mudanças na mesma release faz cada projeto rodar `update` uma vez só. |
-| **Decisão pendente do dono** | O nome do CLI (estágio 4.4.0) não pode segurar as outras. |
+| **Decisão pendente do dono** | O nome do CLI (estágio 4.5.0) não pode segurar as outras. |
 
 ## Regras de escopo de uma release
 
-1. Um tema. Se um item não cabe no tema, vai para o estágio seguinte ou para `05-ADIADOS`.
+1. Um tema. Se um item não cabe no tema, vai para o estágio seguinte ou para `06-ADIADOS`.
 2. Todo item traz origem (episódio real), local no código, causa raiz e solução provável.
 3. Correção de defeito entra antes de capacidade nova.
 4. Mudança que reescreve arquivo do usuário (constituição, roadmap, stages) só entra com

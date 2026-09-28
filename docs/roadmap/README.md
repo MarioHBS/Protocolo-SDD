@@ -13,9 +13,10 @@ o que está aqui é o ponto de partida.
 | Estágio | Versão | Tema | Itens | Bloqueia |
 |---------|--------|------|-------|----------|
 | [02](02-4.2.2-protecao-de-dados.md) | 4.2.2 | Não perder dado; detectores que entendem português | R2-01 a R2-07 | migração do projeto P4 |
-| [03](03-4.3.0-usabilidade-do-agente.md) | 4.3.0 | Agente sabe invocar o CLI; ciclo de vida de trilhas; higiene | R3-01 a R3-06 | — |
-| [04](04-4.4.0-nome-do-cli.md) | 4.4.0 | Novo nome do executável, `sdd` como alias | N-01 a N-05 | decisão do dono |
-| [05](05-ADIADOS.md) | sem versão | Itens com gatilho de retomada | A-01 a A-13 | — |
+| [03](03-4.3.0-usabilidade-do-agente.md) | 4.3.0 | Agente sabe invocar o CLI; ciclo de vida de trilhas; higiene | R3-01 a R3-07 | — |
+| [04](04-4.4.0-centralizador-propostas.md) | 4.4.0 | Centralizador de propostas de melhoria (`sdd proposals`) | C-01 a C-05 | — |
+| [05](05-4.5.0-nome-do-cli.md) | 4.5.0 | Novo nome do executável, `sdd` como alias | N-01 a N-05 | decisão do dono |
+| [06](06-ADIADOS.md) | sem versão | Itens com gatilho de retomada | A-01 a A-13 | — |
 
 Leitura de apoio: [00-METODO.md](00-METODO.md) (por que releases pequenas e como cada uma é
 liberada), [01-EVIDENCIA.md](01-EVIDENCIA.md) (fontes, números e limites da avaliação) e
@@ -35,4 +36,5 @@ Todos os itens estão `planejado` (ou `adiado`, em 05).
 ## Nomenclatura
 
 `P1`…`P5`: projetos avaliados. `P5/IP-004` = entrada `IP-004` do registro de atritos do
-projeto P5. `R2-01` = item 1 do estágio 4.2.2; `R3-` para 4.3.0; `N-` para 4.4.0; `A-` para adiados.
+projeto P5. `R2-` para 4.2.2; `R3-` para 4.3.0; `C-` para 4.4.0 (centralizador de propostas);
+`N-` para 4.5.0 (nome do CLI); `A-` para adiados.

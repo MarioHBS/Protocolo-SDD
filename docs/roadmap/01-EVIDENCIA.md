@@ -5,7 +5,7 @@
 | Código | Kit | Stages | Trilhas | Constituição | Registro de atritos |
 |--------|-----|--------|---------|--------------|---------------------|
 | P1 | 4.2.1 | 4 | desligadas | ~32 KB (em 2026-09-21) | IP-001 a IP-012; quase todos absorvidos na 4.1.0/4.2.0 |
-| P2 | 4.2.1 | ~94 (11 com sufixo de letra) | 4 encerradas, 3 abertas | ~84 KB (em 2026-09-21) | IP-001 a IP-009; IP-003 a IP-009 abertos ou em contorno |
+| P2 | 4.2.1 | ~94 (11 com sufixo de letra) | 4 encerradas, 3 abertas | ~84 KB (em 2026-09-21) | IP-001 a IP-010; IP-003 a IP-010 abertos ou em contorno |
 | P3 | 4.2.1 | 9 | desligadas | 293 linhas, linhas muito longas | não tem arquivo; `.migration-todo.md` esquecido |
 | P4 | **4.0.0** | ~75 (14 com sufixo de letra) | 4 pastas encerradas | 574 linhas | não tem arquivo; roadmap de 1.655 linhas |
 | P5 | 4.2.1 | 16 | 2 encerradas, 1 aberta | 203 linhas | IP-001 a IP-005, todos de 2026-09-28, da migração v3.2.0 → v4.2.1 |
@@ -41,8 +41,10 @@ Fontes: manifestos, constituições, roadmaps, changelogs, `CLAUDE.md`/`AGENTS.m
 | R3-04 | P2/IP-007 |
 | R3-05 | P2/IP-004 |
 | R3-06 | P1/IP-003 |
+| R3-07 | P2/IP-010 |
+| C-01 a C-05 | pedido do dono (2026-09-28); P2/IP-003 aponta a metade do problema (como invocar), C- ataca a outra metade (como enviar) |
 | N-01 a N-05 | P2/IP-003 e a decisão de distribuição em aberto |
-| A-01 a A-13 | ver `05-ADIADOS.md` |
+| A-01 a A-13 | ver `06-ADIADOS.md` |
 
 ## O que já está resolvido no kit (não reabrir)
 
