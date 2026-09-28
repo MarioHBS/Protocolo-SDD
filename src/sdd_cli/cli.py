@@ -1383,6 +1383,8 @@ def cmd_track(args) -> None:
             for finding in findings:
                 who = ", ".join(finding["tracks"]) if "tracks" in finding else finding.get("track", "")
                 print(f"{finding['kind']}: {finding['path']} ({who})")
+                if finding.get("detail"):
+                    print(dim(f"  {finding['detail']}"))
         else:
             print(f"track {args.slug} verified")
         if findings:

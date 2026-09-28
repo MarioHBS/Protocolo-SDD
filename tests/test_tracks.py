@@ -133,6 +133,25 @@ def test_verify_flags_file_claimed_by_two_tracks(tmp_path):
     assert findings == [{"kind": "track_shared_touch", "path": "shared/x.py", "tracks": ["a", "b"]}]
 
 
+def test_verify_allows_claimless_track_without_external_changes(tmp_path, monkeypatch, capsys):
+    _git(tmp_path, "init")
+    (tmp_path / ".sdd" / "tracks" / "docs").mkdir(parents=True)
+    (tmp_path / ".sdd" / "tracks" / "docs" / "state.md").write_text(
+        "notes only\n", encoding="utf-8")
+    assert _tracks.verify(tmp_path, "docs") == []
+    monkeypatch.chdir(tmp_path)
+    cmd_track(_args(track_command="verify", slug="docs", since=None))
+    assert "verified" in capsys.readouterr().out
+
+    (tmp_path / "unexpected.txt").write_text("x", encoding="utf-8")
+    with pytest.raises(SystemExit) as error:
+        cmd_track(_args(track_command="verify", slug="docs", since=None))
+    assert error.value.code == 1
+    output = capsys.readouterr().out
+    assert "unexpected.txt" in output
+    assert "declare a path claim" in output
+
+
 def test_sequence_reservation_skips_existing_and_reserved_numbers(tmp_path, capsys):
     (tmp_path / ".sdd").mkdir()
     migrations = tmp_path / "supabase" / "migrations"
@@ -216,6 +235,39 @@ def test_incorporate_dry_run_writes_nothing(tmp_path):
     assert result["number"] == "003" and result["dry_run"] is True
     assert stage.exists()
     assert (tmp_path / ".sdd" / "constitution.md").read_bytes() == before
+
+
+def test_incorporate_localized_columns_adds_a_complete_row(tmp_path):
+    _incorporation_project(tmp_path, "billing")
+    constitution = tmp_path / ".sdd" / "constitution.md"
+    text = constitution.read_text(encoding="utf-8").replace(
+        "| Stage | Slug | Status | Spec | Report |",
+        "| Nº | Slug | Situação | Especificação | Relatório |")
+    constitution.write_text(text, encoding="utf-8")
+    stage = tmp_path / ".sdd" / "tracks" / "billing" / "stages" / "001-billing-work"
+    result = _tracks.incorporate(tmp_path, "billing", stage)
+    assert result["row"] == ("| 003 | billing-work | concluída | "
+                             "[spec](stages/003-billing-work/spec.md) | "
+                             "[report](stages/003-billing-work/report.md) |")
+    assert result["row"] in constitution.read_text(encoding="utf-8")
+
+
+def test_incorporate_rejects_unknown_columns_without_moving_or_writing(tmp_path):
+    _incorporation_project(tmp_path, "billing")
+    constitution = tmp_path / ".sdd" / "constitution.md"
+    constitution.write_text(constitution.read_text(encoding="utf-8").replace(
+        "| Stage | Slug | Status | Spec | Report |",
+        "| Código | Identificador | Situação | Arquivo | Entrega |"), encoding="utf-8")
+    stage = tmp_path / ".sdd" / "tracks" / "billing" / "stages" / "001-billing-work"
+    before = constitution.read_bytes()
+    claims = _tracks.load(tmp_path, "billing")
+    with pytest.raises(ValueError, match="recognized stage/etapa"):
+        _tracks.incorporate(tmp_path, "billing", stage)
+    assert stage.is_dir()
+    assert not (tmp_path / ".sdd" / "stages" / "003-billing-work").exists()
+    assert constitution.read_bytes() == before
+    assert _tracks.load(tmp_path, "billing") == claims
+    assert not (tmp_path / ".sdd" / ".reservations.json").exists()
 
 
 def test_incorporate_requires_a_report(tmp_path):

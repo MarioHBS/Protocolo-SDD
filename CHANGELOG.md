@@ -11,6 +11,10 @@
 - R2-02: track and stage-index detectors recognize the kit's English and
   Portuguese headings. The doctor recognizes `ENCERRADA` in track state and
   treats an explicit "nenhuma trilha aberta hoje" row as an empty active list.
+- R2-03: `track incorporate` validates the section 5 stage and slug columns
+  before moving files, recognizes localized column names and refuses an
+  unrecognized table. `track verify` allows a claimless track with no
+  unclaimed external changes and names the file needing a claim otherwise.
 
 ## [4.2.1] — Unreleased
 

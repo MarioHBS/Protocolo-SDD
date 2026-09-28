@@ -241,9 +241,6 @@ def verify(root: Path, slug: str, since: str | None = None) -> list[dict]:
     SDD bookkeeping under ``.sdd/`` is always allowed.
     """
     claims = {name: claimed_paths(root, name) for name in active_tracks(root)}
-    if not claims.get(slug):
-        return [{"kind": "track_unclaimed_touch", "path": "*", "track": slug,
-                 "detail": "track has no path claims"}]
     findings: list[dict] = []
     for name in changed_files(root, since):
         if name == ".sdd" or name.startswith(".sdd/"):
@@ -251,7 +248,8 @@ def verify(root: Path, slug: str, since: str | None = None) -> list[dict]:
         owners = sorted(t for t, patterns in claims.items()
                         if any(_matches(name, p) or name.startswith(p + "/") for p in patterns))
         if not owners:
-            findings.append({"kind": "track_unclaimed_touch", "path": name, "track": slug})
+            findings.append({"kind": "track_unclaimed_touch", "path": name, "track": slug,
+                             "detail": f"declare a path claim for {name} if this track owns it"})
         elif len(owners) > 1:
             findings.append({"kind": "track_shared_touch", "path": name, "tracks": owners})
     return findings
@@ -384,20 +382,23 @@ def next_stage_number(root: Path) -> int:
 
 def _index_row(header: str, existing: str, number: int, slug: str, folder: str) -> str:
     cells = [c.strip() for c in header.strip().strip("|").split("|")]
+    kinds = [_headings.column_kind(cell) for cell in cells]
+    if kinds.count("stage") != 1 or kinds.count("slug") != 1:
+        raise ValueError("section 5 stage table needs one recognized stage/etapa "
+                         "column and one slug column; no files were moved")
     done = Counter(m.group(0) for m in re.finditer(r"(?i)\b(?:done|conclu[ií]d[ao])\b", existing))
     status = done.most_common(1)[0][0] if done else "done"
     values = []
-    for cell in cells:
-        low = cell.lower()
-        if low.startswith(("stage", "etapa")):
+    for kind in kinds:
+        if kind == "stage":
             values.append(f"{number:03d}")
-        elif low.startswith("slug"):
+        elif kind == "slug":
             values.append(slug)
-        elif low.startswith("status"):
+        elif kind == "status":
             values.append(status)
-        elif low.startswith("spec"):
+        elif kind == "spec":
             values.append(f"[spec](stages/{folder}/spec.md)")
-        elif low.startswith(("report", "relat")):
+        elif kind == "report":
             values.append(f"[report](stages/{folder}/report.md)")
         else:
             values.append("")

@@ -25,3 +25,12 @@ The Portuguese fixtures cover an incorporated track absent from `Trilhas
 ativas`, `Status: ENCERRADA`, `em espera`, and the explicit "nenhuma trilha
 aberta hoje" row. A separate fixture covers `Índice de etapas` and `Fila
 provisória`, including the boundary between their tables.
+
+## R2-03 — track incorporation and claims
+
+The stage-index row is built and checked under the incorporation lock before
+the stage is moved, the constitution is updated or a number is reserved. The
+regression fixtures verify a complete row with Portuguese column names and no
+persistent writes for an unrecognized header. A track without path claims now
+passes `verify` when it changed only `.sdd/`; an unclaimed external file is
+reported by path with a prompt to declare a claim if that track owns it.
