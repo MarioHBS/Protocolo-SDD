@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sdd-cli"
+version = "2.1.0"
+description = "Spec-Driven Development scaffolding for AI coding agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []          # stdlib only, on purpose
+
+[project.scripts]
+sdd = "sdd_cli.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sdd_cli"]
