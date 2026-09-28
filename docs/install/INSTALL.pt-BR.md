@@ -14,6 +14,10 @@ ao usar `npx`, é porque a ferramenta é Python; use `pipx` ou `uv` (veja abaixo
 
 O `pipx` isola a CLI num ambiente próprio e poe `sdd` no PATH automaticamente.
 
+> **Direto do GitHub** (sem clonar): `pipx install git+https://github.com/MarioHBS/Protocolo-SDD.git` — acrescente `@v4.2.1` para fixar uma versão.
+> Os comandos abaixo instalam de uma cópia local que esteja no diretório atual com o nome `sdd-cli`:
+> `git clone https://github.com/MarioHBS/Protocolo-SDD.git sdd-cli`.
+
 ### Windows (PowerShell)
 
 ```powershell

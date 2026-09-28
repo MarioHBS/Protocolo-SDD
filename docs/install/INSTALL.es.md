@@ -14,6 +14,10 @@ executable to run`, es porque esta herramienta es Python; usa `pipx` o `uv` (aba
 
 `pipx` aísla la CLI en su propio entorno y pone `sdd` en el PATH automáticamente.
 
+> **Directo desde GitHub** (sin clonar): `pipx install git+https://github.com/MarioHBS/Protocolo-SDD.git` — añade `@v4.2.1` para fijar una versión.
+> Los comandos de abajo instalan desde una copia local que esté en el directorio actual con el nombre `sdd-cli`:
+> `git clone https://github.com/MarioHBS/Protocolo-SDD.git sdd-cli`.
+
 ### Windows (PowerShell)
 
 ```powershell
