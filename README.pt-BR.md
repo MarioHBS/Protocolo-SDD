@@ -75,6 +75,13 @@ Cada versão tem a sua branch, e a `main` sempre mostra a mais recente. As vers�
 | 3.3.0 | [`3.3.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.3.0) | `v3.3.0` | Providers e trilhas paralelas opt-in |
 | 3.2.0 | [`3.2.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.2.0) | `v3.2.0` | Trilhas paralelas sem git worktree |
 | 3.1.0 | [`3.1.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.1.0) | `v3.1.0` | `sdd update` |
+| 3.0.0 | [`3.0.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.0.0) | `v3.0.0` | Snapshot pré-Git |
+| 2.2.0 | [`2.2.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/2.2.0) | `v2.2.0` | Snapshot pré-Git |
+| 2.1.0 | [`2.1.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/2.1.0) | `v2.1.0` | Snapshot pré-Git |
+| 2.0 | [`2.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/2.0) | `v2.0` | Snapshot pré-Git |
+
+As versões 2.0 a 3.0.0 são anteriores ao histórico Git deste repositório: cada branch é um
+único commit, extraído do zip da release arquivada, sem histórico commit a commit.
 
 As próximas versões planejadas estão descritas na branch
 [`roadmap`](https://github.com/MarioHBS/Protocolo-SDD/tree/roadmap).
