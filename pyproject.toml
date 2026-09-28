@@ -8,8 +8,13 @@ version = "4.2.1"
 description = "Spec-Driven Development scaffolding for AI coding agents"
 authors = [{name = "Mário Henrique", email = "developer.mario.santos@gmail.com"}]
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.12"
 dependencies = []          # stdlib only in the default install
+
+[project.urls]
+Homepage = "https://github.com/MarioHBS/Protocolo-SDD"
+Changelog = "https://github.com/MarioHBS/Protocolo-SDD/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dashboard-rich = ["rich>=13.0"]
