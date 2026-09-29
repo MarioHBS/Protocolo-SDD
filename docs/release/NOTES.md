@@ -34,3 +34,14 @@ regression fixtures verify a complete row with Portuguese column names and no
 persistent writes for an unrecognized header. A track without path claims now
 passes `verify` when it changed only `.sdd/`; an unclaimed external file is
 reported by path with a prompt to declare a claim if that track owns it.
+
+## R2-04 — `manual` entries in the migrate preview
+
+An entry whose recorded value is `manual` is a file the kit does not manage, so
+`migrate` never replaces it. It now has its own line in the preview and in the
+real run; the "will be backed up before replacing" text is left for kit files
+only. The safety copy of a `manual` file is kept: it costs nothing and the
+backup ledger stays a complete list of what was saved. The fixture is a project
+whose manifest records a Copilot instructions file as `manual`; the tests check
+the wording of both messages, that the file is untouched and that the ledger
+lists its copy.

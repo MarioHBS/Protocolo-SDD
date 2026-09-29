@@ -56,6 +56,7 @@ LANGUAGES = {
 
 MANAGED_DIRS = ("skills", "templates")
 MANAGED_ROOT_FILES = ("README.md",)
+MANUAL_ENTRY = "manual"  # manifest value for a file the kit does not manage
 
 DISCOVERY_SCHEMA = "sdd-discovery/v1"
 
@@ -2314,16 +2315,25 @@ def cmd_migrate(args) -> None:
 
     # 1. detect hand-edited managed files (only possible with a manifest).
     edited: list[str] = []
+    kept: list[str] = []
     if old:
         for rel, old_hash in old.get("managed_files", {}).items():
             f = root / rel
-            if f.exists() and not manifest.matches_recorded(f, old_hash):
-                edited.append(rel)
+            if not f.exists() or manifest.matches_recorded(f, old_hash):
+                continue
+            # A `manual` entry is a file the kit does not manage: migrate never
+            # replaces it, so it must not be announced as "replaced".
+            (kept if old_hash == MANUAL_ENTRY else edited).append(rel)
     if edited:
         print(yellow("  Hand-edited managed files detected:"))
         for e in edited:
             print(f"    - {e}")
         print(dim("    They will be backed up before replacing.\n"))
+    if kept:
+        print(yellow("  Files recorded as `manual` (kept in place, not replaced):"))
+        for k in kept:
+            print(f"    - {k}")
+        print(dim("    A safety copy is still saved under .sdd/.pre-migrate-backup/.\n"))
     if no_manifest:
         print(dim("  No v1 manifest -- all existing managed files will be backed "
                   "up before replacing (no baseline to diff against).\n"))

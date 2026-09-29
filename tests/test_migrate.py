@@ -285,3 +285,33 @@ def test_v2_double_encoding_aborts_without_writing_and_is_repaired_with_the_flag
     text = (project / ".sdd" / "constitution.md").read_text(encoding="utf-8")
     assert "Vis\u00e3o" in text and "Constru\u00e7\u00e3o" in text and "\u00c3" not in text
     assert _manifest(project)["kit_version"] == KIT_VERSION
+
+
+def test_a_manual_entry_is_reported_as_kept_not_as_replaced(tmp_path, capsys):
+    _v33_project(tmp_path)
+    instructions = tmp_path / ".github" / "copilot-instructions.md"
+    instructions.parent.mkdir(parents=True)
+    instructions.write_text("my own Copilot instructions\n", encoding="utf-8", newline="\n")
+    data = _manifest(tmp_path)
+    data["managed_files"][".github/copilot-instructions.md"] = "manual"
+    (tmp_path / ".sdd" / ".sdd-manifest.json").write_text(json.dumps(data), encoding="utf-8")
+
+    _migrate(tmp_path, dry_run=True)
+    preview = capsys.readouterr().out
+    assert "recorded as `manual` (kept in place, not replaced)" in preview
+    assert "Hand-edited managed files detected" not in preview
+    assert ".github/copilot-instructions.md" in preview
+
+    _migrate(tmp_path)
+    assert instructions.read_text(encoding="utf-8") == "my own Copilot instructions\n"
+    ledger = _manifest(tmp_path)["backups"][-1]
+    assert ".github/copilot-instructions.md" in ledger["files"]   # the safety copy still exists
+
+
+def test_a_hand_edited_kit_file_is_still_announced_as_replaced(tmp_path, capsys):
+    _v33_project(tmp_path)
+    (tmp_path / ".sdd" / "skills" / "sdd-close" / "SKILL.md").write_text("MY LOCAL TWEAK\n", encoding="utf-8")
+    _migrate(tmp_path, dry_run=True)
+    preview = capsys.readouterr().out
+    assert "Hand-edited managed files detected" in preview
+    assert "recorded as `manual`" not in preview

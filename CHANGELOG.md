@@ -15,6 +15,9 @@
   before moving files, recognizes localized column names and refuses an
   unrecognized table. `track verify` allows a claimless track with no
   unclaimed external changes and names the file needing a claim otherwise.
+- R2-04: `sdd migrate` lists files the manifest records as `manual` on their own line
+  ("kept in place, not replaced") instead of announcing them as replaced. The safety copy
+  is still made.
 
 ## [4.2.1] — Unreleased
 
