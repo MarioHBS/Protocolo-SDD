@@ -1005,6 +1005,9 @@ def _doctor_payload(root: Path) -> dict:
     if drifted:
         findings.append({"severity": "note", "code": "manifest_eol_drift", "count": len(drifted),
                          "path": drifted[0], "actionable": True})
+    if (sdd / ".migration-todo.md").is_file():
+        findings.append({"severity": "note", "code": "migration_todo_pending",
+                         "path": ".sdd/.migration-todo.md", "actionable": True})
     for p in providers.PROVIDERS:
         if p.key != "generic" and (root / p.shim_path).exists() and p.key not in (manifest_data or {}).get("providers", []):
             findings.append({"severity": "warn", "code": "provider_shim_unmanaged", "provider": p.key,

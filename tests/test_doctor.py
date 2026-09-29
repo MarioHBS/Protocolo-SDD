@@ -286,3 +286,18 @@ def test_human_report_exits_nonzero_on_an_error_finding(tmp_path):
     with pytest.raises(SystemExit) as error:
         cmd_doctor(types.SimpleNamespace(path=str(tmp_path), json=False))
     assert error.value.code == 1
+
+
+def test_doctor_notes_a_migration_todo_left_behind(capsys, tmp_path):
+    root = _make_modern(tmp_path)
+    assert "migration_todo_pending" not in {f["code"] for f in _doctor_payload(root)["findings"]}
+
+    (root / ".sdd" / ".migration-todo.md").write_text("# Migration TODO\n", encoding="utf-8")
+    pending = [f for f in _doctor_payload(root)["findings"] if f["code"] == "migration_todo_pending"]
+    assert len(pending) == 1 and pending[0]["severity"] == "note"
+    out, code = _run(capsys, root)
+    assert code in (None, 0)                         # a note never fails the run
+    assert "migration_todo_pending" in out and ".sdd/.migration-todo.md" in out
+
+    (root / ".sdd" / ".migration-todo.md").unlink()
+    assert "migration_todo_pending" not in {f["code"] for f in _doctor_payload(root)["findings"]}

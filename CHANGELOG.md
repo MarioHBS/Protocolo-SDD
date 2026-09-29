@@ -20,6 +20,8 @@
   is still made.
 - R2-05: the installed `.sdd/README.md` title no longer carries a hard-coded kit version.
   `.migration-todo.md` opens with `<from> -> <to>` and names the tasks it omits.
+- R2-06: `sdd doctor` reports the note `migration_todo_pending` while
+  `.sdd/.migration-todo.md` exists.
 
 ## [4.2.1] — Unreleased
 

@@ -10,7 +10,7 @@ Order: R2-01 first (protects data), then R2-02 and R2-03 (same family), then the
 - [x] R2-03 — `track incorporate` refuses an empty row before moving the folder; localized headers; clearer `verify`
 - [x] R2-04 — separate message for `manual` managed entries in `migrate`
 - [x] R2-05 — version labels derived from the kit (README title, `Migration TODO — <from> -> <to>`, omitted-task note)
-- [ ] R2-06 — `doctor` note `migration_todo_pending`
+- [x] R2-06 — `doctor` note `migration_todo_pending`
 - [ ] R2-07 — UTF-8 `stdout`/`stderr` at the start of `main()`
 
 ## Gate

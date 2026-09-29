@@ -39,6 +39,8 @@ _TEXT: dict[str, tuple[str, str]] = {
                            "sdd fix --manifest"),
     "provider_shim_unmanaged": ("{path} exists but provider {provider} is not managed by the manifest",
                                 "sdd migrate --to v4 --provider {provider}"),
+    "migration_todo_pending": ("{path} still exists: the migration is not finished",
+                               "have the agent finish its tasks, then delete the file (or delete it if you no longer need it)"),
     "cli_older_than_project": ("the installed sdd is older than this project's kit",
                                "reinstall the CLI from the current checkout"),
     "cold_file_oversized": ("{path} is {bytes} bytes", "keep it cold; trim its log rows"),

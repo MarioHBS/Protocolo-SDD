@@ -56,3 +56,10 @@ for a legacy project) and appends "Tasks omitted from this file: 1-3 and 5
 actually wrote. A second `migrate` run therefore rewrites the TODO as
 `v4.x -> v4.x`; `test_migrating_twice_is_a_no_op` allows that one file to
 change.
+
+## R2-06 — migration TODO left behind
+
+`migration_todo_pending` is a `note` (it never changes the exit code) and
+disappears with the file, so an owner who deleted the TODO on purpose sees
+nothing. It is listed in the manual's finding table, which
+`test_manual_mentions_every_doctor_finding_code` requires.
