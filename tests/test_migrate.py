@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import types
 from pathlib import Path
 
 import pytest
 
 from sdd_cli import manifest
-from sdd_cli.cli import cmd_migrate, cmd_update
+from sdd_cli.cli import _task_ranges, cmd_migrate, cmd_update
 from sdd_cli.content import CONTENT_DIR, KIT_VERSION
 
 OLD_TEXT = "# old managed content (kit 3.3.0)\n"
@@ -182,7 +183,9 @@ def test_migrating_twice_is_a_no_op(tmp_path):
         assert exc.code in (0, None)
     second = _tree(tmp_path)
     changed = {k for k in second if first.get(k) != second[k] and ".pre-migrate-backup" not in k}
-    assert changed <= {".sdd/.sdd-manifest.json"}      # at most the manifest's updated_at moves
+    # At most the manifest's updated_at moves, and the TODO snapshot is rewritten from the version
+    # the second run started at (v4.2.1 -> v4.2.1); no user file changes.
+    assert changed <= {".sdd/.sdd-manifest.json", ".sdd/.migration-todo.md"}
 
 
 def test_an_unknown_target_is_refused(tmp_path):
@@ -315,3 +318,28 @@ def test_a_hand_edited_kit_file_is_still_announced_as_replaced(tmp_path, capsys)
     preview = capsys.readouterr().out
     assert "Hand-edited managed files detected" in preview
     assert "recorded as `manual`" not in preview
+
+
+def test_migration_todo_names_both_versions_and_the_omitted_tasks(tmp_path):
+    _v33_project(tmp_path)
+    _migrate(tmp_path)
+    todo = (tmp_path / ".sdd" / ".migration-todo.md").read_text(encoding="utf-8")
+    assert todo.startswith(f"# Migration TODO \u2014 v3.3.0 -> {KIT_VERSION}\n")
+    present = sorted({int(n) for n in re.findall(r"(?m)^## Task (\d+) ", todo)})
+    omitted = [n for n in range(1, 8) if n not in present]
+    assert omitted, "the synthetic project needs at least one omitted task for this check"
+    assert f"Tasks omitted from this file: {_task_ranges(omitted)} " in todo
+
+
+def test_task_ranges_collapse_consecutive_numbers():
+    assert _task_ranges([1, 2, 3, 5]) == "1-3 and 5"
+    assert _task_ranges([5]) == "5"
+    assert _task_ranges([2, 3]) == "2-3"
+    assert _task_ranges([1, 3, 5]) == "1, 3 and 5"
+
+
+def test_the_installed_readme_carries_no_hardcoded_kit_version(tmp_path):
+    _v33_project(tmp_path)
+    _migrate(tmp_path)
+    title = (tmp_path / ".sdd" / "README.md").read_text(encoding="utf-8").splitlines()[0]
+    assert title == "# SDD \u2014 Spec-Driven Development"

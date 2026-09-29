@@ -45,3 +45,14 @@ backup ledger stays a complete list of what was saved. The fixture is a project
 whose manifest records a Copilot instructions file as `manual`; the tests check
 the wording of both messages, that the file is untouched and that the ledger
 lists its copy.
+
+## R2-05 — version labels
+
+The README title lost its `(v3)` suffix: the file is copied verbatim and hashed,
+so a per-version title would have needed templating for no reader benefit. The
+TODO generator now receives the version the project was at (`v1 (no manifest)`
+for a legacy project) and appends "Tasks omitted from this file: 1-3 and 5
+(precondition already satisfied at migration time)", derived from the tasks it
+actually wrote. A second `migrate` run therefore rewrites the TODO as
+`v4.x -> v4.x`; `test_migrating_twice_is_a_no_op` allows that one file to
+change.

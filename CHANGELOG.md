@@ -18,6 +18,8 @@
 - R2-04: `sdd migrate` lists files the manifest records as `manual` on their own line
   ("kept in place, not replaced") instead of announcing them as replaced. The safety copy
   is still made.
+- R2-05: the installed `.sdd/README.md` title no longer carries a hard-coded kit version.
+  `.migration-todo.md` opens with `<from> -> <to>` and names the tasks it omits.
 
 ## [4.2.1] — Unreleased
 

@@ -1,4 +1,4 @@
-# SDD — Spec-Driven Development (v3)
+# SDD — Spec-Driven Development
 
 This directory is the **single source of truth** for how this project is planned
 and built. It is **IDE-agnostic**: nothing here changes when you switch editors.
