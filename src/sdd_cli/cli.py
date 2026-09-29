@@ -3079,7 +3079,23 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     return p
 
 
+def _use_utf8_streams() -> None:
+    """Print Unicode (the em dash, section signs) as UTF-8 even when stdout/stderr are
+    pipes or files in the console code page (cp1252 on Windows). ``errors="replace"``
+    keeps an unencodable character from crashing the command. Streams without
+    ``reconfigure`` (a wrapper, a test double) are left alone."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass  # closed or detached stream: nothing to fix
+
+
 def main(argv: list[str] | None = None) -> None:
+    _use_utf8_streams()
     args = build_parser().parse_args(argv)
     try:
         args.func(args)

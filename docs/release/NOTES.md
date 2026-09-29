@@ -63,3 +63,13 @@ change.
 disappears with the file, so an owner who deleted the TODO on purpose sees
 nothing. It is listed in the manual's finding table, which
 `test_manual_mentions_every_doctor_finding_code` requires.
+
+## R2-07 — UTF-8 output
+
+`main()` calls `_use_utf8_streams()` before parsing arguments, so `--help` and
+usage errors are covered too. Streams without `reconfigure` (a wrapper or a
+test double) are skipped, and a closed stream is ignored. The cause was not
+reproduced on the evaluator's machine; the test simulates it with a cp1252
+`TextIOWrapper` over a `BytesIO`, including a character cp1252 cannot encode.
+On a real console Python writes through the console API, so the change only
+affects pipes and files.

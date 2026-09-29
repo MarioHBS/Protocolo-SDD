@@ -84,3 +84,26 @@ def test_a_deliberate_exit_code_is_not_swallowed_by_the_safety_net(monkeypatch):
 def test_docs_alias_still_prints_the_manual(capsys):
     cli.main(["docs"])
     assert "usage manual" in capsys.readouterr().out
+
+
+def test_output_is_utf8_even_when_the_stream_uses_the_console_code_page(monkeypatch):
+    import io
+    import sys
+
+    raw = io.BytesIO()
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(raw, encoding="cp1252", newline="\n", write_through=True))
+    cli._use_utf8_streams()
+    print("\u2014 \u00a7 \u65e5")                       # cp1252 has no CJK: must not crash
+    assert raw.getvalue().decode("utf-8") == "\u2014 \u00a7 \u65e5\n"
+
+
+def test_a_stream_without_reconfigure_is_left_alone(monkeypatch):
+    import sys
+
+    class Plain:
+        def write(self, text):
+            return len(text)
+
+    monkeypatch.setattr(sys, "stdout", Plain())
+    monkeypatch.setattr(sys, "stderr", Plain())
+    cli._use_utf8_streams()                                # must not raise

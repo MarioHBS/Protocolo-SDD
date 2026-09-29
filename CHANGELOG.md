@@ -22,6 +22,8 @@
   `.migration-todo.md` opens with `<from> -> <to>` and names the tasks it omits.
 - R2-06: `sdd doctor` reports the note `migration_todo_pending` while
   `.sdd/.migration-todo.md` exists.
+- R2-07: `sdd` reconfigures `stdout` and `stderr` to UTF-8 (`errors="replace"`) at start-up, so
+  the em dash and `§` no longer come out as `?` or `\ufffd` when output is piped on Windows.
 
 ## [4.2.1] — Unreleased
 
