@@ -74,6 +74,13 @@ and [CHANGELOG.md](CHANGELOG.md) for what changed.
 | 3.3.0 | [`3.3.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.3.0) | `v3.3.0` | Providers and opt-in parallel tracks |
 | 3.2.0 | [`3.2.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.2.0) | `v3.2.0` | Parallel tracks without git worktrees |
 | 3.1.0 | [`3.1.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.1.0) | `v3.1.0` | `sdd update` |
+| 3.0.0 | [`3.0.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/3.0.0) | `v3.0.0` | Pre-Git snapshot |
+| 2.2.0 | [`2.2.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/2.2.0) | `v2.2.0` | Pre-Git snapshot |
+| 2.1.0 | [`2.1.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/2.1.0) | `v2.1.0` | Pre-Git snapshot |
+| 2.0 | [`2.0`](https://github.com/MarioHBS/Protocolo-SDD/tree/2.0) | `v2.0` | Pre-Git snapshot |
+
+Versions 2.0 through 3.0.0 predate this repository's Git history: each branch is a single
+commit unpacked from the archived release zip, with no commit-by-commit history.
 
 The planned next releases are described on the [`roadmap`](https://github.com/MarioHBS/Protocolo-SDD/tree/roadmap)
 branch.
