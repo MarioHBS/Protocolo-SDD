@@ -92,6 +92,8 @@ gate asks that a dry-run leave user files alone.
   `--fix-mojibake` the migration refuses to start because the project has double-encoded text,
   and `update` refuses a v2 -> v4 jump; both leave the tree untouched too.
 - The roadmap preview on that copy reported 255 lines and 97 nonempty lines outside tables.
-- Not done: the same dry-run on a copy of P4's roadmap (1,655 lines), which needs the owner's copy.
-  The R2-01 regression fixture reproduces its shape (block grouping, `Habilita` column, 1,132
-  lines of detail) and the preview reports it.
+- P4 (kit 4.0.0), on a copy of `.sdd/` and the provider shims made outside the project: `migrate --to v4
+  --dry-run` reports "Roadmap review: 1655 lines; 1371 nonempty lines outside Markdown tables" and that
+  the roadmap would be backed up before Task 7; `update --dry-run` lists 19 files to update and 4 to add.
+  The tree hash of the copy is identical before and after both commands. The preview gives counts, not
+  the list of dropped lines: the full diff is produced later, by the agent, under Task 7.
