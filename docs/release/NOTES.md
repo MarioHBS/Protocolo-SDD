@@ -73,3 +73,12 @@ reproduced on the evaluator's machine; the test simulates it with a cp1252
 `TextIOWrapper` over a `BytesIO`, including a character cp1252 cannot encode.
 On a real console Python writes through the console API, so the change only
 affects pipes and files.
+
+## Dry-run with `--fix-mojibake`
+
+Found while running the gate on a copy of a v2.1.0 sandbox project: `migrate --to v4
+--dry-run --fix-mojibake` rewrote the mojibake spans in place and then printed "DRY RUN
+-- nothing written". The 0. gate in `cmd_migrate` now passes `dry_run` to
+`repair_v2_file`, which only counts the spans, and skips the re-scan. This predates 4.2.2
+(4.2.1 has the same code) and is not one of the R2 items; it is here because the
+gate asks that a dry-run leave user files alone.

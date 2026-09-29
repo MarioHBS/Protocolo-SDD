@@ -24,6 +24,9 @@
   `.sdd/.migration-todo.md` exists.
 - R2-07: `sdd` reconfigures `stdout` and `stderr` to UTF-8 (`errors="replace"`) at start-up, so
   the em dash and `§` no longer come out as `?` or `\ufffd` when output is piped on Windows.
+- `sdd migrate --dry-run --fix-mojibake` no longer repairs the files: it reports how many
+  spans it would repair and writes nothing, as the "DRY RUN -- nothing written" line says.
+  Found while running the gate checks; it has no R2 item.
 
 ## [4.2.1] — Unreleased
 

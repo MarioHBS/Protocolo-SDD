@@ -2316,17 +2316,19 @@ def cmd_migrate(args) -> None:
         if args.fix_mojibake:
             total = 0
             for r in v2_files:
-                total += _mojibake.repair_v2_file(r.path)
-            print(green(f"  repaired double-encoding mojibake (v2): {total} "
+                total += _mojibake.repair_v2_file(r.path, dry_run=args.dry_run)
+            verb = "would repair" if args.dry_run else "repaired"
+            print(green(f"  {verb} double-encoding mojibake (v2): {total} "
                         f"span(s) across {len(v2_files)} file(s)"))
             # re-scan: assert nothing v2 remains after the repair.
-            still = _mojibake.scan_tree(sdd)
+            still = [] if args.dry_run else _mojibake.scan_tree(sdd)
             still_v2, _ = _mojibake.classify_reports(still)
             if still_v2:
                 die(f"re-scan after --fix-mojibake still found v2 in "
                     f"{len(still_v2)} file(s); aborting migrate. Open "
                     f"{still_v2[0].path.relative_to(root)} and re-run.")
-            print(green("  re-scan clean — all v2 repaired"))
+            if not args.dry_run:
+                print(green("  re-scan clean — all v2 repaired"))
         else:
             print(red(f"\n{red('error:')} double-encoding mojibake (v2) detected "
                       f"in {len(v2_files)} file(s). Migration aborts — migrating "

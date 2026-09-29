@@ -290,6 +290,15 @@ def test_v2_double_encoding_aborts_without_writing_and_is_repaired_with_the_flag
     assert _manifest(project)["kit_version"] == KIT_VERSION
 
 
+def test_dry_run_with_the_mojibake_flag_reports_the_repair_without_writing_it(tmp_path, capsys):
+    project = _legacy_project(tmp_path, "## 1. VisÃ£o\n\nConstruÃ§Ã£o do sistema.\n")
+    before = _tree(project)
+    _migrate(project, dry_run=True, fix_mojibake=True)
+    out = capsys.readouterr().out
+    assert "would repair double-encoding mojibake (v2)" in out and "DRY RUN" in out
+    assert _tree(project) == before
+
+
 def test_a_manual_entry_is_reported_as_kept_not_as_replaced(tmp_path, capsys):
     _v33_project(tmp_path)
     instructions = tmp_path / ".github" / "copilot-instructions.md"

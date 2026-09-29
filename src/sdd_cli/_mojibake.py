@@ -146,13 +146,14 @@ def repair_v2_text(text: str) -> str:
     return text.encode("latin-1").decode("utf-8")
 
 
-def repair_v2_file(path: Path) -> int:
+def repair_v2_file(path: Path, dry_run: bool = False) -> int:
     """Repair a file in place. Only the V2 (double-encoding) spans are touched;
-    everything else is byte-preserved. Returns the number of spans repaired."""
+    everything else is byte-preserved. Returns the number of spans repaired
+    (with ``dry_run``, the number that would be repaired; nothing is written)."""
     raw = path.read_bytes()
     spans = [m.span() for m in _V2_BYTE_RE.finditer(raw)]
-    if not spans:
-        return 0
+    if not spans or dry_run:
+        return len(spans)
     # Rebuild the bytes: copy unaffected regions verbatim, repair each span by
     # decoding its bytes, undoing the double-encode, and re-encoding.
     out = bytearray()
