@@ -82,3 +82,16 @@ Found while running the gate on a copy of a v2.1.0 sandbox project: `migrate --t
 `repair_v2_file`, which only counts the spans, and skips the re-scan. This predates 4.2.2
 (4.2.1 has the same code) and is not one of the R2 items; it is here because the
 gate asks that a dry-run leave user files alone.
+
+## Verification (2026-09-29)
+
+- `py -3.12 -m pytest -q`: 196 passed. `py -3.12 -m ruff check src tests`: clean.
+- Suite also green at each of the R2-04, R2-05 and R2-06 commits (checked in a detached worktree).
+- `migrate --to v4 --dry-run --fix-mojibake` and `update --dry-run` on a copy of a v2.1.0 sandbox
+  project (kept outside the repository): the tree hash before and after is identical. Without
+  `--fix-mojibake` the migration refuses to start because the project has double-encoded text,
+  and `update` refuses a v2 -> v4 jump; both leave the tree untouched too.
+- The roadmap preview on that copy reported 255 lines and 97 nonempty lines outside tables.
+- Not done: the same dry-run on a copy of P4's roadmap (1,655 lines), which needs the owner's copy.
+  The R2-01 regression fixture reproduces its shape (block grouping, `Habilita` column, 1,132
+  lines of detail) and the preview reports it.

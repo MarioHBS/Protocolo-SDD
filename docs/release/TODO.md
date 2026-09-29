@@ -15,9 +15,9 @@ Order: R2-01 first (protects data), then R2-02 and R2-03 (same family), then the
 
 ## Gate
 
-- [ ] `python -m pytest -q` and `ruff check src tests` green; one new test per item from a fixture of the real episode
-- [ ] `sdd migrate --dry-run` and `sdd update --dry-run` on a copy of a real project: no user file changes outside the preview
+- [x] `python -m pytest -q` and `ruff check src tests` green; one new test per item from a fixture of the real episode
+- [x] `sdd migrate --dry-run` and `sdd update --dry-run` on a copy of a real project: no user file changes outside the preview
 - [ ] `migrate --dry-run` on a copy of the roadmap of P4 lists what would be dropped
-- [ ] `CHANGELOG.md` entry citing each item ID; version bumped in `pyproject.toml` and `content/VERSION`
-- [ ] `docs/release/NOTES.md` with the verification results
+- [x] `CHANGELOG.md` entry citing each item ID; version bumped in `pyproject.toml` and `content/VERSION`
+- [x] `docs/release/NOTES.md` with the verification results
 - [ ] tag `v4.2.2`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)
