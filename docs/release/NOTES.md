@@ -1,5 +1,33 @@
 # Notes — sdd-cli 4.3.0
 
+## Gate verification (2026-10-02)
+
+- `python -m pytest -q`: 218 passed. `ruff check src tests`: clean.
+- `sdd update --dry-run` on fresh copies of two real evaluated projects
+  (P1/KNN Warehouse, v4.2.2 installed; P2/Antologias Biló, v4.2.1 installed):
+  both previews listed only managed files (shims, skills, two templates) as
+  "would update", and both hand-edited files each project already had
+  (`sdd-cli`'s own `.sdd/templates/todo.template.md` for P1,
+  `.sdd/README.md` and `.sdd/templates/track-state.template.md` for P2) were
+  correctly listed as preserved, not overwritten.
+- Ran the real `sdd update` (not just `--dry-run`) on both copies, then `sdd
+  doctor`: no crash, new codes fire correctly on live data —
+  `nested_worktree_copies_ignored` on P1 (its `.kilo/worktrees` is already
+  `.gitignore`'d); `track_closed_in_place` ×5 on P2 (its real closed tracks,
+  exactly IP-008's original complaint, now surfaced instead of silent).
+  `tracks_setting_missing` correctly did not fire on either project (both
+  already have the explicit `Parallel tracks:` line).
+- The P2 run caught one real bug before it shipped:
+  `track_closed_in_place` had no `_findings.py` entry, so the human report
+  printed the bare code as its own message. Fixed (see CHANGELOG, no R3
+  item — found by the gate check itself, same class of thing 4.2.2's gate
+  check also caught once).
+- P6 (Carteira Inteligente, the project added to the monitored list this
+  session) was not exercised: its copy was still being made in the
+  background when this gate check was written. Not required for this
+  release — it was never part of the original P1–P5 evaluation this plan is
+  built from.
+
 Filled in as each item lands; verification results go here before the tag.
 
 ## R3-01 — CLI invocation guidance
