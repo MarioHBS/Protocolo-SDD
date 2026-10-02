@@ -57,9 +57,12 @@ _TEXT: dict[str, tuple[str, str]] = {
     "milestone_not_contiguous": ("milestone {milestone} is not a contiguous slice of the queue",
                                  "reorder the queue or redefine the milestone"),
     "backlog_orphan": ("backlog section '{section}' matches no queue row or pending stage",
-                       "delete it or add its queue row"),
+                       "delete the section, or add its slug to a `slug` column of the Provisional "
+                       "queue TABLE in constitution.md §5 (e.g. `| slug | item | detail |` with a "
+                       "row naming it) -- a bullet list or a `backlog.md#slug` anchor link is not "
+                       "parsed, only a markdown table with a literal `slug` column is"),
     "queue_row_without_section": ("queue row {slug} points to the backlog but has no section there",
-                                  "add the section to backlog.md"),
+                                  "add a `## {slug}` section to backlog.md"),
     "docs_missing_file": ("planned document {path} does not exist", "sdd document --create-stubs"),
     "docs_missing_header": ("{path} lacks {missing}", "add the header the plan requires"),
     "docs_path_outside_project": ("document {path} lives outside the project folder", "intended? edit the plan"),

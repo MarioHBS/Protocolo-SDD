@@ -18,6 +18,11 @@
   `interactive`, `plain`, `web`, with `rich`/`textual` as deprecated
   aliases) was reverified against `cli.py` and is already correct — no
   change needed there.
+- R3-04: the `backlog_orphan`/`queue_row_without_section` doctor findings now
+  name the format the detector actually parses — a Provisional-queue table
+  row with a literal `Slug` column, not a bullet list or a bare
+  `backlog.md#slug` link. `backlog.template.md` and the `sdd-roadmap` skill
+  carry the same concrete example row.
 
 ## [4.2.2] — In progress
 

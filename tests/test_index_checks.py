@@ -49,6 +49,16 @@ def test_queue_row_citing_the_backlog_needs_its_section(tmp_path):
     assert [(f["code"], f["slug"]) for f in findings] == [("queue_row_without_section", "missing-detail")]
 
 
+def test_backlog_orphan_hint_names_the_format_the_detector_reads(tmp_path):
+    # R3-04: a list with the slug in backticks, or a `backlog.md#slug` anchor,
+    # both looked right to a person but were not parsed -- only a table row
+    # with a literal `slug` column is. The hint must say so, not just "fix it".
+    from sdd_cli import _findings
+
+    _, hint = _findings.describe({"severity": "warn", "code": "backlog_orphan", "section": "x"})
+    assert "slug" in hint and "table" in hint
+
+
 def test_no_backlog_means_no_findings(tmp_path):
     sdd = tmp_path / ".sdd"
     sdd.mkdir()

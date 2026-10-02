@@ -25,3 +25,13 @@ list against `DASHBOARD_RENDERERS`/the argparse `choices` in `cli.py`: both
 already say `static`/`interactive`/`plain`/`web` with `rich`/`textual` as
 deprecated aliases — this half of the item needed no change, just
 confirmation that the 4.2.1 rename held.
+
+## R3-04 — backlog_orphan format
+
+The real episode: a bullet list with the slug in backticks, then a
+`backlog.md#slug` anchor link, neither parsed, because `_queue_rows` only
+reads markdown TABLE rows under the Provisional queue heading with a literal
+`slug` column (`_index_checks.py`'s `_tables`/`_queue_rows`). The finding's
+hint, `backlog.template.md` and the `sdd-roadmap` skill now all show the same
+concrete row, `| my-slug | pending | — | See backlog.md#my-slug |`, so the
+contract is visible in the three places someone would look.
