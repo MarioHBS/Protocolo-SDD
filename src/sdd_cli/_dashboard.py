@@ -13,8 +13,15 @@ from pathlib import Path
 from . import _findings
 
 VIEW_NAMES = ("Overview", "Constitution", "Stages / Tracks", "EDD", "Doctor / Fix", "Session")
-INSTALL_HINT = ("the {ui} dashboard needs an optional package. From the sdd-cli folder run\n"
-                "  pipx install --force './sdd-cli[dashboard]'      (or: pip install rich textual)\n"
+# R3-06: a manual check of `rich`/`textual` can pass in a different Python
+# than the one running `sdd` (e.g. a venv on PATH vs. a pipx/editable
+# install), so name the exact interpreter the message is about.
+INSTALL_HINT = ("the {ui} dashboard needs an optional package for this interpreter:\n"
+                "  {python}\n"
+                "Install it there:\n"
+                "  {python} -m pip install rich textual\n"
+                "or, from the sdd-cli folder:\n"
+                "  pipx install --force './sdd-cli[dashboard]'\n"
                 "or use the dependency-free view:  sdd dashboard --ui plain")
 
 

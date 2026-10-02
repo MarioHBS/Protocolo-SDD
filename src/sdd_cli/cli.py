@@ -1716,7 +1716,7 @@ def cmd_dashboard(args) -> None:
         else:
             _dashboard.make_app(views).run()
     except ImportError:
-        die(_dashboard.INSTALL_HINT.format(ui=renderer))
+        die(_dashboard.INSTALL_HINT.format(ui=renderer, python=sys.executable))
 
 
 def _section_body(section: str) -> str:

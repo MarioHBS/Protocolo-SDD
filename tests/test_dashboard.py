@@ -104,6 +104,10 @@ def test_missing_extras_is_an_explained_error_not_a_traceback(tmp_path, monkeypa
     assert error.value.code == 1
     err = capsys.readouterr().err
     assert "sdd-cli[dashboard]" in err and "sdd dashboard --ui plain" in err
+    # R3-06: names the interpreter actually running `sdd`, since a manual
+    # `import rich` check can pass in a different Python than this one.
+    import sys as _sys
+    assert _sys.executable in err
 
 
 def test_interactive_without_a_terminal_refuses_instead_of_hanging(tmp_path, monkeypatch, capsys):

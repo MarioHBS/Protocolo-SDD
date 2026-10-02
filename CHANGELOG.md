@@ -11,6 +11,13 @@
   `sdd context` and `sdd doctor` also print the path of the running
   executable. The command name is now a single `CLI_NAME` constant (used by
   `prog=`/`--version`), so the planned rename (stage 4.5.0) touches one line.
+- R3-06: the dashboard's missing-dependency message now names the exact
+  Python interpreter (`sys.executable`) running `sdd`, since a manual
+  `import rich` check can pass in a different interpreter than the one the
+  command actually uses. The manual's `--ui` option list (`static`,
+  `interactive`, `plain`, `web`, with `rich`/`textual` as deprecated
+  aliases) was reverified against `cli.py` and is already correct — no
+  change needed there.
 
 ## [4.2.2] — In progress
 
