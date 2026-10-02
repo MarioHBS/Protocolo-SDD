@@ -21,4 +21,4 @@ lifecycle), R3-07 last (needs an explicit design call during implementation).
 - [x] `sdd update --dry-run` on a copy of each evaluated project: only managed files change
 - [x] `CHANGELOG.md` entry citing each item ID; version bumped in `pyproject.toml` and `content/VERSION`
 - [x] `docs/release/NOTES.md` with the verification results
-- [ ] tag `v4.3.0`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)
+- [x] tag `v4.3.0`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)
