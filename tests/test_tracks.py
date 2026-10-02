@@ -485,6 +485,20 @@ def test_close_rejects_an_unknown_track(tmp_path):
         _tracks.close(tmp_path, "ghost")
 
 
+def test_closed_in_place_finding_has_a_real_message_not_the_bare_code():
+    # Caught by running `sdd doctor` on a real project copy during the 4.3.0
+    # gate check: the human text printed "track_closed_in_place:
+    # track_closed_in_place" because _findings.py had no entry for it --
+    # describe() silently falls back to the code itself as the message.
+    from sdd_cli import _findings
+
+    message, hint = _findings.describe({"severity": "note", "code": "track_closed_in_place",
+                                         "track": "billing"})
+    assert message != "track_closed_in_place"
+    assert "billing" in message
+    assert "archive" in hint
+
+
 def test_cmd_track_close_reports_what_changed(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     _close_project(tmp_path, "billing")

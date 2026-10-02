@@ -17,6 +17,8 @@ _TEXT: dict[str, tuple[str, str]] = {
     "track_not_started": ("track {track} has no stage yet", "start it, drop it from Active tracks, or set its State to 'on hold'"),
     "track_not_incorporated": ("track {track} has a closed stage not yet incorporated",
                                "sdd track incorporate {track} <stage>"),
+    "track_closed_in_place": ("track {track} is closed but still sits outside tracks/_closed/",
+                              "sdd track close {track} --archive"),
     "track_overlap": ("two tracks' footprints overlap: {detail}",
                       "sequence the later stage with 'Depends on' (sdd track check)"),
     "track_claims_invalid": ("a claims.json is invalid: {detail}", "fix or delete the file, then sdd track claim"),

@@ -60,6 +60,11 @@
   separate questions — the bigger split stays open if this proves
   insufficient.
 
+- `track_closed_in_place` printed its own code as the message
+  (`track_closed_in_place: track_closed_in_place`, no fix hint) because
+  `_findings.py` had no entry for it. Found while running `sdd doctor` on a
+  real project copy for the gate check; it has no R3 item.
+
 ## [4.2.2] — In progress
 
 ### Fixed
