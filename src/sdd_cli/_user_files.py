@@ -133,7 +133,9 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
     on_hold = on_hold_track_slugs(sdd)
     findings: list[TrackDivergence] = []
     for directory in sorted(tracks_dir.iterdir()):
-        if not directory.is_dir() or directory.name.startswith("."):
+        # _closed/ is the archive bucket (see `sdd track close --archive`):
+        # its contents are history, not a track slug to audit.
+        if not directory.is_dir() or directory.name.startswith(".") or directory.name == "_closed":
             continue
         slug = directory.name
         state = directory / "state.md"
@@ -145,6 +147,14 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
                       or (active is not None and slug not in active))
         stages = directory / "stages"
         stage_dirs = [p for p in stages.iterdir() if p.is_dir()] if stages.is_dir() else []
+        if closed and not stage_dirs:
+            # Nothing left to do for this track, but the folder itself is
+            # still the only sign anyone has to notice: IP-008's "closed
+            # tracks look just like open ones unless you open each state.md".
+            findings.append(TrackDivergence(
+                slug, "closed_in_place",
+                f"tracks/{slug}/ is closed but still sits outside tracks/_closed/",
+                "closed_in_place"))
         if not stage_dirs:
             if not closed and slug not in on_hold:
                 findings.append(TrackDivergence(

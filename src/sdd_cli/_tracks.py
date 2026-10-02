@@ -18,6 +18,7 @@ import re
 import shutil
 import subprocess
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import _headings, _lock, _user_files
@@ -455,4 +456,97 @@ def incorporate(root: Path, slug: str, stage_dir: Path, *, dry_run: bool = False
         ledger.setdefault("sequences", {}).setdefault("stage", []).append(
             {"number": f"{number:03d}", "track": slug})
         _write_json(sdd / LEDGER_NAME, ledger)
+    return result
+
+
+# -------------------------------------------------------------------- close
+
+_STATE_LINE_RE = re.compile(r"(?im)^(-\s*\*\*State:\*\*\s*).*$")
+_LAST_UPDATED_LINE_RE = re.compile(r"(?im)^(-\s*\*\*Last updated:\*\*\s*).*$")
+
+
+def _close_state_md(text: str) -> str:
+    """Mark state.md CLOSED and stamp today's date. A file that does not use
+    the template's `**State:**` field (free-form scratch, per its own header
+    comment) is left untouched rather than guessed at."""
+    if not _STATE_LINE_RE.search(text):
+        return text
+    text = _STATE_LINE_RE.sub(lambda m: m.group(1) + "CLOSED", text, count=1)
+    today = datetime.now(UTC).date().isoformat()
+    return _LAST_UPDATED_LINE_RE.sub(lambda m: m.group(1) + today, text, count=1)
+
+
+def _drop_active_track_row(text: str, slug: str) -> tuple[str, bool]:
+    """Remove ``slug``'s row from the Active tracks table; ``(text, False)``
+    unchanged if the heading or the row is not there."""
+    heading = _headings.find_heading(text, "active_tracks", 3)
+    if not heading:
+        return text, False
+    block_start = heading.end()
+    rest = text[block_start:]
+    end = re.search(r"(?m)^#{1,3}\s", rest)
+    block = rest[:end.start()] if end else rest
+    row_re = re.compile(rf"(?m)^\|\s*`{re.escape(slug)}`\s*\|[^\n]*\n")
+    new_block, count = row_re.subn("", block)
+    if not count:
+        return text, False
+    block_end = block_start + len(block)
+    return text[:block_start] + new_block + text[block_end:], True
+
+
+def close(root: Path, slug: str, *, archive: bool = False, dry_run: bool = False) -> dict:
+    """Close a track whose work is fully incorporated: no local stage folders
+    left, no open claims. Marks ``state.md`` CLOSED, drops its row from
+    Active tracks, and -- with ``archive`` -- moves the folder under
+    ``tracks/_closed/`` (see `doctor`'s ``track_closed_in_place``).
+
+    Refuses instead of guessing when local stages or claims remain; those are
+    for the owner to resolve first (incorporate, or release the claim) --
+    same discipline as `incorporate`'s own precondition on `report.md`.
+    """
+    sdd = root / ".sdd"
+    track_dir = sdd / "tracks" / slug
+    if not track_dir.is_dir():
+        raise ValueError(f"no such track: {slug}")
+    stages_dir = track_dir / "stages"
+    remaining = sorted(p.name for p in stages_dir.iterdir() if p.is_dir()) if stages_dir.is_dir() else []
+    if remaining:
+        raise ValueError(f"track {slug} still has local stage(s) not incorporated: "
+                          f"{', '.join(remaining)}")
+    data = load(root, slug)
+    if data.get("claims"):
+        raise ValueError(f"track {slug} still has claim(s) recorded in claims.json; "
+                          "release them before closing")
+    constitution = sdd / "constitution.md"
+    state_file = track_dir / "state.md"
+    result = {"track": slug, "state_md": None, "active_tracks_row_removed": False,
+              "archived_to": None, "dry_run": dry_run}
+    with _lock.file_lock(sdd / LOCK_NAME):
+        if state_file.is_file():
+            before = state_file.read_text(encoding="utf-8", errors="replace")
+            after = _close_state_md(before)
+            result["state_md"] = "updated" if after != before else "unchanged"
+            if not dry_run and after != before:
+                state_file.write_text(after, encoding="utf-8", newline="\n")
+        if constitution.is_file():
+            raw = constitution.read_bytes().decode("utf-8")
+            crlf = "\r\n" in raw
+            text = raw.replace("\r\n", "\n")
+            updated, removed = _drop_active_track_row(text, slug)
+            result["active_tracks_row_removed"] = removed
+            if removed and not dry_run:
+                if crlf:
+                    updated = updated.replace("\n", "\r\n")
+                tmp = constitution.with_name(constitution.name + ".tmp")
+                tmp.write_bytes(updated.encode("utf-8"))
+                os.replace(tmp, constitution)
+        if archive:
+            target = f".sdd/tracks/_closed/{slug}"
+            result["archived_to"] = target
+            if not dry_run:
+                archived = sdd / "tracks" / "_closed" / slug
+                archived.parent.mkdir(exist_ok=True)
+                if archived.exists():
+                    raise ValueError(f"archive target already exists: {target}")
+                shutil.move(str(track_dir), str(archived))
     return result

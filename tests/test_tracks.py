@@ -392,8 +392,12 @@ def test_portuguese_track_heading_closed_marker_and_on_hold(tmp_path):
     assert _user_files.active_track_slugs(sdd) == {"em-espera", "aberta"}
     assert _user_files.on_hold_track_slugs(sdd) == {"em-espera"}
     assert _tracks.active_tracks(tmp_path) == ["aberta", "em-espera"]
+    # R3-02: "encerrada" (its own state.md says so) and "incorporada" (just
+    # absent from the table, no state.md at all) are both closed and empty
+    # -- both earn closed_in_place now, not silence.
     assert [(d.track, d.kind) for d in _user_files._scan_tracks_v4(sdd)] == [
-        ("aberta", "not_started")]
+        ("aberta", "not_started"), ("encerrada", "closed_in_place"),
+        ("incorporada", "closed_in_place")]
 
 
 def test_explicit_portuguese_no_tracks_row_is_empty_index(tmp_path):
@@ -406,4 +410,85 @@ def test_explicit_portuguese_no_tracks_row_is_empty_index(tmp_path):
         "| nenhuma trilha aberta hoje | — |\n\n## 1. Visão\n", encoding="utf-8")
     assert _user_files.active_track_slugs(sdd) == set()
     assert _tracks.active_tracks(tmp_path) == []
-    assert _user_files._scan_tracks_v4(sdd) == []
+    # R3-02: the sentinel "no track open today" row still makes every track
+    # on disk closed (empty active set); "old" earns closed_in_place.
+    kinds = [(d.track, d.kind) for d in _user_files._scan_tracks_v4(sdd)]
+    assert kinds == [("old", "closed_in_place")]
+
+
+# ------------------------------------------------------------------- close
+
+def _close_project(root: Path, slug: str, *, claim: bool = False) -> None:
+    sdd = root / ".sdd"
+    (sdd / "tracks" / slug).mkdir(parents=True)
+    (sdd / "tracks" / slug / "state.md").write_text(
+        f"# Track {slug} — ship it\n\n- **State:** IMPLEMENTING\n"
+        "- **Last updated:** 2026-01-01\n\n## Notes\n", encoding="utf-8")
+    (sdd / "constitution.md").write_text(
+        "## Current state\n\n- **State:** IMPLEMENTING\n\n### Active tracks\n\n"
+        "| Track | Branched from | State | Pointer |\n|---|---|---|---|\n"
+        f"| `{slug}` | 010 | IMPLEMENTING | `tracks/{slug}/state.md` |\n"
+        "\n---\n\n## 1. Vision\n", encoding="utf-8")
+    if claim:
+        _tracks.save(root, slug, {"version": 1, "claims": [{"stage": "001", "paths": ["src/**"]}]})
+
+
+def test_close_refuses_when_local_stages_remain(tmp_path):
+    _close_project(tmp_path, "billing")
+    (tmp_path / ".sdd" / "tracks" / "billing" / "stages" / "002-pending").mkdir(parents=True)
+    with pytest.raises(ValueError, match="not incorporated"):
+        _tracks.close(tmp_path, "billing")
+
+
+def test_close_refuses_when_claims_remain(tmp_path):
+    _close_project(tmp_path, "billing", claim=True)
+    with pytest.raises(ValueError, match="claim"):
+        _tracks.close(tmp_path, "billing")
+
+
+def test_close_marks_state_closed_and_drops_the_active_tracks_row(tmp_path):
+    _close_project(tmp_path, "billing")
+    result = _tracks.close(tmp_path, "billing")
+    assert result == {"track": "billing", "state_md": "updated",
+                       "active_tracks_row_removed": True, "archived_to": None, "dry_run": False}
+    state = (tmp_path / ".sdd" / "tracks" / "billing" / "state.md").read_text(encoding="utf-8")
+    assert "**State:** CLOSED" in state
+    constitution = (tmp_path / ".sdd" / "constitution.md").read_text(encoding="utf-8")
+    assert "billing" not in constitution
+
+
+def test_close_with_archive_moves_the_folder(tmp_path):
+    _close_project(tmp_path, "billing")
+    result = _tracks.close(tmp_path, "billing", archive=True)
+    assert result["archived_to"] == ".sdd/tracks/_closed/billing"
+    assert not (tmp_path / ".sdd" / "tracks" / "billing").exists()
+    archived = tmp_path / ".sdd" / "tracks" / "_closed" / "billing" / "state.md"
+    assert "**State:** CLOSED" in archived.read_text(encoding="utf-8")
+
+
+def test_close_dry_run_writes_nothing(tmp_path):
+    _close_project(tmp_path, "billing")
+    state_before = (tmp_path / ".sdd" / "tracks" / "billing" / "state.md").read_bytes()
+    constitution_before = (tmp_path / ".sdd" / "constitution.md").read_bytes()
+    result = _tracks.close(tmp_path, "billing", archive=True, dry_run=True)
+    assert result["dry_run"] is True
+    assert result["state_md"] == "updated" and result["active_tracks_row_removed"] is True
+    assert result["archived_to"] == ".sdd/tracks/_closed/billing"
+    assert (tmp_path / ".sdd" / "tracks" / "billing" / "state.md").read_bytes() == state_before
+    assert (tmp_path / ".sdd" / "constitution.md").read_bytes() == constitution_before
+    assert not (tmp_path / ".sdd" / "tracks" / "_closed").exists()
+
+
+def test_close_rejects_an_unknown_track(tmp_path):
+    (tmp_path / ".sdd" / "tracks").mkdir(parents=True)
+    with pytest.raises(ValueError, match="no such track"):
+        _tracks.close(tmp_path, "ghost")
+
+
+def test_cmd_track_close_reports_what_changed(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    _close_project(tmp_path, "billing")
+    cmd_track(_args(track_command="close", slug="billing", archive=False, dry_run=False))
+    out = capsys.readouterr().out
+    assert "closed track billing" in out
+    assert "removed" in out

@@ -38,6 +38,16 @@
   pre-existing WARN whenever Git's answer cannot be determined (no `git` on
   PATH, not a repository).
 
+- R3-02: `sdd track close <slug>` (with `--archive`) gives a track a real
+  end: refuses unless every local stage is incorporated and no claim
+  remains, marks `state.md` CLOSED, and drops its row from `### Active
+  tracks` under the same lock `incorporate` uses — automating what the
+  `sdd-reconcile` narrative used to leave to memory. `--archive` moves the
+  folder to `.sdd/tracks/_closed/<slug>`. `sdd doctor` gains the note
+  `track_closed_in_place` for a closed track still sitting outside
+  `_closed/`, where it used to be silent (indistinguishable from an open
+  one without opening every `state.md`).
+
 ## [4.2.2] — In progress
 
 ### Fixed

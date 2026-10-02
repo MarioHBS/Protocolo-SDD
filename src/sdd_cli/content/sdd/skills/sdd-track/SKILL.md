@@ -29,7 +29,8 @@ apart; the separation has to be **declared and checked**:
 | `sdd track verify <slug>` | fails when real Git changes fall outside every claim (or inside two) |
 | `sdd seq next <name>` | hands out the next number of a shared sequence, once |
 | `sdd track incorporate` | moves a closed stage into the canonical queue under a lock |
-| `sdd doctor` | reports `track_overlap`, `sequence_duplicate`, `session_branch_mismatch` |
+| `sdd track close <slug>` | once every local stage is incorporated and no claim remains: marks `state.md` CLOSED, drops the `### Active tracks` row (`--archive` also moves the folder to `tracks/_closed/`) |
+| `sdd doctor` | reports `track_overlap`, `sequence_duplicate`, `session_branch_mismatch`, `track_closed_in_place` (a closed track not yet archived) |
 
 If a candidate stage collides with a sibling, **do not open it in parallel**:
 sequence it after the colliding stage (fill its §5 `Depends on`) or put both in
@@ -207,10 +208,16 @@ type-check globs with copies of the code.
    §5 against disk for every incorporated track stage; regenerate
    `roadmap.md` from the now-complete §5 (the single deferred regeneration
    point); if a join stage was waiting on these tracks, confirm it is now
-   unblocked; decide with the user the single next `Active stage`; and drop the
-   finished tracks' rows from `### Active tracks` (a track absent from that table
-   is treated as concluded). Do **not** delete the finished `tracks/<slug>/`
-   directories — leave them as historical evidence.
+   unblocked; and decide with the user the single next `Active stage`. Then
+   run `sdd track close <slug>` for each finished track: it refuses unless
+   every local stage is already incorporated and no claim remains, marks
+   `tracks/<slug>/state.md` CLOSED and drops the row from `### Active
+   tracks` under the same lock `incorporate` uses — doing by hand, and
+   atomically, what used to be "remember to drop the row yourself." Do
+   **not** delete the finished `tracks/<slug>/` directory — `close
+   --archive` moves it to `tracks/_closed/<slug>/` instead, so it stays as
+   historical evidence without sitting among the open tracks (`sdd doctor`
+   reports `track_closed_in_place` for one left in place).
 
 A track parked on purpose (waiting for the client, another team, a decision) stays in
 `### Active tracks` with its State set to `on hold` (or `em espera`); the doctor then

@@ -1009,7 +1009,10 @@ def _doctor_payload(root: Path) -> dict:
         findings.append({"severity": "warn", "code": "closed_open_todo", "stage": item.stage,
                          "open": item.open_checkboxes})
     for item in hyg.track_divergences:
-        findings.append({"severity": "warn", "code": f"track_{item.kind}",
+        # closed_in_place is informational (nothing is wrong, the folder just
+        # was not archived yet) -- everything else stays a real WARN.
+        severity = "note" if item.kind == "closed_in_place" else "warn"
+        findings.append({"severity": severity, "code": f"track_{item.kind}",
                          "track": item.track, "track_state": item.track_state, "detail": item.detail})
     manifest_data = manifest.load(root)
     constitution = sdd / "constitution.md"
@@ -1441,6 +1444,23 @@ def cmd_track(args) -> None:
             print(f"track {args.slug} verified")
         if findings:
             raise SystemExit(1)
+        return
+    if args.track_command == "close":
+        try:
+            result = _tracks.close(root, args.slug, archive=args.archive, dry_run=args.dry_run)
+        except ValueError as exc:
+            die(str(exc))
+        if args.json:
+            _emit_json(result)
+        else:
+            verb = "would close" if args.dry_run else "closed"
+            print(f"{verb} track {args.slug}")
+            if result["state_md"]:
+                print(f"  state.md: {result['state_md']}")
+            print(f"  Active tracks row: {'removed' if result['active_tracks_row_removed'] else 'not found (nothing to remove)'}")
+            if result["archived_to"]:
+                moved = "would move" if args.dry_run else "moved"
+                print(f"  {moved} to {result['archived_to']}")
         return
     try:
         conflicts = _tracks.check(root)
@@ -2740,7 +2760,8 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "track": ("Parallel tracks share one working tree, so their footprints are declared and checked: two "
               "stages may live in different tracks only if they cannot affect each other.",
               "sdd track claim billing --stage 001 --path 'src/billing/**' --seq migration\n"
-              "sdd track check\nsdd track verify billing\nsdd track incorporate billing 001-invoice-export"),
+              "sdd track check\nsdd track verify billing\nsdd track incorporate billing 001-invoice-export\n"
+              "sdd track close billing --archive"),
     "track claim": ("Record a track's footprint: paths, shared sequences, exclusive runtime resources.",
                     "sdd track claim api --stage 001 --path 'src/api/**' --runtime db-write"),
     "track check": ("Fail (exit 1) when two active tracks' footprints overlap.", "sdd track check --json"),
@@ -2749,6 +2770,10 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "track incorporate": ("Move a closed track stage into the canonical queue: takes the next free number, "
                           "renames the folder, appends the section-5 row, releases the claims - under a lock.",
                           "sdd track incorporate billing 001-invoice-export --dry-run"),
+    "track close": ("Finish a track whose work is fully incorporated: refuses if local stages or claims "
+                    "remain, marks state.md CLOSED, drops its Active tracks row, optionally archives the "
+                    "folder under .sdd/tracks/_closed/.",
+                    "sdd track close billing --dry-run\nsdd track close billing --archive"),
     "seq": ("Hand out numbers of a shared sequence (for example database migrations) exactly once.",
             "sdd seq next migration --track billing"),
     "seq next": ("Reserve the next number in .sdd/.reservations.json. Sequences are declared in the "
@@ -3042,6 +3067,15 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     verify.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     verify.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     verify.set_defaults(func=cmd_track)
+    close = track_sub.add_parser(
+        "close", help="finish a track: mark state.md CLOSED and drop its Active tracks row")
+    close.add_argument("slug", help="track slug")
+    close.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    close.add_argument("--archive", action="store_true",
+                        help="also move the folder to .sdd/tracks/_closed/<slug>")
+    close.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
+    close.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    close.set_defaults(func=cmd_track)
 
     seq = sub.add_parser("seq", help="reserve a shared numeric sequence")
     seq_sub = seq.add_subparsers(dest="seq_command", required=True)

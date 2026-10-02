@@ -64,3 +64,32 @@ Chose to print the snippet in the hint rather than have `sdd fix` write into
 JS/TS files (`.js`/`.ts`/`.mjs`, different export shapes), and `fix` is
 documented as deterministic repairs only — editing them safely is a bigger,
 separate capability, not a one-line fix.
+
+## R3-02 — track lifecycle, `sdd track close`
+
+`_tracks.close()` mirrors `incorporate()`'s shape: same lock
+(`.sdd/tracks/.lock`), same refuse-instead-of-guess discipline (local stages
+not incorporated, or claims still recorded, are errors, not warnings). It
+marks `state.md` CLOSED by substituting the template's own `**State:**` and
+`**Last updated:**` fields in place — a `state.md` that does not use that
+field (truly free-form) is left untouched rather than guessed at — and drops
+the track's row from `### Active tracks` via the same EN/PT heading lookup
+R2-02 already uses. `--archive` moves the folder with plain `shutil.move`,
+the same primitive `incorporate` already uses for stage folders, into a new
+`tracks/_closed/` bucket that `_scan_tracks_v4` now skips entirely (its
+contents are history, not a track to audit).
+
+The finding code ended up `track_closed_in_place` (matching the sibling
+codes `track_not_started`/`track_not_incorporated`) rather than the plan's
+literal `closed_track_in_place` — consistency with the established
+`track_<kind>` convention seemed more valuable than the exact string in the
+plan, which was a working label, not a contract. Severity is `note`, not
+`warn`: nothing is wrong, the folder just was not archived yet.
+
+Three existing tests encoded the old silence as correct (`test_doctor.py`,
+two in `test_tracks.py`) — updated, since that silence was exactly IP-008's
+complaint, not a behavior to protect. Cross-file text references to
+`tracks/<slug>/state.md` (reports, CHANGELOG) are **not** rewritten by
+`--archive` — flagged as a known gap in the plan, unchanged here; the
+command's own output names the old and new path so whoever archives can
+grep for the rest by hand.

@@ -293,8 +293,11 @@ def test_track_dropped_from_active_table_is_not_reported_as_not_started(tmp_path
         "| Track | State |\n| --- | --- |\n| `waiting-track` | open |\n\n## 1. Vision\n",
         encoding="utf-8")
 
-    slugs = {d.track for d in _user_files.scan_hygiene(sdd).track_divergences}
-    assert slugs == {"waiting-track"}
+    # R3-02: a track dropped from Active tracks is done, not abandoned -- it
+    # must never be mislabeled "not_started"; it is now `closed_in_place`
+    # instead (the folder just was not archived).
+    kinds = {d.track: d.kind for d in _user_files.scan_hygiene(sdd).track_divergences}
+    assert kinds == {"waiting-track": "not_started", "done-track": "closed_in_place"}
 
 
 def test_active_track_slugs_ignores_template_comment_rows(tmp_path):

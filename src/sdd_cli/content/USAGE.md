@@ -142,7 +142,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | Backlog | `backlog_orphan`, `queue_row_without_section` | Backlog and provisional queue disagree. |
 | Documentation | `docs_missing_file`, `docs_missing_header`, `docs_path_outside_project` | The documentation plan versus disk. |
 | Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch` | A saved session that no longer fits reality. |
-| Tracks | `track_not_started`, `track_not_incorporated`, `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
+| Tracks | `track_not_started`, `track_not_incorporated`, `track_closed_in_place` (note; `sdd track close`), `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
 | Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path) | A stale copy of `.sdd/` (see `sdd track`). |
 | Dependencies | `dependency_inconsistent` | `sdd deps` records that no longer hold. |
 
@@ -211,7 +211,7 @@ For a stage with a **locked** `spec.md`, creates the missing `todo.md` (from the
 spec's acceptance criteria) and, with Eval Driven Development on, `evals.md` and
 `checklist.md`. Never overwrites.
 
-### `sdd track <claim|check|verify|incorporate>`
+### `sdd track <claim|check|verify|incorporate|close>`
 
 Parallel tracks share **one working tree**, so nothing physical keeps two agent
 sessions apart. The CLI makes the separation checkable: two stages may live in
@@ -230,6 +230,11 @@ they need exclusively.
   the canonical queue: under a lock it takes the next free number (disk, section 5
   and the ledger), renames the folder, appends the index row and releases the
   claims. Two sessions can no longer take the same number.
+- `sdd track close SLUG [--archive] [--dry-run]` finishes a track once every
+  local stage is incorporated and no claim remains: marks `state.md` CLOSED,
+  drops its row from `Active tracks`. `--archive` also moves the folder to
+  `.sdd/tracks/_closed/<slug>` (a closed track left in place is reported as
+  the note `track_closed_in_place`).
 
 Agents such as Kilo Code create git **worktrees** on their own: each is a full
 copy including a stale `.sdd/`. `sdd doctor` reports them; `sdd fix --gitignore`
