@@ -89,6 +89,24 @@ def test_readme_warns_against_npx_with_the_same_wording():
     assert _NPX_WARNING in _normalized(readme)
 
 
+# R3-05: 345 agent-written .sdd/ files had markdownlint violations (blank
+# lines around headings/lists/fences, missing fence language, bold standing
+# in for a heading) even though every template was already clean -- nothing
+# told the writing agent the common rules. The three skills that write
+# artifacts after sdd-specify carry the same short checklist.
+_MARKDOWN_HYGIENE_CORE = "blank line before and after every heading, list and fenced code block"
+
+
+def test_writing_skills_carry_the_same_markdown_hygiene_checklist():
+    content = Path(__file__).parents[1] / "src" / "sdd_cli" / "content" / "sdd" / "skills"
+    for skill in ("sdd-specify", "sdd-implement", "sdd-close"):
+        text = _normalized((content / skill / "SKILL.md").read_text(encoding="utf-8"))
+        assert _MARKDOWN_HYGIENE_CORE in text, f"{skill}: missing or reworded hygiene checklist"
+        # P4 wraps prose at ~80 columns, P2 disables MD013: the kit must not
+        # pick a side.
+        assert "No rule on line length" in text
+
+
 def test_reinstall_without_force_changes_nothing(tmp_path, capsys):
     cmd_init(_args(tmp_path))
     constitution = tmp_path / ".sdd" / "constitution.md"

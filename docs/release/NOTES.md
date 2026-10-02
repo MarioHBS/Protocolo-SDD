@@ -35,3 +35,15 @@ reads markdown TABLE rows under the Provisional queue heading with a literal
 hint, `backlog.template.md` and the `sdd-roadmap` skill now all show the same
 concrete row, `| my-slug | pending | — | See backlog.md#my-slug |`, so the
 contract is visible in the three places someone would look.
+
+## R3-05 — markdown hygiene checklist
+
+Same short checklist, repeated (not pointed-to) in `sdd-specify`,
+`sdd-implement` and `sdd-close`, since each is loaded independently and none
+assumes the others were read in the same session. A test normalizes
+whitespace (the checklist line wraps inside the Markdown source) and checks
+all three files for the same core clause, plus the explicit "no line-length
+rule" sentence — P4 wraps at ~80 columns, P2 disables MD013, so the kit
+cannot pick a side. The automatic linter/fixer this episode also suggested
+stays deferred (A-04): this item is the cause (nobody told the agent the
+rules), not the backstop.

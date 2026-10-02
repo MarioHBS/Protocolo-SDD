@@ -63,6 +63,16 @@ Write all artifacts in the language set in
   `[!]` means *evaluated and not met* (point to `report.md` §7). Both count as
   resolved; neither may be faked as `[x]`.
 
+## Markdown hygiene
+
+Templates are already correct; drift happens in what gets typed into them
+afterward. Keep `todo.md`, `evals.md` and any other `.sdd/` artifact you edit
+clean of the most common violations: a blank line before and after every
+heading, list and fenced code block; a language on every fenced code block
+(` ```text ` when none fits); a heading instead of bold text standing in for
+one. No rule on line length — some projects wrap prose at ~80 columns, others
+do not; follow whatever the project already does.
+
 ## Rules
 
 - The executor agent is responsible for the build itself. This skill only

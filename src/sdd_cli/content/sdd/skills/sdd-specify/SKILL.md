@@ -116,6 +116,16 @@ earlier stage delivered, **never do it silently**:
 4. Verify that completed stages remain valid; if one broke, register a
    reconciliation stage instead of leaving an inconsistency.
 
+## Markdown hygiene
+
+Templates are already correct; drift happens in what gets typed into them
+afterward. Keep the spec clean of the most common violations: a blank line
+before and after every heading, list and fenced code block; a language on
+every fenced code block (` ```text ` when none fits); a heading instead of
+bold text standing in for one. No rule on line length — some projects wrap
+prose at ~80 columns, others do not; follow whatever the project already
+does.
+
 ## Rules
 
 - One stage at a time. Never specify the next before closing the current one.

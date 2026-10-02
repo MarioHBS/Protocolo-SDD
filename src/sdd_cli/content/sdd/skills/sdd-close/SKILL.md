@@ -141,6 +141,16 @@ Write all artifacts in the language set in
 After the stage state leaves IMPLEMENTING, run `sdd session sync` to clear the
 formal interruption context (or use `sdd session close` after the report exists).
 
+## Markdown hygiene
+
+Templates are already correct; drift happens in what gets typed into them
+afterward. Keep `report.md` and `checklist.md` clean of the most common
+violations: a blank line before and after every heading, list and fenced code
+block; a language on every fenced code block (` ```text ` when none fits); a
+heading instead of bold text standing in for one. No rule on line length —
+some projects wrap prose at ~80 columns, others do not; follow whatever the
+project already does.
+
 ## Rules
 
 - The report must suffice as context: whoever specifies the next stage should not

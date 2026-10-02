@@ -23,6 +23,12 @@
   row with a literal `Slug` column, not a bullet list or a bare
   `backlog.md#slug` link. `backlog.template.md` and the `sdd-roadmap` skill
   carry the same concrete example row.
+- R3-05: `sdd-specify`, `sdd-implement` and `sdd-close` each gained a short
+  "Markdown hygiene" checklist (blank lines around headings/lists/fences, a
+  language on every fence, a heading instead of bold text) — the templates
+  were already correct; the drift was in what agents typed into them
+  afterward. Deliberately no line-length rule: evaluated projects disagree
+  on it.
 
 ## [4.2.2] — In progress
 
