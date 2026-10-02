@@ -28,7 +28,7 @@ from . import (
     manifest,
     providers,
 )
-from .content import CONTENT_DIR, KIT_VERSION
+from .content import CLI_NAME, CONTENT_DIR, KIT_VERSION
 
 # ---------------------------------------------------------------- utilities
 
@@ -46,6 +46,21 @@ def dim(t): return _c(t, "2")
 def die(msg: str) -> None:
     print(f"{red('error:')} {msg}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def _cli_executable_path() -> str:
+    """Resolve the path of the running `sdd` command itself (R3-01).
+
+    An agent that cannot find the command on PATH, or that reaches a
+    different install than expected (pipx vs. an editable checkout), gets a
+    concrete path to compare instead of guessing. Falls back to `which`
+    when argv[0] is a bare name the shell already resolved for us.
+    """
+    argv0 = Path(sys.argv[0]) if sys.argv else None
+    if argv0 and argv0.name and argv0.exists():
+        return str(argv0.resolve())
+    found = shutil.which(CLI_NAME)
+    return found or f"(not found on PATH as {CLI_NAME!r}; invoked as {sys.argv[0]!r})"
 
 
 LANGUAGES = {
@@ -693,6 +708,7 @@ def _context_payload(root: Path, budget: bool = False) -> dict:
     startup = text[:cutoff.start()] if cutoff else text
     state, stage = _scope_state(root)
     data = {"version": 1, "command": "context", "project": str(root),
+            "cli_path": _cli_executable_path(),
             "settings_and_current_state": startup, "state": state,
             "active_stage": stage}
     if stage:
@@ -734,6 +750,7 @@ def cmd_context(args) -> None:
     if args.json:
         _emit_json(data)
         return
+    print(dim(f"{CLI_NAME} executable: {data['cli_path']}"))
     print(data["settings_and_current_state"].rstrip())
     print(f"\nActive stage: {data['active_stage'] or '(none)'}")
     for name, path in data.get("active_paths", {}).items():
@@ -762,6 +779,7 @@ def cmd_doctor(args) -> None:
         return
 
     print(bold(f"doctor — {root}"))
+    print(dim(f"  {CLI_NAME} executable: {_cli_executable_path()}"))
 
     # --- SDD presence + version -------------------------------------------
     # The doctor's first job is to tell whether this is an SDD project at all,
@@ -948,6 +966,7 @@ def _doctor_payload(root: Path) -> dict:
     sdd = root / ".sdd"
     if not sdd.is_dir():
         return {"version": 1, "command": "doctor", "project": str(root),
+                "cli_path": _cli_executable_path(),
                 "status": 0, "sdd": None, "findings": [{"severity": "note", "code": "no_sdd"}]}
     reports = _mojibake.scan_tree(sdd)
     hyg = _user_files.scan_hygiene(sdd)
@@ -1103,6 +1122,7 @@ def _doctor_payload(root: Path) -> dict:
                                      "and type-check globs (vitest/eslint/tsc/pytest); never read or edit "
                                      ".sdd/ inside it"})
     return {"version": 1, "command": "doctor", "project": str(root),
+            "cli_path": _cli_executable_path(),
             "sdd": (manifest_data or {}).get("kit_version", "v1 (no manifest)"),
             "status": 1 if any(x["severity"] == "error" for x in findings) else 0,
             "findings": findings}
@@ -2746,12 +2766,12 @@ def _enrich_help(parser: argparse.ArgumentParser, path: tuple[str, ...] = ()) ->
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="sdd",
+        prog=CLI_NAME,
         description="Spec-Driven Development scaffolding for AI coding agents.",
         epilog=_ROOT_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--version", action="version", version=f"sdd {KIT_VERSION}")
+    p.add_argument("--version", action="version", version=f"{CLI_NAME} {KIT_VERSION}")
     sub = p.add_subparsers(dest="command", required=True)
 
     i = sub.add_parser("init", help="install the SDD kit into a project")

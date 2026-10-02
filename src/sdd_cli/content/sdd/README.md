@@ -9,6 +9,11 @@ etc.) pointing back here.
 > read this file, then only the `Settings` and `Current state` prefix of
 > `constitution.md` (or run `sdd context`). Its `Current state` field tells you
 > which phase the project is in and which skill to load. Never skip phases.
+>
+> `sdd` is a Python binary already on PATH (installed via `pipx`/`uv tool`, or
+> an editable checkout), even in a Node/JS project where reaching for a
+> package runner is the usual habit — never `npx`/`npm`; if not found, check
+> `where sdd` / `which sdd` before assuming it is missing.
 
 **Language rule:** these instructions are written in English for reliability.
 All *interactions with the user* and all *generated artifacts* (constitution,

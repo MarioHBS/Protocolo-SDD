@@ -1,5 +1,17 @@
 # Changelog — sdd-cli
 
+## [4.3.0] — In progress
+
+### Fixed
+
+- R3-01: every provider shim, the installed `.sdd/README.md` and the kit's own
+  README now say that `sdd` is a Python binary already on PATH and must never
+  be invoked through `npx`/`npm`, with the `where sdd`/`which sdd` fallback —
+  all with the exact same core wording, so none can drift from the others.
+  `sdd context` and `sdd doctor` also print the path of the running
+  executable. The command name is now a single `CLI_NAME` constant (used by
+  `prog=`/`--version`), so the planned rename (stage 4.5.0) touches one line.
+
 ## [4.2.2] — In progress
 
 ### Fixed

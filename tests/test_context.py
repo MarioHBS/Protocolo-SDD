@@ -28,6 +28,26 @@ def test_context_reads_only_the_constitution_prefix(capsys, tmp_path):
     assert "secret later section" not in output
 
 
+def test_context_prints_the_cli_executable_path(capsys, tmp_path):
+    # R3-01: an agent that cannot find `sdd` on PATH gets a concrete path to
+    # compare against, instead of guessing which install answered.
+    sdd = tmp_path / ".sdd"
+    sdd.mkdir()
+    (sdd / "README.md").write_text("# Method\n", encoding="utf-8")
+    (sdd / "constitution.md").write_text(
+        "# Constitution\n\n## Settings\n\n- **Language:** en\n\n"
+        "## Current state\n\n- **State:** INITIALIZING\n\n", encoding="utf-8")
+
+    cmd_context(_args(tmp_path))
+    output = capsys.readouterr().out
+    assert "executable:" in output
+
+    cmd_context(_args(tmp_path, json=True))
+    import json as _json
+    payload = _json.loads(capsys.readouterr().out)
+    assert payload["cli_path"]
+
+
 def test_context_budget_distinguishes_hot_and_cold_files(capsys, tmp_path):
     sdd = tmp_path / ".sdd"
     sdd.mkdir()

@@ -8,7 +8,7 @@ IDE-agnostic and lives in `.sdd/`.
 Do this, in order:
 
 1. Read `.sdd/README.md` (methodology, ground-truth principle, state machine).
-2. Run `sdd context` when available; otherwise read only `Settings` and `Current state` in `.sdd/constitution.md` (through `## 1.`).
+2. Run `sdd context` when available — `sdd` is a Python binary already on PATH (never `npx`/`npm`; if not found, check `where sdd` / `which sdd` before assuming it is missing) — otherwise read only `Settings` and `Current state` in `.sdd/constitution.md` (through `## 1.`).
 3. Load and follow the skill matching the current state, from `.sdd/skills/`:
    - INITIALIZING -> `sdd-init`
    - DECIDING     -> `sdd-decide`

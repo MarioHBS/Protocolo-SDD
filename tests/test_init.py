@@ -60,6 +60,35 @@ def test_shim_tells_the_agent_to_load_only_what_it_needs(tmp_path):
     assert "linked git worktree" in shim
 
 
+# R3-01: an agent in a Node/JS project ran `npx sdd doctor`, which executed an
+# unrelated npm package. Every shim and the README must say, with the exact
+# same core wording (not reworded per provider, which would drift silently),
+# that `sdd` is a Python binary on PATH and never invoked through npx/npm.
+# Markdown may hard-wrap the sentence (the README's is inside a `>` blockquote),
+# so the comparison folds whitespace and strips blockquote markers first.
+_NPX_WARNING = "never `npx`/`npm`; if not found, check `where sdd` / `which sdd` before assuming it is missing"
+
+
+def _normalized(text: str) -> str:
+    import re as _re
+    return _re.sub(r"\s+", " ", text.replace(">", " "))
+
+
+def test_every_shim_warns_against_npx_with_the_same_wording():
+    from sdd_cli import providers
+
+    for entry in providers.PROVIDERS:
+        text = (Path(__file__).parents[1] / "src" / "sdd_cli" / "content" / "shims"
+                 / entry.shim_source).read_text(encoding="utf-8")
+        assert _NPX_WARNING in _normalized(text), f"{entry.key}: missing or reworded npx warning"
+
+
+def test_readme_warns_against_npx_with_the_same_wording():
+    readme = (Path(__file__).parents[1] / "src" / "sdd_cli" / "content" / "sdd"
+              / "README.md").read_text(encoding="utf-8")
+    assert _NPX_WARNING in _normalized(readme)
+
+
 def test_reinstall_without_force_changes_nothing(tmp_path, capsys):
     cmd_init(_args(tmp_path))
     constitution = tmp_path / ".sdd" / "constitution.md"

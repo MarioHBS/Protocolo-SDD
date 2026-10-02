@@ -7,7 +7,7 @@ lifecycle), R3-07 last (needs an explicit design call during implementation).
 
 ## Items
 
-- [ ] R3-01 — `CLI_NAME` constant; shims/README/skills say `sdd` is a Python binary on PATH, never `npx`/`npm`; `doctor`/`context` print the executable path
+- [x] R3-01 — `CLI_NAME` constant; shims/README/skills say `sdd` is a Python binary on PATH, never `npx`/`npm`; `doctor`/`context` print the executable path
 - [ ] R3-06 — dependency-missing message cites `sys.executable`; manual's `--ui` list corrected
 - [ ] R3-04 — `backlog_orphan` message shows the expected queue-row format; template and skill carry an example
 - [ ] R3-05 — `sdd-specify`/`sdd-implement`/`sdd-close` gain a short markdown-hygiene checklist (blank lines around headings/lists/fences, language on every fence, heading instead of bold)

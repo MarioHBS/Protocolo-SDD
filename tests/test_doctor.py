@@ -69,6 +69,16 @@ def test_no_sdd_does_not_audits_mojibake(capsys, tmp_path):
     assert "hygiene" not in out
 
 
+def test_doctor_always_prints_the_cli_executable_path(capsys, tmp_path):
+    # R3-01: shown even with no .sdd/, so an agent debugging "command not
+    # found" sees which install answered before anything else runs.
+    out, _ = _run(capsys, tmp_path)
+    assert "executable:" in out
+
+    payload = _doctor_payload(tmp_path)
+    assert payload["cli_path"]
+
+
 # ------------------------------------------------------- v1 legacy (no man) -
 
 def _make_legacy(tmp_path: Path) -> Path:
