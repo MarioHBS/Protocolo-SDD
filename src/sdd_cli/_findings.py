@@ -71,6 +71,11 @@ _TEXT: dict[str, tuple[str, str]] = {
                                "continue from the main checkout"),
     "nested_worktree_copies": ("{count} agent worktree copies (with their own .sdd/) under {path}",
                                "sdd fix --gitignore, and exclude the folder from test/lint globs"),
+    "nested_worktree_copies_ignored": (
+        "{count} agent worktree copies under {path} are already .gitignore'd, but a test/lint/"
+        "type-check tool that reads the filesystem directly still scans them",
+        "add {path} to vitest.config test.exclude, eslint.config globalIgnores, and tsconfig "
+        "exclude -- .gitignore alone does not stop a tool that does not consult Git"),
 }
 
 

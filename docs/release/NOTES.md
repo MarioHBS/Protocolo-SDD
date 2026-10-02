@@ -47,3 +47,20 @@ rule" sentence — P4 wraps at ~80 columns, P2 disables MD013, so the kit
 cannot pick a side. The automatic linter/fixer this episode also suggested
 stays deferred (A-04): this item is the cause (nobody told the agent the
 rules), not the backstop.
+
+## R3-03 — nested worktree, git check-ignore
+
+`_git_already_ignores` wraps `git check-ignore -q` and returns `True`/`False`
+for a real answer, `None` for "could not tell" (no `git`, not a repository,
+any other failure) — callers must treat `None` like the pre-existing
+behavior, never like "not ignored". When it returns `True`, the finding code
+changes from `nested_worktree_copies` (warn) to `nested_worktree_copies_ignored`
+(note), whose hint names the three tool configs (`vitest.config`
+`test.exclude`, `eslint.config` `globalIgnores`, `tsconfig` `exclude`) instead
+of repeating "run `sdd fix --gitignore`" when that step is already done.
+
+Chose to print the snippet in the hint rather than have `sdd fix` write into
+`vitest.config`/`eslint.config`/`tsconfig` directly: those are arbitrary
+JS/TS files (`.js`/`.ts`/`.mjs`, different export shapes), and `fix` is
+documented as deterministic repairs only — editing them safely is a bigger,
+separate capability, not a one-line fix.

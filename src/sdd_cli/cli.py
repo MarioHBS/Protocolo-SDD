@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -61,6 +62,26 @@ def _cli_executable_path() -> str:
         return str(argv0.resolve())
     found = shutil.which(CLI_NAME)
     return found or f"(not found on PATH as {CLI_NAME!r}; invoked as {sys.argv[0]!r})"
+
+
+def _git_already_ignores(root: Path, rel_path: str) -> bool | None:
+    """Whether Git already ignores ``rel_path`` (R3-03).
+
+    `True`/`False` is a real answer; `None` means "could not tell" -- no git
+    on PATH, not a repository, or any other failure -- and callers must then
+    fall back to the pre-existing behavior (as if nothing is known about
+    .gitignore), never treat "could not tell" as "not ignored".
+    """
+    if shutil.which("git") is None:
+        return None
+    try:
+        result = subprocess.run(["git", "check-ignore", "-q", "--", rel_path], cwd=root,
+                                 capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode in (0, 1):
+        return result.returncode == 0
+    return None  # e.g. 128: not a git repository
 
 
 LANGUAGES = {
@@ -1115,12 +1136,19 @@ def _doctor_payload(root: Path) -> dict:
             continue
         copies = [path for path in worktree_dir.iterdir() if path.is_dir() and (path / ".sdd").is_dir()]
         if copies:
-            findings.append({"severity": "warn", "code": "nested_worktree_copies",
-                             "path": str(worktree_dir.relative_to(root)).replace("\\", "/"),
-                             "count": len(copies),
-                             "hint": "run 'sdd fix --gitignore' and exclude this folder from test, lint "
-                                     "and type-check globs (vitest/eslint/tsc/pytest); never read or edit "
-                                     ".sdd/ inside it"})
+            rel = str(worktree_dir.relative_to(root)).replace("\\", "/")
+            # R3-03: the doctor used to repeat the same WARN after the owner
+            # already ran `sdd fix --gitignore` — the real damage was Vitest/
+            # ESLint/tsc still scanning the copy by path, which .gitignore
+            # cannot stop. Downgrade to a note once Git already ignores it,
+            # and name what is actually still missing.
+            ignored = _git_already_ignores(root, rel)
+            if ignored:
+                findings.append({"severity": "note", "code": "nested_worktree_copies_ignored",
+                                 "path": rel, "count": len(copies)})
+            else:
+                findings.append({"severity": "warn", "code": "nested_worktree_copies",
+                                 "path": rel, "count": len(copies)})
     return {"version": 1, "command": "doctor", "project": str(root),
             "cli_path": _cli_executable_path(),
             "sdd": (manifest_data or {}).get("kit_version", "v1 (no manifest)"),

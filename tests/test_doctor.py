@@ -239,6 +239,49 @@ def test_doctor_reports_overlapping_track_claims_and_nested_worktrees(tmp_path):
     assert any(item["code"] == "nested_worktree_copies" for item in findings)
 
 
+def test_nested_worktree_already_gitignored_is_downgraded_to_a_note(tmp_path, monkeypatch):
+    # R3-03: once `sdd fix --gitignore` already ran, repeating the same WARN
+    # forever trains the owner to ignore the doctor. The real remaining gap
+    # is the test/lint tool config, which the note must name.
+    root = _make_modern(tmp_path)
+    (root / ".kilo" / "worktrees" / "copy" / ".sdd").mkdir(parents=True)
+    monkeypatch.setattr("sdd_cli.cli._git_already_ignores", lambda *_a, **_k: True)
+
+    findings = _doctor_payload(root)["findings"]
+    assert not any(item["code"] == "nested_worktree_copies" for item in findings)
+    note = next(item for item in findings if item["code"] == "nested_worktree_copies_ignored")
+    assert note["severity"] == "note"
+
+
+def test_nested_worktree_unknown_git_state_keeps_the_warn(tmp_path, monkeypatch):
+    root = _make_modern(tmp_path)
+    (root / ".kilo" / "worktrees" / "copy" / ".sdd").mkdir(parents=True)
+    monkeypatch.setattr("sdd_cli.cli._git_already_ignores", lambda *_a, **_k: None)
+
+    findings = _doctor_payload(root)["findings"]
+    assert any(item["code"] == "nested_worktree_copies" and item["severity"] == "warn"
+               for item in findings)
+
+
+def test_git_already_ignores_reads_the_real_gitignore(tmp_path):
+    import subprocess
+
+    from sdd_cli.cli import _git_already_ignores
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
+    (tmp_path / ".gitignore").write_text("/.kilo/worktrees/\n", encoding="utf-8")
+    (tmp_path / ".kilo" / "worktrees").mkdir(parents=True)
+
+    assert _git_already_ignores(tmp_path, ".kilo/worktrees") is True
+    assert _git_already_ignores(tmp_path, "src") is False
+
+
+def test_git_already_ignores_degrades_to_none_outside_a_repo(tmp_path):
+    from sdd_cli.cli import _git_already_ignores
+
+    assert _git_already_ignores(tmp_path, "anything") is None
+
+
 def test_track_dropped_from_active_table_is_not_reported_as_not_started(tmp_path):
     from sdd_cli import _user_files
 

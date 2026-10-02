@@ -143,7 +143,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | Documentation | `docs_missing_file`, `docs_missing_header`, `docs_path_outside_project` | The documentation plan versus disk. |
 | Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch` | A saved session that no longer fits reality. |
 | Tracks | `track_not_started`, `track_not_incorporated`, `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
-| Worktrees | `inside_linked_worktree`, `nested_worktree_copies` | A stale copy of `.sdd/` (see `sdd track`). |
+| Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path) | A stale copy of `.sdd/` (see `sdd track`). |
 | Dependencies | `dependency_inconsistent` | `sdd deps` records that no longer hold. |
 
 ### `sdd fix [PATH] [--dry-run] [--json]`

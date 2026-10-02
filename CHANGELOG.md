@@ -30,6 +30,14 @@
   afterward. Deliberately no line-length rule: evaluated projects disagree
   on it.
 
+- R3-03: `nested_worktree_copies` now checks `git check-ignore` first. Once
+  Git already ignores the worktree folder, the doctor downgrades to the note
+  `nested_worktree_copies_ignored` and names the real remaining gap —
+  Vitest/ESLint/tsc still scan the folder by path, which `.gitignore` cannot
+  stop — instead of repeating the same WARN forever. Degrades to the
+  pre-existing WARN whenever Git's answer cannot be determined (no `git` on
+  PATH, not a repository).
+
 ## [4.2.2] — In progress
 
 ### Fixed
