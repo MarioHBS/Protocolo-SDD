@@ -1044,6 +1044,19 @@ def _doctor_payload(root: Path) -> dict:
                 if expected != actual:
                     findings.append({"severity": "warn", "code": "feature_mismatch", "feature": key,
                                      "constitution": expected, "manifest": actual, "actionable": True})
+        # R3-07: a constitution older than the "Parallel tracks" Settings
+        # field (never overwritten by `sdd update`/`migrate`) can have real
+        # track activity -- an Active tracks row, or a track folder with its
+        # own state.md -- with no explicit on/off line to say whether that
+        # activity means real concurrency or just a sequential grouping.
+        # feature_mismatch above only compares values when the line exists;
+        # this instead catches the line being absent in the first place.
+        if "parallel tracks" not in settings:
+            has_track_activity = bool(_user_files.active_track_slugs(sdd)) \
+                or any((sdd / "tracks").glob("*/state.md"))
+            if has_track_activity:
+                findings.append({"severity": "warn", "code": "tracks_setting_missing",
+                                 "actionable": True})
     drifted = _manifest_eol_drift(root, manifest_data)
     if drifted:
         findings.append({"severity": "note", "code": "manifest_eol_drift", "count": len(drifted),

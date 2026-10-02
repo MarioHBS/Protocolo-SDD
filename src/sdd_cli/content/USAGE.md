@@ -137,6 +137,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | Size | `constitution_oversized`, `long_table_cell`, `cold_file_oversized` | Files or rows that inflate every session. |
 | Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sdd fix --links`). |
 | Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sdd fix --features`). |
+| Settings | `tracks_setting_missing` | Real track activity but no explicit `Parallel tracks:` line in Settings — add `on` or `off` by hand. |
 | Kit | `manifest_eol_drift` (note; `sdd fix --manifest`), `migration_todo_pending` (note), `provider_shim_unmanaged`, `cli_older_than_project` | A shim on disk the manifest does not manage; a `.migration-todo.md` left behind by `sdd migrate`; the CLI is older than the project's kit. |
 | EDD | `edd_missing_evals`, `edd_missing_checklist`, `edd_eval_uncovered`, `edd_spec_not_pointer`, `edd_todo_not_evals`, `edd_missing_performance_doc`, `edd_milestone_without_evaluation`, `milestone_not_contiguous` | Evals without evidence, duplicate criteria, or milestone problems. |
 | Backlog | `backlog_orphan`, `queue_row_without_section` | Backlog and provisional queue disagree. |

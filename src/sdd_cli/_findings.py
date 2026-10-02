@@ -67,6 +67,11 @@ _TEXT: dict[str, tuple[str, str]] = {
     "docs_missing_header": ("{path} lacks {missing}", "add the header the plan requires"),
     "docs_path_outside_project": ("document {path} lives outside the project folder", "intended? edit the plan"),
     "dependency_inconsistent": ("{detail}", "sdd deps list"),
+    "tracks_setting_missing": ("real track activity (an Active tracks row, or a tracks/*/state.md) but "
+                               "no explicit `Parallel tracks:` line in Settings",
+                               "add `**Parallel tracks:** on` (real concurrency, claims checked) or `off` "
+                               "(a sequential grouping, no other session working at the same time) -- "
+                               "do not turn it on just to unblock a skill that checks it"),
     "inside_linked_worktree": ("this is a linked git worktree: its .sdd/ is a stale copy",
                                "continue from the main checkout"),
     "nested_worktree_copies": ("{count} agent worktree copies (with their own .sdd/) under {path}",

@@ -48,6 +48,18 @@
   `_closed/`, where it used to be silent (indistinguishable from an open
   one without opening every `state.md`).
 
+- R3-07: `sdd doctor` now warns (`tracks_setting_missing`) when a project has
+  real track activity — an `Active tracks` row, or any `tracks/*/state.md`
+  on disk — but no explicit `**Parallel tracks:**` line in `Settings` at
+  all. `feature_mismatch` only compares values when the line already
+  exists; this catches the line being absent, which is what let P2/IP-010
+  turn concurrency on just to unblock a skill check for a track that had
+  none. **Design note for the owner:** implemented the plan's cheaper
+  alternative (one boolean, validated) rather than splitting "coordinates
+  claims between agents" from "groups sequential local stages" into two
+  separate questions — the bigger split stays open if this proves
+  insufficient.
+
 ## [4.2.2] — In progress
 
 ### Fixed

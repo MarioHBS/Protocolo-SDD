@@ -282,6 +282,58 @@ def test_git_already_ignores_degrades_to_none_outside_a_repo(tmp_path):
     assert _git_already_ignores(tmp_path, "anything") is None
 
 
+# ------------------------------------------------- R3-07: Parallel tracks ---
+
+def test_real_track_activity_without_the_settings_line_is_flagged(tmp_path):
+    # P2/IP-010: a track was opened (row in Active tracks, a branch, local
+    # stages) with no `Parallel tracks:` line in Settings at all -- the
+    # constitution predates the field and sdd update/migrate never touch a
+    # user file. feature_mismatch alone cannot catch this: it only compares
+    # values when the line exists.
+    root = _make_modern(tmp_path)
+    (root / ".sdd" / "tracks" / "billing").mkdir(parents=True)
+    (root / ".sdd" / "constitution.md").write_text(
+        "## Settings\n\n- **Language:** en\n\n## Current state\n\n"
+        "### Active tracks\n\n| Track | State |\n| --- | --- |\n"
+        "| `billing` | IMPLEMENTING |\n\n## 1. Vision\n", encoding="utf-8")
+
+    findings = _doctor_payload(root)["findings"]
+    assert any(f["code"] == "tracks_setting_missing" for f in findings)
+
+
+def test_a_state_md_on_disk_without_any_active_tracks_row_is_also_flagged(tmp_path):
+    root = _make_modern(tmp_path)
+    (root / ".sdd" / "tracks" / "billing").mkdir(parents=True)
+    (root / ".sdd" / "tracks" / "billing" / "state.md").write_text("- **State:** IMPLEMENTING\n",
+                                                                    encoding="utf-8")
+    (root / ".sdd" / "constitution.md").write_text(
+        "## Settings\n\n- **Language:** en\n\n## 1. Vision\n", encoding="utf-8")
+
+    findings = _doctor_payload(root)["findings"]
+    assert any(f["code"] == "tracks_setting_missing" for f in findings)
+
+
+def test_explicit_parallel_tracks_line_is_not_flagged_even_if_off(tmp_path):
+    root = _make_modern(tmp_path)
+    (root / ".sdd" / "tracks" / "billing").mkdir(parents=True)
+    (root / ".sdd" / "constitution.md").write_text(
+        "## Settings\n\n- **Language:** en\n- **Parallel tracks:** off\n\n## Current state\n\n"
+        "### Active tracks\n\n| Track | State |\n| --- | --- |\n"
+        "| `billing` | IMPLEMENTING |\n\n## 1. Vision\n", encoding="utf-8")
+
+    findings = _doctor_payload(root)["findings"]
+    assert not any(f["code"] == "tracks_setting_missing" for f in findings)
+
+
+def test_no_track_activity_is_not_flagged_even_without_the_line(tmp_path):
+    root = _make_modern(tmp_path)
+    (root / ".sdd" / "constitution.md").write_text(
+        "## Settings\n\n- **Language:** en\n\n## 1. Vision\n", encoding="utf-8")
+
+    findings = _doctor_payload(root)["findings"]
+    assert not any(f["code"] == "tracks_setting_missing" for f in findings)
+
+
 def test_track_dropped_from_active_table_is_not_reported_as_not_started(tmp_path):
     from sdd_cli import _user_files
 

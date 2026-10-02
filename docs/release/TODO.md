@@ -13,7 +13,7 @@ lifecycle), R3-07 last (needs an explicit design call during implementation).
 - [x] R3-05 — `sdd-specify`/`sdd-implement`/`sdd-close` gain a short markdown-hygiene checklist (blank lines around headings/lists/fences, language on every fence, heading instead of bold)
 - [x] R3-03 — `nested_worktree_copies` consults `git check-ignore`; downgrades to a note and prints the test/lint exclusion snippet when already ignored
 - [x] R3-02 — `sdd track close <slug>` (with `--archive`); `track_closed_in_place` doctor note
-- [ ] R3-07 — `doctor` requires and validates an explicit `Parallel tracks: on|off` line whenever `Active tracks` or `tracks/*/state.md` exist (cheaper alternative from PLAN.md, not the full concept split — flagged for the owner)
+- [x] R3-07 — `doctor` requires and validates an explicit `Parallel tracks: on|off` line whenever `Active tracks` or `tracks/*/state.md` exist (cheaper alternative from PLAN.md, not the full concept split — flagged for the owner)
 
 ## Gate
 

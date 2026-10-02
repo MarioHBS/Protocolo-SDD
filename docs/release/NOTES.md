@@ -93,3 +93,20 @@ complaint, not a behavior to protect. Cross-file text references to
 `--archive` — flagged as a known gap in the plan, unchanged here; the
 command's own output names the old and new path so whoever archives can
 grep for the rest by hand.
+
+## R3-07 — Parallel tracks ambiguity
+
+Chose the plan's explicitly cheaper alternative over the full split (one
+feature for "coordinate claims between agents" vs. another for "group
+sequential local stages"): `doctor` now requires an explicit `**Parallel
+tracks:**` line whenever there is real track activity on disk, instead of
+letting its absence be silently ambiguous. `feature_mismatch` (existing)
+still owns the case where the line exists but disagrees with the manifest;
+this new check owns the case where the line is not there at all — the two
+never overlap, since `feature_mismatch` only runs `if label in settings`.
+
+Deliberately did not touch `sdd-track`/`sdd-roadmap`/`sdd-specify` skill
+text: the chosen design is a `doctor` check only, and the skills' existing
+behavior (reading the Settings line) does not change. The full concept
+split the plan also describes stays open — this is flagged in the
+CHANGELOG as a design note for the owner, not a final decision.
