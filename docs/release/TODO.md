@@ -1,23 +1,24 @@
-# TODO — sdd-cli 4.2.2
+# TODO — sdd-cli 4.3.0
 
 Legend: `[x]` done and verified · `[ ]` pending. Details of each item are in [PLAN.md](PLAN.md).
-Order: R2-01 first (protects data), then R2-02 and R2-03 (same family), then the texts and notes.
+Order: R3-01 first (foundation: `CLI_NAME`, invocation text), then R3-06 and R3-04 (small,
+text/message), R3-05 (skill text only), R3-03 (doctor + git check-ignore), R3-02 (track
+lifecycle), R3-07 last (needs an explicit design call during implementation).
 
 ## Items
 
-- [x] R2-01 — roadmap backup and warning before Task 7; full diff and explicit confirmation before removing unique content
-- [x] R2-02 — one table of EN/PT heading aliases used by every detector; `ENCERRADA` marker; empty "no track" row
-- [x] R2-03 — `track incorporate` refuses an empty row before moving the folder; localized headers; clearer `verify`
-- [x] R2-04 — separate message for `manual` managed entries in `migrate`
-- [x] R2-05 — version labels derived from the kit (README title, `Migration TODO — <from> -> <to>`, omitted-task note)
-- [x] R2-06 — `doctor` note `migration_todo_pending`
-- [x] R2-07 — UTF-8 `stdout`/`stderr` at the start of `main()`
+- [ ] R3-01 — `CLI_NAME` constant; shims/README/skills say `sdd` is a Python binary on PATH, never `npx`/`npm`; `doctor`/`context` print the executable path
+- [ ] R3-06 — dependency-missing message cites `sys.executable`; manual's `--ui` list corrected
+- [ ] R3-04 — `backlog_orphan` message shows the expected queue-row format; template and skill carry an example
+- [ ] R3-05 — `sdd-specify`/`sdd-implement`/`sdd-close` gain a short markdown-hygiene checklist (blank lines around headings/lists/fences, language on every fence, heading instead of bold)
+- [ ] R3-03 — `nested_worktree_copies` consults `git check-ignore`; downgrades to a note and prints the test/lint exclusion snippet when already ignored
+- [ ] R3-02 — `sdd track close <slug>` (with `--archive`); `closed_track_in_place` doctor note
+- [ ] R3-07 — `doctor` requires and validates an explicit `Parallel tracks: on|off` line whenever `Active tracks` or `tracks/*/state.md` exist (cheaper alternative from PLAN.md, not the full concept split — flagged for the owner)
 
 ## Gate
 
-- [x] `python -m pytest -q` and `ruff check src tests` green; one new test per item from a fixture of the real episode
-- [x] `sdd migrate --dry-run` and `sdd update --dry-run` on a copy of a real project: no user file changes outside the preview
-- [x] `migrate --dry-run` on a copy of the roadmap of P4 lists what would be dropped (as counts; see NOTES)
-- [x] `CHANGELOG.md` entry citing each item ID; version bumped in `pyproject.toml` and `content/VERSION`
-- [x] `docs/release/NOTES.md` with the verification results
-- [ ] tag `v4.2.2`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)
+- [ ] `python -m pytest -q` and `ruff check src tests` green; one new test per item from a fixture of the real episode
+- [ ] `sdd update --dry-run` on a copy of each evaluated project: only managed files change
+- [ ] `CHANGELOG.md` entry citing each item ID; version bumped in `pyproject.toml` and `content/VERSION`
+- [ ] `docs/release/NOTES.md` with the verification results
+- [ ] tag `v4.3.0`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)

@@ -1,168 +1,166 @@
-# Plan — sdd-cli 4.2.2
+# Plan — sdd-cli 4.3.0
 
-**Branch:** `4.2.2` (from `main` = 4.2.1) · **Status:** planned, nothing implemented · **Language:** Portuguese
+**Branch:** `4.3.0` (from `main` = 4.2.2) · **Status:** planned, nothing implemented · **Language:** Portuguese
 
 Copied from the formal update plan on the [`roadmap`](https://github.com/MarioHBS/Protocolo-SDD/tree/roadmap)
-branch (`docs/roadmap/02-4.2.2-protecao-de-dados.md`). Projects `P1`…`P5` are the real projects the
+branch (`docs/roadmap/03-4.3.0-usabilidade-do-agente.md`). Projects `P1`…`P5` are the real projects the
 kit was evaluated on; see `docs/roadmap/01-EVIDENCIA.md` there. The solution listed in each item is
 the starting point; the final one is decided when the item is implemented.
 
-## Estágio 02 — 4.2.2: proteção de dados e detectores que entendem português
+## Estágio 03 — 4.3.0: agente, trilhas e higiene
 
-**Tema:** parar de perder ou de acusar errado. Correção de defeitos, sem capacidade nova.
-**Bloqueia:** a migração do projeto P4 (kit 4.0.0, roadmap de 1.655 linhas).
-**Gate de saída:** `migrate --dry-run` em cópia do roadmap de P4 lista o que sairia; suíte e
-ruff verdes; um teste novo por item, a partir de fixture do episódio real.
+**Tema:** o agente sabe invocar o CLI; trilhas têm ciclo de vida completo; avisos do `doctor`
+dizem o que de fato falta.
+**Pré-requisito:** 4.2.2 publicada (os itens R3-02 e R3-03 reaproveitam a tabela de aliases de
+títulos do R2-02).
+**Gate de saída:** `sdd update` em cópia de cada projeto avaliado só muda arquivos
+gerenciados; suíte e ruff verdes; testes novos por item.
 
-Ordem sugerida: R2-01 primeiro (protege dado), R2-02 e R2-03 (mesma família: cabeçalhos
-localizados), depois os textos (R2-04, R2-05) e as notas do `doctor` (R2-06, R2-07).
+Regra do estágio: tudo que muda README, shims ou skills entra aqui, para cada projeto rodar
+`sdd update` uma vez só.
 
 ---
 
-### R2-01 — Regenerar o `roadmap.md` a partir do §5 apaga texto que só existe ali
+### R3-01 — O kit não diz ao agente como invocar o CLI
 
 - **Status:** planejado
-- **Origem:** P5/IP-001. Na migração v3.2.0 → v4.2.1, a Task 7 mandou regenerar o roadmap a
-  partir do §5; o arquivo caiu de 200 para 57 linhas e o texto de "Entrega" de cada etapa
-  deixou de existir (o §5 só tem etapa, slug, status, dependências e links). O dono só evitou
-  a perda porque copiou o arquivo à mão antes. P4 é o caso maior: seu roadmap tem 1.655
-  linhas, das quais 1.132 (seção "Detalhamento por etapa") são texto escrito à mão, além de
-  agrupamentos por bloco e coluna "Habilita".
-- **Evidência:** `src/sdd_cli/content/sdd/skills/sdd-reconcile/SKILL.md:39` ("Regenerate
-  `roadmap.md` from §5"); `.../sdd-close/SKILL.md:71` ("Never hand-edit the roadmap");
-  Task 7 em `cli.py` (~linha 2101, "regenerates `roadmap.md` from section 5");
-  `content/sdd/roadmap.md` e `templates/roadmap.template.md` ("Do not add manual
-  narrative"). O `.pre-migrate-backup/` só guarda arquivos gerenciados, não o roadmap.
-- **Causa raiz:** o kit v4 assume que o detalhe de cada etapa mora na spec e no `backlog.md`,
-  e que o roadmap é só um espelho. Não trata o projeto migrado cujo roadmap era a única casa
-  desse texto, e a migração não avisa nem faz cópia.
-- **Solução provável:** (a) `migrate` copia o `roadmap.md` para `.pre-migrate-backup/` antes
-  da Task 7; (b) o `--dry-run` e o texto da Task 7 dizem quantas linhas do roadmap estão fora
-  da tabela-espelho e que elas seriam descartadas; (c) decidir na implementação entre só
-  avisar (mais seguro) ou fazer o `reconcile` regenerar apenas a tabela-espelho e preservar as
-  seções livres (mais útil, mas exige delimitar o que é "espelho").
-- **Riscos e testes:** o passo (c) mexe no contrato do roadmap e em quatro skills. Fixture:
-  roadmap com blocos, coluna extra e seção "Detalhamento" longa; o teste verifica que nada
-  fora da tabela é removido sem confirmação e que o backup existe.
-- **Dependências:** nenhuma.
-- **Propaga por:** `sdd update`/`migrate` (skills e texto da Task 7) e código.
-
-### R2-02 — Os detectores só conhecem títulos em inglês
-
-- **Status:** planejado
-- **Origem:** P5/IP-004. O `doctor` repete, a cada execução, `track_not_started` para duas
-  trilhas já incorporadas ao §5; o aviso descreve o oposto da realidade e treina o dono a
-  ignorar o relatório. A constituição de P5 usa o título `### Trilhas ativas`. P2/IP-008 e P4
-  mostram o mesmo efeito: 4 pastas de trilha encerrada em cada um, sem sinal de estado.
-- **Evidência:** `_user_files.py:81-99` (`active_track_slugs` busca `^###\s+Active tracks`) e
-  `:105-118` (`on_hold_track_slugs`, mesmo título); `_tracks.py:350-363`
-  (`_stage_index_span` busca `^##\s+5\.` e `^###\s+Provisional`). Com o título traduzido, a
-  função devolve `None`, a trilha nunca é considerada encerrada e o marcador `on hold` da
-  4.2.1 também não funciona. Em P4 a tabela traz a linha "nenhuma trilha aberta hoje" sem
-  crases, que também resulta em `None`. O regex de `closed` em `_user_files.py:135` só
-  reconhece `status: closed`, não `ENCERRADA`.
-- **Causa raiz:** o código casa o texto literal dos títulos do template em inglês, mas o
-  kit permite (e o `sdd init` em pt-BR produz) constituições com títulos traduzidos.
-- **Solução provável:** uma tabela única de aliases de títulos (`Active tracks`/`Trilhas
-  ativas`, `Provisional queue`/`Fila provisória`, `Stage index`/`Índice de etapas`) usada por
-  todos os detectores; reconhecer `ENCERRADA`/`encerrada`/`closed` no `state.md`; tratar a
-  linha "nenhuma trilha" como tabela vazia sem cair em `None`.
-- **Riscos e testes:** aceitar aliases demais pode casar título de outra seção. Fixtures:
-  constituição pt-BR com trilha encerrada; tabela vazia; trilha `em espera` com título
-  traduzido.
-- **Dependências:** base do R3-02.
-- **Propaga por:** só código.
-
-### R2-03 — `sdd track incorporate` grava linha vazia no §5 e não valida
-
-- **Status:** planejado
-- **Origem:** P2/IP-006, duas ocorrências (2026-09-24 e 2026-09-25). O comando imprimiu
-  `index row: |  |  |  |`, a linha da etapa não entrou no §5 (foi inserida à mão) e na segunda
-  vez acrescentou uma segunda linha vazia. Depois, `sdd track verify` falhou com
-  `track_unclaimed_touch` porque a trilha não tinha claim algum, o que obrigou a declarar um
-  claim que a etapa não precisava.
-- **Evidência:** `_tracks.py:380-399` (`_index_row` monta as células por prefixo do
-  cabeçalho: `stage`/`etapa`, `slug`, `status`, `spec`, `report`/`relat`; qualquer outro vira
-  vazio); `:402-452` (`incorporate` move a pasta e grava a linha sem checar se saiu vazia);
-  `:243-246` (`verify` devolve `track has no path claims`). Confirmado que a liberação dos
-  claims (`:445`) já existe em 4.2.1; a linha vazia e o `verify` continuam.
-- **Causa raiz:** o cabeçalho real do §5 do projeto não casa com os nomes esperados (cabeçalho
-  traduzido ou com nomes próprios) e não há validação antes de mover a pasta.
-- **Solução provável:** validar a linha antes de mover (recusar se stage/slug saírem
-  vazios); aceitar cabeçalhos localizados (mesma tabela de aliases do R2-02); no `verify`,
-  distinguir "trilha sem claims" de "arquivo sem dono" e explicar como declarar.
-- **Riscos e testes:** o `incorporate` é atômico (lock + renomear pasta); a validação deve
-  vir antes de qualquer escrita. Fixture: §5 com cabeçalhos em português e com cabeçalho
-  irreconhecível (deve recusar sem mover).
-- **Dependências:** R2-02 (aliases).
-- **Propaga por:** só código.
-
-### R2-04 — Mensagem de backup para arquivo `manual` que não é substituído
-
-- **Status:** planejado
-- **Origem:** P5/IP-002. O `migrate` listou um arquivo de instruções do Copilot em "Hand-edited
-  managed files … will be backed up before replacing"; fez a cópia, mas o arquivo continua
-  intacto no projeto (no manifesto ele vale `manual`). O dono conferiu o `git status` para
-  descobrir o que mudou de fato.
-- **Evidência:** `cli.py:2278-2285` (`edited` inclui toda entrada editada, sem separar as
-  `manual`; a mensagem fixa diz "backed up before replacing").
-- **Causa raiz:** um único texto para dois casos (arquivo que será substituído e arquivo que o
-  kit não gerencia).
-- **Solução provável:** separar as entradas `manual` numa linha própria ("mantido, com cópia
-  de segurança") e não anunciar substituição; decidir se vale fazer a cópia de arquivo que não
-  será tocado.
-- **Riscos e testes:** texto do `--dry-run` é contrato de testes existentes; ajustar juntos.
-- **Dependências:** nenhuma.
-- **Propaga por:** só código.
-
-### R2-05 — Rótulos de versão inconsistentes nos artefatos do kit
-
-- **Status:** planejado
-- **Origem:** P5/IP-003. Após migrar para 4.2.1, o `.sdd/README.md` continua com o título
-  `(v3)`; o `.migration-todo.md` abria com `Migration TODO — -> v4.2.1`, versão de origem em
-  branco; as tarefas eram numeradas 4, 6 e 7 sem explicar onde estavam 1 a 3 e 5.
-- **Evidência:** `content/sdd/README.md:1` (`# SDD — Spec-Driven Development (v3)`);
-  `cli.py:1833` (`# Migration TODO — -> {KIT_VERSION}`, sem versão de origem).
-- **Causa raiz:** rótulo escrito à mão no template; a origem da migração não é passada ao
-  gerador do TODO; a omissão de tarefas desnecessárias só é explicada no cabeçalho.
-- **Solução provável:** derivar o título do README da versão do kit (ou removê-lo); passar a
-  versão de origem ao gerador (`v3.2.0 -> v4.2.2`); acrescentar uma linha "Tarefas 1–3 e 5
-  omitidas: precondição já satisfeita".
-- **Riscos e testes:** o README é arquivo gerenciado; o título muda o hash em todos os
-  projetos (esperado, entra no `update`).
-- **Dependências:** nenhuma.
+- **Origem:** P2/IP-003. Ao receber "execute `sdd doctor`" num projeto Node, o agente rodou
+  `npx sdd doctor`. O `npx` baixou e executou um pacote homônimo do registro npm, sem relação
+  com o kit, que falhou por dependência ausente. O binário real é Python (`pipx`/`uv`) e só
+  foi achado depois com `where sdd`. Havia uma pista ignorada: as permissões do projeto já
+  liberavam `Bash(sdd doctor *)`.
+- **Evidência:** todos os shims dizem "Run `sdd context` when available" (por exemplo
+  `content/shims/claude.md:11`) sem declarar que `sdd` é um binário Python já no PATH; `grep`
+  de `npx|pipx|pip install` no README do kit, nos skills e nos shims não acha nada.
+- **Causa raiz:** parte é erro do agente (não checou `where sdd`); parte é lacuna do kit: o
+  texto gerenciado usa `sdd ...` sem dizer o que é nem o que não fazer, em projetos onde o
+  nome colide com o ecossistema.
+- **Solução provável:** uma linha nos shims, no README do kit e nos skills ("`sdd` é um
+  binário Python no PATH; nunca use `npx`/`npm`; se não achar, `where sdd` / `which sdd`");
+  `sdd doctor` e `sdd context` imprimem o caminho do executável; o nome do comando sai de uma
+  constante `CLI_NAME`, para o estágio 4.5.0 trocá-lo em um lugar só.
+- **Riscos e testes:** os shims são arquivos gerenciados (mudam hash; entram no `update`).
+  Teste: todo shim e o README contêm a instrução, e nenhum a repete de forma divergente.
+- **Dependências:** base do estágio 4.5.0.
 - **Propaga por:** `sdd update` e código.
 
-### R2-06 — `.migration-todo.md` esquecido e sem aviso
+### R3-02 — Trilha encerrada continua em `tracks/` sem sinal de estado
 
 - **Status:** planejado
-- **Origem:** P3. Depois de migrar para 4.2.1, o `.migration-todo.md` continua com as tarefas
-  4 (enxugar `Current state`), 6 (normalizar codificação) e 7 (reconciliar índices) abertas,
-  sem que nada no `doctor` indique que a migração não terminou.
-- **Evidência:** `cli.py:1815-1833` gera o arquivo; nenhum finding em `_findings.py` o
-  menciona (busca por `migration` só encontra o gerador e o texto de ajuda).
-- **Causa raiz:** o CLI é deliberadamente "burro" e delega o restante da migração a um agente;
-  não há sinal de que a tarefa ficou pendente.
-- **Solução provável:** nota `migration_todo_pending` no `doctor` quando o arquivo existe,
-  citando o caminho e a instrução de concluir ou apagar.
-- **Riscos e testes:** ruído para quem apagou de propósito não existe (o aviso some com o
-  arquivo). Teste: projeto com e sem o arquivo.
+- **Origem:** P2/IP-008 (4 pastas encerradas + 3 abertas, no mesmo nível, indistinguíveis sem
+  abrir cada `state.md`), P5/IP-004 (2 encerradas) e P4 (4 pastas). São 10 pastas em três
+  projetos. Só resta o `state.md` de cada uma, que é histórico.
+- **Evidência:** `sdd track --help` lista `claim`, `incorporate`, `check`, `verify`; não há
+  comando de encerramento. `_user_files.py:121-153` só trata a trilha vazia como "encerrada"
+  se ela sair da tabela `Active tracks`.
+- **Causa raiz:** o ciclo de vida da trilha não tem a etapa final: nada arquiva a trilha
+  quando a última etapa local é incorporada.
+- **Solução provável:** `sdd track close <slug>`: valida que não restam etapas locais nem
+  claims, marca o `state.md` como encerrado com data e remove a linha de `Active tracks` sob o
+  mesmo lock do `incorporate`; opção `--archive` para mover a pasta para `.sdd/tracks/_closed/`
+  (com correção dos links relativos); nota `closed_track_in_place` no `doctor` quando um
+  `state.md` diz encerrado e a pasta continua no lugar.
+- **Riscos e testes:** mover pasta quebra links que reports e CHANGELOG fazem para
+  `tracks/<slug>/state.md`; o `--archive` precisa passar pelo `fix --links` e usar `git mv`
+  no projeto. Fixtures: trilha encerrada com e sem claims.
+- **Dependências:** R2-02 (aliases de títulos).
+- **Propaga por:** código e skill `sdd-track`.
+
+### R3-03 — Aviso de worktree aninhada persiste depois do `.gitignore`
+
+- **Status:** planejado
+- **Origem:** P2/IP-005. O `doctor` repete `nested_worktree_copies` mesmo com a pasta já
+  ignorada pelo Git. O dano real vinha da outra metade da recomendação: Vitest, ESLint e `tsc`
+  varrem o disco e rodaram testes em duplicidade da cópia, inflando as contagens de testes
+  dos relatórios. P1 também usa worktrees de agente.
+- **Evidência:** `cli.py:1071-1083`: a checagem só olha se a pasta existe e tem `.sdd/`; a
+  dica já cita excluir a pasta dos globs, mas o `fix --gitignore` só edita o `.gitignore`.
+- **Causa raiz:** o `doctor` não distingue "já ignorada pelo Git" de "não ignorada", e nada
+  ajuda a aplicar a exclusão nas ferramentas.
+- **Solução provável:** consultar `git check-ignore`; se já ignorada, rebaixar o aviso a nota
+  e dizer o que falta (globs de teste e lint); imprimir o trecho de exclusão para
+  `vitest.config`, `eslint.config` e `tsconfig`, para o dono aplicar.
+- **Riscos e testes:** `git` ausente ou fora de repositório deve degradar para o
+  comportamento atual. Fixture com pasta ignorada e não ignorada.
 - **Dependências:** nenhuma.
 - **Propaga por:** só código.
 
-### R2-07 — Saída do `doctor` sai com `�` no console do Windows
+### R3-04 — O `doctor` cobra ponteiro do backlog sem documentar o formato
 
 - **Status:** planejado
-- **Origem:** P5/IP-005. Ao rodar `sdd doctor` pelo Bash de um agente no Windows 11, o
-  travessão e o `§` saíram como `�`, enquanto o próprio relatório afirmava "no mojibake
-  detected" (a checagem olha os arquivos de `.sdd/`, não a saída do comando).
-- **Evidência:** nenhuma chamada a `reconfigure`, `PYTHONUTF8` ou `PYTHONIOENCODING` em
-  `src/sdd_cli/`; `main()` está em `cli.py:2994`. Causa não reproduzida nesta avaliação
-  (provável: `stdout` na codificação do console).
-- **Causa raiz (provável):** o CLI imprime Unicode para um `stdout` que não é UTF-8.
-- **Solução provável:** no início de `main()`, `sys.stdout.reconfigure(encoding="utf-8",
-  errors="replace")` (idem `stderr`), protegido para streams sem `reconfigure`.
-- **Riscos e testes:** `sdd` encadeado com `head` (BrokenPipe, já tratado em `main()`);
-  teste com stream cp1252 simulado.
+- **Origem:** P2/IP-007. Ao mover o detalhe da fila provisória para `backlog.md`, o `doctor`
+  acusou `backlog_orphan` em oito seções. Lista com o slug entre crases e `backlog.md#slug`
+  (duas tentativas) não bastou; só a tabela com o slug na primeira coluna zerou o aviso.
+- **Evidência:** `_index_checks.py:130` emite o finding; `_findings.py:57` traz a mensagem sem
+  o formato esperado; `templates/backlog.template.md` fala em "entrada de índice com
+  ponteiro" sem exemplo.
+- **Causa raiz:** o contrato entre a linha da fila (§5) e a seção do backlog vive só no
+  código do detector.
+- **Solução provável:** exemplo de linha da fila no `backlog.template.md` e no skill
+  `sdd-roadmap`; a mensagem do `doctor` mostra o formato reconhecido.
+- **Riscos e testes:** o texto do finding é verificado por testes; ajustar juntos.
+- **Dependências:** nenhuma.
+- **Propaga por:** `sdd update` (template e skill) e código.
+
+### R3-05 — Agentes escrevem `.md` com violações de markdownlint
+
+- **Status:** planejado (apenas a causa; o lint automático foi adiado, ver A-04)
+- **Origem:** P2/IP-004. A varredura de `.sdd/` achou 345 arquivos com centenas de
+  ocorrências (MD022, MD031, MD032, MD036, MD040), todas em artefatos escritos pelo agente a
+  partir de templates corretos.
+- **Evidência:** os templates estão corretos; nenhum skill instrui linha em branco em volta de
+  títulos, listas e cercas; `doctor`, `fix` e `close` não rodam linter.
+- **Causa raiz:** o agente não é instruído sobre as regras mais comuns.
+- **Solução provável:** uma lista curta nos skills de escrita (`sdd-specify`, `sdd-implement`,
+  `sdd-close`): linha em branco em volta de títulos, listas e cercas de código; toda cerca
+  com linguagem; título em vez de negrito. **Sem** regra de comprimento de linha: P4 adota
+  a convenção oposta (quebra em ~80 colunas) e P2 desliga MD013.
+- **Riscos e testes:** só texto; risco baixo. O lint automático continua adiado (A-04).
+- **Dependências:** nenhuma.
+- **Propaga por:** `sdd update`.
+
+### R3-06 — Resíduos de atrito de dependência do dashboard
+
+- **Status:** planejado (parte não reverificada)
+- **Origem:** P1/IP-003. Ao rodar `sdd dashboard --ui rich` sem os extras, a mensagem sugeriu
+  `pipx install --force`, mas o `sdd.exe` vinha de uma instalação `pip --user`; o `python` do
+  PATH era outro (um venv que já tinha `rich`), então a checagem manual passava enquanto o
+  `sdd` reclamava. O manual também listava `--ui rich|textual` sem citar `plain`.
+- **Evidência:** `sys.executable` não aparece em `src/sdd_cli/`; a lista de opções do manual
+  não foi reconferida em 4.2.1 (os renderers foram renomeados para `static`/`interactive`
+  depois do registro).
+- **Causa raiz:** a mensagem não diz qual interpretador o comando usa.
+- **Solução provável:** citar `sys.executable` na mensagem de dependência ausente; conferir e
+  ajustar a lista de `--ui` do manual.
+- **Riscos e testes:** baixo. Teste da mensagem com módulo ausente.
 - **Dependências:** nenhuma.
 - **Propaga por:** só código.
+
+### R3-07 — O mesmo campo liga concorrência entre agentes e agrupamento sequencial de etapas
+
+- **Status:** planejado
+- **Origem:** P2/IP-010 (2026-09-28). Depois de fechar uma etapa, o projeto registrou uma
+  trilha em `Active tracks`, criou a branch e descreveu cinco etapas locais ainda não
+  especificadas — mas `Parallel tracks` não existia na constituição e o manifesto trazia
+  `tracks: false`. A skill `sdd-track` recusa trabalhar enquanto o recurso está desligado, e o
+  contorno (ligar `Parallel tracks: on` só para poder especificar) sugere concorrência que a
+  trilha não tem: as etapas dela são sequenciais, exclusivas de uma branch, sem outro agente
+  trabalhando ao mesmo tempo.
+- **Evidência:** `Parallel tracks` é um único booleano no manifesto e na constituição
+  (`features.tracks`); a skill `sdd-track` usa esse mesmo booleano tanto para permitir claims e
+  a checagem de colisão (`track check`/`verify`) quanto para permitir simplesmente ter um
+  `state.md` e etapas locais numa trilha sem paralelismo real.
+- **Causa raiz:** um recurso só para dois conceitos: coordenar trabalho *simultâneo* (claims,
+  colisão de footprint) e agrupar etapas relacionadas numa sequência própria, exclusiva, sem
+  concorrência.
+- **Solução provável:** separar em duas perguntas — uma controla claims/checagem de colisão
+  entre agentes; outra permite `state.md` e etapas locais numa trilha sequencial sem exigir a
+  primeira. Alternativa mais barata: manter um recurso só, mas o `doctor` exigir e validar uma
+  linha explícita (`Parallel tracks: on|off`) sempre que houver `Active tracks` ou
+  `tracks/*/state.md`, em vez de deixar a ausência ser ambígua.
+- **Riscos e testes:** separar os dois conceitos toca `sdd-track`, `sdd-roadmap`,
+  `sdd-specify` e o manifesto; decidir o desenho final é da implementação, com o dono. Fixture:
+  trilha sequencial (uma etapa por vez, mesma branch) sem `Parallel tracks` ligado.
+- **Dependências:** nenhuma; pode compartilhar a tabela de aliases do R2-02 se o desenho final
+  tocar o texto de `Active tracks`.
+- **Propaga por:** código e skills `sdd-track`/`sdd-roadmap`/`sdd-specify`.
