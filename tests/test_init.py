@@ -107,6 +107,26 @@ def test_writing_skills_carry_the_same_markdown_hygiene_checklist():
         assert "No rule on line length" in text
 
 
+# M-06: two rules coexisted without saying which applies when ("documentation
+# follows the code" vs "a locked decision rules"). The precedence table lives
+# once, in the kit README; sdd-close, sdd-document and the report template only
+# point at it by its heading, so there is no second copy to drift.
+_PRECEDENCE_HEADING = "Who rules when artifacts disagree"
+
+
+def test_precedence_table_lives_in_readme_and_is_cited_by_the_others():
+    content = Path(__file__).parents[1] / "src" / "sdd_cli" / "content" / "sdd"
+    readme = _normalized((content / "README.md").read_text(encoding="utf-8"))
+    assert f"### {_PRECEDENCE_HEADING}" in (content / "README.md").read_text(encoding="utf-8")
+    for label in ("Intent", "Observable reality", "Refuted premise"):
+        assert f"| {label} |" in readme, f"README: precedence table lost the {label} row"
+    for cited in ("skills/sdd-close/SKILL.md", "skills/sdd-document/SKILL.md",
+                  "templates/report.template.md"):
+        text = _normalized((content / cited).read_text(encoding="utf-8"))
+        assert _PRECEDENCE_HEADING in text, f"{cited}: does not cite the precedence table"
+        assert "| Intent |" not in text, f"{cited}: duplicates the table instead of citing it"
+
+
 def test_reinstall_without_force_changes_nothing(tmp_path, capsys):
     cmd_init(_args(tmp_path))
     constitution = tmp_path / ".sdd" / "constitution.md"

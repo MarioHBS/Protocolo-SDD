@@ -134,6 +134,14 @@ Write all artifacts in the language set in
     they stay as they are, and invoke `sdd-document` for anything new. The plan's
     paths may live outside `.sdd/`.
 
+    For every divergence you find between documentation, a locked decision and
+    the code, write one line in `report.md → §7` naming its class from the
+    precedence table in `.sdd/README.md` ("Who rules when artifacts disagree"):
+    intent (the code is the defect), observable reality (the documentation is
+    outdated) or refuted premise (reopen the decision through an excursion to
+    `DECIDING`). With the Documentation feature off, a line is only needed
+    when a divergence actually exists.
+
 13. **Evaluation feedback (optional).** When the stage exposed kit friction,
     run `sdd evaluate --write` and record a sanitized observation in
     `.sdd/kit-evaluation/README.md`; this local directory is normally ignored.

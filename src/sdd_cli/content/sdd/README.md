@@ -53,6 +53,24 @@ about the stack (database behavior, migration numbers, API contracts, what is
 actually deployed) must be tested against the real system before entering a spec
 or a report.
 
+### Who rules when artifacts disagree
+
+Principle zero says disk wins over an index. It does not say the code wins over
+every document: a decision is *intent*, and code that contradicts intent is a
+defect. What rules depends on the **class** of the artifact:
+
+| Class | Examples | Who rules | A divergence means |
+|-------|----------|-----------|--------------------|
+| Intent | structural decision, business rule, acceptance criterion | the locked decision or spec: the code obeys | a defect in the code |
+| Observable reality | schema, API signature, measured behavior | the code and its tests: the documentation follows | outdated documentation |
+| Refuted premise | an assumption a decision rests on, proven false while building | the evidence rises and reopens the decision | an amendment through a short excursion to `DECIDING` |
+
+Rule of thumb: **decisions descend, evidence rises.** Code never drifts from a
+locked decision without a recorded amendment, and documentation never describes
+as built what the code does not do. When closing a stage, classify each
+divergence found between documentation, decision and code by this table in
+`report.md → §7`.
+
 ---
 
 ## The inviolable rule (the gate)

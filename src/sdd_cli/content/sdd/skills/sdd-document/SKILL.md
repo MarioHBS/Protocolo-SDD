@@ -81,6 +81,11 @@ constitution and the manifest and leaves a one-line pointer in §7.
 - **Documentation follows ground truth.** Never document intended behavior as if
   it were implemented. If a document describes something not yet built, mark it
   explicitly as planned.
+- **Documentation does not outrank a locked decision.** Which one rules depends
+  on the class of what diverges — see "Who rules when artifacts disagree" in
+  `.sdd/README.md`. Observable reality (schema, API, behavior) is fixed in the
+  document; intent (a locked decision) is fixed in the code; a refuted premise
+  reopens the decision. Never edit a document to hide a divergence.
 - When a stage changes something documented, update the affected documents as
   part of closing that stage (`sdd-close` step 12 reads each document's `covers`
   in the plan), and note it in the stage report.

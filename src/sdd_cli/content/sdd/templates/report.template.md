@@ -48,7 +48,10 @@
 
 ## 7. Divergences from the spec
 
-> What turned out different and why. (If none, write "none".)
+> What turned out different and why. (If none, write "none".) For a divergence
+> between documentation, a locked decision and the code, name its class from
+> `.sdd/README.md → Who rules when artifacts disagree`: intent, observable
+> reality or refuted premise.
 
 - [...]
 
