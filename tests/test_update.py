@@ -320,3 +320,51 @@ def test_doctor_reports_eol_drift_and_fix_manifest_rerecords_it(tmp_path):
     assert done.value.code == 1  # `fix` exits 1 when it repaired something
     assert manifest.load(root)["managed_files"][".sdd/README.md"] == manifest.hash_file(readme)
     assert "manifest_eol_drift" not in [f["code"] for f in _doctor_payload(root)["findings"]]
+
+
+# ------------------------------------------- edited file stays visible ---
+# 4.3.2: the antologias_bilo_app README was hand-edited, so the first update kept it
+# and said so. The manifest then went to the current version, the next update stopped at
+# "Already up to date" and the doctor said "clean" -- while the skills already cited a
+# README section that file did not have.
+
+def _hand_edited_readme(tmp_path: Path) -> Path:
+    root = _seed_project(tmp_path, KIT_VERSION)
+    readme = root / ".sdd" / "README.md"
+    old = readme.read_text(encoding="utf-8").replace("### Who rules when artifacts disagree",
+                                                     "### Something else")
+    readme.write_text(old, encoding="utf-8")
+    return root
+
+
+def test_up_to_date_update_still_lists_hand_edited_managed_files(capsys, tmp_path):
+    root = _hand_edited_readme(tmp_path)
+    out, _ = _run(capsys, root)
+    assert "Already up to date" in out
+    assert ".sdd/README.md" in out and "hand-edited" in out
+
+
+def test_doctor_reports_edited_managed_file_and_missing_readme_anchor(tmp_path):
+    from sdd_cli.cli import _doctor_payload
+    root = _hand_edited_readme(tmp_path)
+    codes = [f["code"] for f in _doctor_payload(root)["findings"]]
+    assert "managed_file_edited" in codes
+    assert "readme_anchor_missing" in codes
+
+
+def test_clean_project_has_neither_finding_nor_listing(capsys, tmp_path):
+    from sdd_cli.cli import _doctor_payload
+    root = _seed_project(tmp_path, KIT_VERSION)
+    codes = [f["code"] for f in _doctor_payload(root)["findings"]]
+    assert "managed_file_edited" not in codes and "readme_anchor_missing" not in codes
+    out, _ = _run(capsys, root)
+    assert "hand-edited" not in out
+
+
+def test_file_equal_to_the_kit_is_not_reported_even_with_a_stale_hash(tmp_path):
+    from sdd_cli.cli import _doctor_payload
+    root = _seed_project(tmp_path, KIT_VERSION)
+    data = manifest.load(root)
+    data["managed_files"][".sdd/README.md"] = "0" * 16   # recorded hash is wrong, content is the kit's
+    manifest.save(root, data)
+    assert "managed_file_edited" not in [f["code"] for f in _doctor_payload(root)["findings"]]

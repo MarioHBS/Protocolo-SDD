@@ -1061,6 +1061,13 @@ def _doctor_payload(root: Path) -> dict:
     if drifted:
         findings.append({"severity": "note", "code": "manifest_eol_drift", "count": len(drifted),
                          "path": drifted[0], "actionable": True})
+    edited = _managed_files_edited(root, manifest_data)
+    if edited:
+        findings.append({"severity": "warn", "code": "managed_file_edited", "count": len(edited),
+                         "path": edited[0], "actionable": True})
+    for anchor in _missing_readme_anchors(root):
+        findings.append({"severity": "warn", "code": "readme_anchor_missing", "anchor": anchor,
+                         "actionable": True})
     if (sdd / ".migration-todo.md").is_file():
         findings.append({"severity": "note", "code": "migration_todo_pending",
                          "path": ".sdd/.migration-todo.md", "actionable": True})
@@ -1223,6 +1230,45 @@ def _manifest_eol_drift(root: Path, data: dict | None) -> list[str]:
         if path.is_file() and manifest.hash_file(path) != recorded and manifest.matches_recorded(path, recorded):
             drifted.append(rel)
     return drifted
+
+
+def _lf(path: Path) -> bytes:
+    return path.read_bytes().replace(b"\r\n", b"\n")
+
+
+def _managed_files_edited(root: Path, data: dict | None) -> list[str]:
+    """Managed files that differ from what the manifest recorded and from the bundled kit.
+
+    ``sdd update`` preserves a hand-edited managed file and says so once; afterwards the
+    manifest still holds the old hash, so this is how the divergence stays visible.
+    """
+    edited = []
+    for rel, recorded in sorted((data or {}).get("managed_files", {}).items()):
+        path = root / rel
+        if not path.is_file() or manifest.matches_recorded(path, recorded):
+            continue
+        bundled = CONTENT_DIR / "sdd" / rel[len(".sdd/"):] if rel.startswith(".sdd/") else None
+        if bundled is not None and bundled.is_file() and _lf(bundled) == _lf(path):
+            continue
+        edited.append(rel)
+    return edited
+
+
+# Headings of the kit README that managed skills/templates cite by name. A project whose
+# README lacks one (an old or hand-edited copy) has skills pointing at a section that is not there.
+_README_ANCHORS = ("Who rules when artifacts disagree",)
+
+
+def _missing_readme_anchors(root: Path) -> list[str]:
+    readme = root / ".sdd" / "README.md"
+    if not readme.is_file():
+        return []
+    text = readme.read_text(encoding="utf-8", errors="replace")
+    cited = ""
+    for folder in ("skills", "templates"):
+        for md in (root / ".sdd" / folder).rglob("*.md"):
+            cited += md.read_text(encoding="utf-8", errors="replace")
+    return [a for a in _README_ANCHORS if a in cited and a not in text]
 
 
 def cmd_fix(args) -> None:
@@ -2608,6 +2654,14 @@ def cmd_update(args) -> None:
 
     if installed >= bundled:
         print(green("Already up to date. Nothing to do."))
+        edited = _managed_files_edited(root, m)
+        if edited:
+            print(yellow(f"\n  {len(edited)} managed file(s) differ from the kit (hand-edited, "
+                         "kept by an earlier update):"))
+            for rel in edited:
+                print(f"    {rel}")
+            print(dim("  Compare each with the bundled kit and merge by hand, or restore it from "
+                      ".sdd/.pre-migrate-backup/; `sdd doctor` keeps reporting it."))
         return
 
     src_sdd = CONTENT_DIR / "sdd"
