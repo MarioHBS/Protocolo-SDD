@@ -1,5 +1,22 @@
 # Changelog — sdd-cli
 
+## [4.3.1] — In progress
+
+### Added
+
+- M-06: the kit says, once, who rules when documentation, a locked decision
+  and the code disagree. The new section "Who rules when artifacts disagree"
+  in the installed `.sdd/README.md` classifies the divergence — intent (the
+  code obeys the decision), observable reality (the documentation follows the
+  code) or refuted premise (the evidence reopens the decision through an
+  excursion to `DECIDING`) — under the rule "decisions descend, evidence
+  rises". `sdd-close` step 12 and the `report.md` template (§7) ask for the
+  class of each divergence found, and `sdd-document` states that
+  documentation never outranks a locked decision. The table exists only in the
+  README; the other three files cite it by heading so there is no second copy
+  to drift. Text only: nothing in an existing project changes except the
+  managed files `sdd update` already refreshes.
+
 ## [4.3.0] — In progress
 
 ### Fixed
