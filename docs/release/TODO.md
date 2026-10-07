@@ -10,4 +10,4 @@
 - [x] Verificado em projeto real (`antologias_bilo_app`), só leitura
 - [x] `CHANGELOG.md` cita U-01; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.3.2`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
+- [x] tag `v4.3.2`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
