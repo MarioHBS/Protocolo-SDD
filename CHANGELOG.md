@@ -1,5 +1,20 @@
 # Changelog — sdd-cli
 
+## [4.3.2] — In progress
+
+### Fixed
+
+- U-01: a hand-edited managed file no longer disappears from view after the
+  first `sdd update`. The update keeps such a file and says so once, then
+  records the new `kit_version`; the next run stopped at "Already up to date"
+  and `sdd doctor` said clean, while skills already cited a README section the
+  old copy did not have (seen in `antologias_bilo_app`). Now `sdd update` on an
+  up-to-date project lists the managed files that differ from the kit, and
+  `sdd doctor` reports `managed_file_edited` (file differs from both the
+  manifest and the bundled kit) and `readme_anchor_missing` (a skill or
+  template cites "Who rules when artifacts disagree" but `.sdd/README.md`
+  lacks it). Nothing is written to the project.
+
 ## [4.3.1] — In progress
 
 ### Added
