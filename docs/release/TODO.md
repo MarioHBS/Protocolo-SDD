@@ -12,4 +12,4 @@ Legend: `[x]` done and verified · `[ ]` pending. Details of each item are in [P
 - [x] `sdd update --dry-run` on each real project: only managed files change
 - [x] `CHANGELOG.md` entry citing M-06; version bumped in `pyproject.toml` and `content/VERSION`
 - [x] `docs/release/NOTES.md` with the verification results
-- [ ] tag `v4.3.1`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)
+- [x] tag `v4.3.1`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)
