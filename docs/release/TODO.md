@@ -9,7 +9,7 @@ Legend: `[x]` done and verified · `[ ]` pending. Details of each item are in [P
 ## Gate
 
 - [x] `python -m pytest -q` and `ruff check src tests` green; new test for the precedence table
-- [ ] `sdd update --dry-run` on a copy of each project: only managed files change
+- [x] `sdd update --dry-run` on each real project: only managed files change
 - [x] `CHANGELOG.md` entry citing M-06; version bumped in `pyproject.toml` and `content/VERSION`
-- [ ] `docs/release/NOTES.md` with the verification results
+- [x] `docs/release/NOTES.md` with the verification results
 - [ ] tag `v4.3.1`, fast-forward `main`, push branch, tag and `main` (each push confirmed by the owner)
