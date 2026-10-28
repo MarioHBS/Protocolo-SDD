@@ -2,9 +2,9 @@
 
 ## Items
 
-- [ ] N-00 — o dono decide o nome (bloqueia todos os demais; ver tabela de disponibilidade no PLAN)
-- [ ] N-01 — segundo entry point com o nome novo
-- [ ] N-02 — `sdd` imprime aviso de deprecação em `stderr` e executa normalmente
+- [x] N-00 — o dono decide o nome (bloqueia todos os demais; ver tabela de disponibilidade no PLAN)
+- [x] N-01 — segundo entry point com o nome novo
+- [x] N-02 — `sdd` imprime aviso de deprecação em `stderr` e executa normalmente
 - [ ] N-03 — textos gerenciados (shims, README, skills) com o nome novo
 
 ## Gate

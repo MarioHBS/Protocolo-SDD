@@ -7,10 +7,10 @@ funcionando como alias deprecado até a v5. Motivo: P2/IP-003, em que `npx sdd` 
 terceiros. O texto de R3-01 (4.3.0) já ensina o agente a invocar o binário certo; renomear fecha o
 risco de palpite de `npx`.
 
-## Decisão que bloqueia a construção
+## Decisão do nome (N-00)
 
-O nome novo ainda não foi escolhido. Nada abaixo começa antes de o dono decidir (item N-00 do
-TODO). Disponibilidade conferida em 2026-10-28 (HTTP 404 = livre, 200 = ocupado):
+Decidido pelo dono em 2026-10-28: o executável passa a se chamar **`sddkit`**. Disponibilidade
+conferida no mesmo dia (HTTP 404 = livre, 200 = ocupado):
 
 | Nome | npm | PyPI | Observação |
 |------|-----|------|------------|

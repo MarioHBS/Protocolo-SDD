@@ -22,6 +22,8 @@ dashboard-textual = ["textual>=0.80"]
 dashboard = ["rich>=13.0", "textual>=0.80"]
 
 [project.scripts]
+sddkit = "sdd_cli.cli:main"
+# Deprecated alias of sddkit; prints a notice on stderr and is removed in v5.
 sdd = "sdd_cli.cli:main"
 
 [tool.hatch.build.targets.wheel]

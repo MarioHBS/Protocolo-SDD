@@ -20,7 +20,57 @@ def test_version_flag_prints_the_kit_version(capsys):
     with pytest.raises(SystemExit) as error:
         cli.main(["--version"])
     assert error.value.code == 0
-    assert capsys.readouterr().out.strip().startswith("sdd ")
+    assert capsys.readouterr().out.strip().startswith("sddkit ")
+
+
+# ------------------------------------------------- the new name and the old alias
+
+@pytest.mark.parametrize("argv0", [
+    "sdd", "sdd.exe", "SDD.EXE", "/home/u/.local/bin/sdd", "C:\\Users\\u\\.local\\bin\\sdd.exe",
+])
+def test_the_old_name_gets_a_deprecation_notice(argv0):
+    notice = cli.legacy_name_notice(argv0)
+    assert notice is not None and "deprecated" in notice and "removed in v5" in notice
+    assert "`sddkit`" in notice
+
+
+@pytest.mark.parametrize("argv0", [
+    "sddkit", "sddkit.exe", "C:\\bin\\sddkit.EXE", "/x/y/__main__.py", "pytest", "", None,
+])
+def test_the_new_name_and_module_runs_stay_quiet(argv0):
+    assert cli.legacy_name_notice(argv0) is None
+
+
+def test_the_notice_goes_to_stderr_and_stdout_is_untouched(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["sdd", "--version"])
+    with pytest.raises(SystemExit):
+        cli.main()
+    out, err = capsys.readouterr()
+    assert out.strip() == f"sddkit {cli.KIT_VERSION}"
+    assert err.strip().startswith("warning: `sdd` is deprecated")
+
+
+def test_the_new_name_prints_no_notice(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["sddkit", "--version"])
+    with pytest.raises(SystemExit):
+        cli.main()
+    assert capsys.readouterr().err == ""
+
+
+def test_explicit_argv_never_warns(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["sdd"])
+    with pytest.raises(SystemExit):
+        cli.main(["--version"])
+    assert capsys.readouterr().err == ""
+
+
+def test_both_entry_points_are_declared_for_the_same_function():
+    import tomllib
+    from pathlib import Path
+
+    scripts = tomllib.loads((Path(__file__).parents[1] / "pyproject.toml").read_text(encoding="utf-8"))[
+        "project"]["scripts"]
+    assert scripts == {"sddkit": "sdd_cli.cli:main", "sdd": "sdd_cli.cli:main"}
 
 
 def test_a_missing_command_is_a_usage_error(capsys):

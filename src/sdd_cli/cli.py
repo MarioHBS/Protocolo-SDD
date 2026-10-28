@@ -31,7 +31,7 @@ from . import (
     manifest,
     providers,
 )
-from .content import CLI_NAME, CONTENT_DIR, KIT_VERSION
+from .content import CLI_NAME, CONTENT_DIR, KIT_VERSION, LEGACY_CLI_NAME
 
 # ---------------------------------------------------------------- utilities
 
@@ -3459,8 +3459,24 @@ def _use_utf8_streams() -> None:
             pass  # closed or detached stream: nothing to fix
 
 
+def legacy_name_notice(argv0: str | None) -> str | None:
+    """Deprecation line when the process was started as the old ``sdd`` command (N-02).
+
+    Only the bare name counts: ``sdd``, ``sdd.exe`` or a path ending in them, any case.
+    ``python -m sdd_cli`` (argv[0] is ``__main__.py``) and the new name stay quiet.
+    """
+    if not argv0 or Path(argv0.replace("\\", "/")).stem.lower() != LEGACY_CLI_NAME:
+        return None
+    return (f"warning: `{LEGACY_CLI_NAME}` is deprecated and will be removed in v5; "
+            f"use `{CLI_NAME}` (same arguments, same output).")
+
+
 def main(argv: list[str] | None = None) -> None:
     _use_utf8_streams()
+    if argv is None:
+        notice = legacy_name_notice(sys.argv[0] if sys.argv else None)
+        if notice:
+            print(notice, file=sys.stderr)
     args = build_parser().parse_args(argv)
     try:
         args.func(args)
