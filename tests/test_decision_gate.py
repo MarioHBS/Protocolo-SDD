@@ -57,3 +57,20 @@ def test_sdd_decide_names_perspectives_only_for_structural_decisions_without_an_
     assert "Only then ask the owner to choose" in text
     # the perspectives come before the final question, inside step 2
     assert text.index("Branch before asking") < text.index("3. **Lock the decisions.**")
+
+
+def test_sdd_discover_branches_interpretations_only_for_blocking_or_structural_points():
+    text = _text(_COPIES["sdd-discover"])
+    assert "Ambiguous points: branch before asking" in text
+    assert 'structural decision with no obvious answer, or for an open question that blocks the gate (`blocks_gate: "yes"`), never for every question' in text
+    assert "Name 2–3 plausible interpretations or options, each with its trade-off, and only then ask the owner to choose" in text
+    assert "If they cannot yet, record the question as open" in text
+
+
+def test_the_branching_rule_is_the_same_in_the_cli_skill_and_the_standalone():
+    def rule(name: str) -> str:
+        text = _text(_COPIES[name])
+        start = text.index("Ambiguous points: branch before asking")
+        return text[start:text.index("owner decides.", start)]
+
+    assert rule("sdd-discover") == rule("standalone")

@@ -63,6 +63,20 @@ Not structural (leave for the stage spec): names inside an already-chosen data
 model, internal function details, jobs and tooling, screen layout and microcopy,
 report formatting. Note them and move on.
 
+## Ambiguous points: branch before asking
+
+Do this only for a structural decision with no obvious answer, or for an open
+question that blocks the gate (`blocks_gate: "yes"`), never for every question.
+
+- Name 2–3 plausible interpretations or options, each with its trade-off, and
+  only then ask the owner to choose.
+- For a decision that crosses concerns (a design system touches architecture,
+  UX and accessibility at once), give each option from the perspective that
+  matters for its category (for example architecture, UX, security) instead of
+  one flat pros-and-cons list. The perspectives vary by category; do not use a
+  fixed set.
+- The owner decides. If they cannot yet, record the question as open.
+
 Deliver both files in the location the user chooses:
 
 - `discovery.md`: concise human review of the interview, assumptions, decisions,
