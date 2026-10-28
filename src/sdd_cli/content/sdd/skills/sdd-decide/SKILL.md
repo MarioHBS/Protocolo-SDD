@@ -47,6 +47,17 @@ Do not stall the flow debating local matters — note them and move on.
    cons when it helps — do not hand the user a raw decision with no guidance.
    Record each answer immediately.
 
+   **Branch before asking.** Do this only for a structural decision with no
+   obvious answer, never for every question:
+
+   - Name 2–3 perspectives that matter for the decision's category (for example
+     architecture, UX, security; they vary by category, do not use a fixed set)
+     and give each option from each perspective, instead of one flat
+     pros-and-cons list. A design system, for instance, touches architecture,
+     UX and accessibility at once.
+   - Only then ask the owner to choose. The owner decides; if they cannot yet,
+     keep the question open and blocking.
+
 3. **Lock the decisions.** Each settled structural decision becomes a row in §3
    (`D-NNN`, choice, rationale, date) and/or feeds the principles in §2. Move the
    question to resolved. If the project uses ADRs (§7), reference them following

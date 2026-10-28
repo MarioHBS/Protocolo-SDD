@@ -43,3 +43,17 @@ def test_design_system_is_a_structural_category_when_there_is_an_interface():
         assert len(design) == 1, name
         assert "light/dark theme" in design[0] and "accessibility baseline" in design[0]
         assert "when the project has an interface" in design[0]
+
+
+def _text(path: Path) -> str:
+    return " ".join(path.read_text(encoding="utf-8").split())
+
+
+def test_sdd_decide_names_perspectives_only_for_structural_decisions_without_an_obvious_answer():
+    text = _text(_COPIES["sdd-decide"])
+    assert "Branch before asking" in text
+    assert "only for a structural decision with no obvious answer, never for every question" in text
+    assert "Name 2–3 perspectives" in text
+    assert "Only then ask the owner to choose" in text
+    # the perspectives come before the final question, inside step 2
+    assert text.index("Branch before asking") < text.index("3. **Lock the decisions.**")
