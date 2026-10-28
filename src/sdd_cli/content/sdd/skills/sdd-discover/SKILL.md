@@ -39,6 +39,30 @@ features, structural decisions, unresolved questions, delivery slices, each
 slice's origin, and initial file/runtime footprints. Do not invent answers:
 record uncertainty as an open question or a provisional backlog item.
 
+## What counts as structural
+
+A decision is structural if changing it would force rework in more than one
+stage. Use these categories as a checklist when you ask about structural
+decisions (adapt to the project). They are the same categories the project's
+decision gate (the `sdd-decide` skill) uses later; that skill only becomes
+available inside the project, after `sddkit init`, so apply this list yourself:
+
+- Stack, language, main frameworks/libraries
+- Overall architecture (layers, monolith vs services, module boundaries)
+- Design system / cross-cutting UI conventions (light/dark theme, component
+  library, breakpoints, accessibility baseline), when the project has an interface
+- Core data model and its main relationships
+- Identity: authentication, authorization, roles/profiles
+- Fundamental business rules (pricing, critical flows)
+- External integrations with side effects (gateways, third-party APIs)
+- Global conventions: naming, error format, logging, i18n
+- MVP vs post-MVP boundary
+- Non-negotiable constraints: deadline, budget, compliance, hosting
+
+Not structural (leave for the stage spec): names inside an already-chosen data
+model, internal function details, jobs and tooling, screen layout and microcopy,
+report formatting. Note them and move on.
+
 Deliver both files in the location the user chooses:
 
 - `discovery.md`: concise human review of the interview, assumptions, decisions,

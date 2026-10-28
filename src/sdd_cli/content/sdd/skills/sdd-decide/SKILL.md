@@ -17,6 +17,8 @@ stage. Typical categories (adapt to the project):
 
 - Stack, language, main frameworks/libraries
 - Overall architecture (layers, monolith vs services, module boundaries)
+- Design system / cross-cutting UI conventions (light/dark theme, component
+  library, breakpoints, accessibility baseline), when the project has an interface
 - Core data model and its main relationships
 - Identity: authentication, authorization, roles/profiles
 - Fundamental business rules (pricing, critical flows)
