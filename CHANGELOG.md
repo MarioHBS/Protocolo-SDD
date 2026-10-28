@@ -1,5 +1,39 @@
 # Changelog — sdd-cli
 
+## [4.6.0] — In progress
+
+### Added
+
+- G-03: `sdd-decide` names 2-3 perspectives (architecture, UX, security; the set
+  varies by category) and gives each option from each one before asking the owner
+  to choose. Only for a structural decision with no obvious answer, never for
+  every question.
+- G-04: `sdd-decide` and `sdd-discover` suggest a bounded web search before a
+  design/UI or architecture decision: at most 2 queries, stop at 2-3 concrete
+  references, a generic query that never copies text from the owner's project, the
+  result as input and not as the answer. Without a search tool the skill asks the
+  owner for references or records the gap, and never blocks.
+- G-05: `sdd-discover` branches 2-3 plausible interpretations, each with its
+  trade-off, before asking about a structural point with no obvious answer or an
+  open question that blocks the gate.
+
+### Changed
+
+- G-01: design system / cross-cutting UI conventions (light/dark theme,
+  component library, breakpoints, accessibility baseline) is now a structural
+  category in `sdd-decide`. `sdd-discover` carries the same checklist, and a test
+  compares the categories across `sdd-decide`, `sdd-discover` and the standalone
+  copy so they cannot drift apart. Motivated by a real project whose theme
+  requirement, never treated as structural, cost nine correction stages.
+- G-02: `sddkit init --discovery` no longer jumps to `SPECIFYING`. The project
+  starts in `DECIDING` and the decisions imported into section 3 read
+  `proposed (agreed <date>)` in the `Locked on` column, because nobody had run
+  the gate's cold self-audit on them. `sdd-decide` has a section for this case:
+  run only the audit (not the interview again), ask only about gaps and blocking
+  questions, replace each `proposed` marker with the lock date, then go straight
+  to `SPECIFYING` since the stage index already exists. Projects created before
+  4.6.0 are not touched by `sddkit update`.
+
 ## [4.5.0] — In progress
 
 ### Changed
