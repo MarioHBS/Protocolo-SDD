@@ -1,5 +1,27 @@
 # Changelog — sdd-cli
 
+## [4.5.0] — In progress
+
+### Changed
+
+- N-01: the executable is now `sddkit`, a second entry point of the same
+  program. The name `sdd` collided with an npm package (`npx sdd` ran third
+  party code in a real project), and `sddkit` is free on npm and PyPI. The
+  distribution is still called `sdd-cli`; the project folder is still `.sdd/`.
+- N-02: `sdd` stays installed as a deprecated alias. Started under that name it
+  prints one warning line on stderr and runs normally; stdout and `--json` are
+  identical under both names, and `python -m sdd_cli` and the new name print
+  nothing extra. It is removed in v5, together with `sdd docs`.
+- N-03: every command the kit teaches now reads `sddkit <command>`: the provider
+  shims, the installed `.sdd/README.md`, the skills and templates, the manual,
+  `--help` examples, CLI messages, the repository READMEs and the install
+  guides. The "never `npx`/`npm`" sentence names `sddkit`, and the manual and the
+  installed README say `sdd` is a deprecated alias. `sddkit update` refreshes
+  the managed files; what the project owns (`CLAUDE.md`, agent permissions such
+  as `Bash(sdd ...)`) is not touched and keeps working through the alias. A test
+  reads the real subcommands from the parser and fails if any managed file or
+  help text teaches the old spelling again.
+
 ## [4.4.0] — In progress
 
 ### Added
