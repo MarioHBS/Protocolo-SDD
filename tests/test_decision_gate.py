@@ -101,3 +101,14 @@ def test_the_bounded_search_rules_are_the_same_in_the_cli_skill_and_the_standalo
         return text[start:text.index("A search result is not authority; the owner's decision is.", start)]
 
     assert bullets("sdd-discover") == bullets("standalone")
+
+
+def test_sdd_decide_audits_discovery_decisions_instead_of_repeating_the_interview():
+    text = _text(_COPIES["sdd-decide"])
+    assert "## Project imported from discovery" in text
+    assert "`proposed (agreed <date>)`" in text
+    assert "Do not repeat the interview" in text
+    assert "Run only step 4 (cold self-audit)" in text
+    assert "lock every `proposed` row" in text
+    # the imported project already has its stage index, so it skips the roadmap pass
+    assert "skips `ROADMAP`: `State: SPECIFYING`" in text

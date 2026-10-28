@@ -91,6 +91,23 @@ Do not stall the flow debating local matters — note them and move on.
 
 5. **Open the gate.** With no structural item pending: `State: ROADMAP`,
    `Next action: load the sdd-roadmap skill`, update the date, record in §6.
+   A project imported from discovery already has its stage index (§5), so it
+   skips `ROADMAP`: `State: SPECIFYING`, keep `Active stage`,
+   `Next action: load the sdd-specify skill`.
+
+## Project imported from discovery
+
+`sddkit init --discovery` leaves the project in `DECIDING` with the interview's
+decisions in §3 marked `proposed (agreed <date>)` in the `Locked on` column: the
+owner agreed to them, but nobody has audited them. Do not repeat the interview.
+
+1. Run only step 4 (cold self-audit) over §3 and §4. Check §3 against the
+   categories above (for instance, a project with an interface and no design
+   system decision has a gap) and check that the decisions are consistent.
+2. Ask the owner only about what the audit finds missing or contradictory, and
+   about any question in §4 that blocks the gate.
+3. When the audit passes, lock every `proposed` row: replace the marker with
+   today's date in `Locked on`. Then open the gate (step 5).
 
 ## Structural decision mid-flight (short excursion)
 

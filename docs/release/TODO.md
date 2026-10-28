@@ -6,7 +6,7 @@
 - [x] G-03 — `sdd-decide` nomeia 2–3 perspectivas em decisão estrutural sem resposta óbvia
 - [x] G-05 — `sdd-discover` (CLI) ramifica interpretações em ponto que bloqueia o portão
 - [x] G-04 — busca externa delimitada em `sdd-decide` e `sdd-discover` (teto de 2 consultas, consulta genérica, fallback)
-- [ ] G-02 — `init --discovery` deixa `State: DECIDING` com decisões propostas; resolver as 3 questões do PLAN
+- [x] G-02 — `init --discovery` deixa `State: DECIDING` com decisões propostas; resolver as 3 questões do PLAN
 
 ## Gate
 
