@@ -1,5 +1,40 @@
 # Changelog — sdd-cli
 
+## [4.4.0] — In progress
+
+### Added
+
+- C-01: `sdd proposals collect [PROJECT...] [--scan ROOT]` gathers the
+  improvement proposals each project keeps in `.sdd/improvement-proposals.md`
+  into one local inbox, one file per `## IP-NNN` entry, named
+  `<project>-IP-NNN.md`. Entry ids restart at `IP-001` in every project, so an
+  entry is identified by (project, id); the content hash only tells an edited
+  entry from an unchanged one. A changed entry is updated, an unchanged one is
+  left alone and one that vanished from its source is kept. An entry ends at
+  the next `##` heading of any kind, so `## Resolvidas` and `## Como registrar`
+  never leak into it. The inbox is the user data folder (resolved with the
+  standard library only; the kit still has no dependencies) or
+  `SDD_PROPOSALS_INBOX`. Nothing is ever written to the projects.
+- C-02: `sdd proposals list [--all]` and `sdd proposals show <project>-IP-NNN`
+  read the inbox. `list` hides proposals already absorbed by the kit unless
+  `--all` is given; the status is read by its leading keyword, not a closed list.
+- C-03: `sdd proposals send --via file|url|issue` packages proposals for the
+  kit maintainer following the sections of `kit-evaluation.template.md`.
+  `file` writes a Markdown package and sends nothing; `url` shows the exact
+  text, asks, then opens a pre-filled issue in the browser; `issue` creates it
+  with `gh` and, when `gh` is missing, not logged in or failing, says why and
+  writes the file instead. `--snapshot` appends a `sdd evaluate --write`
+  snapshot.
+- C-04: each project gets an anonymous code (`P1`, `P2`...) on first collect,
+  kept only in the inbox; the package uses it instead of the folder name. Before
+  anything leaves, `send` scans the text for e-mails, absolute system paths,
+  secret-looking words and the real project names, and asks about every hit
+  separately; `--yes` never skips those questions and an unanswered prompt
+  counts as no. The scan is a heuristic, not a guarantee.
+- C-05: `collect` prints an informational note, and `--json` a `note` field, for
+  a project that has `.sdd/` but no `improvement-proposals.md`. The file name is
+  exact: a misspelt one (`improvements-proposals.md`) is reported, not guessed.
+
 ## [4.3.2] — In progress
 
 ### Fixed
