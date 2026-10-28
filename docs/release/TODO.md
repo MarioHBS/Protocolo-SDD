@@ -5,7 +5,7 @@
 - [x] G-01 — design system na lista estrutural de `sdd-decide`; `sdd-discover` (CLI) com a mesma lista; teste de paridade com o standalone
 - [x] G-03 — `sdd-decide` nomeia 2–3 perspectivas em decisão estrutural sem resposta óbvia
 - [x] G-05 — `sdd-discover` (CLI) ramifica interpretações em ponto que bloqueia o portão
-- [ ] G-04 — busca externa delimitada em `sdd-decide` e `sdd-discover` (teto de 2 consultas, consulta genérica, fallback)
+- [x] G-04 — busca externa delimitada em `sdd-decide` e `sdd-discover` (teto de 2 consultas, consulta genérica, fallback)
 - [ ] G-02 — `init --discovery` deixa `State: DECIDING` com decisões propostas; resolver as 3 questões do PLAN
 
 ## Gate

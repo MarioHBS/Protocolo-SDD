@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from sdd_cli.content import CONTENT_DIR
 
 _SKILLS = CONTENT_DIR / "sdd" / "skills"
@@ -74,3 +76,28 @@ def test_the_branching_rule_is_the_same_in_the_cli_skill_and_the_standalone():
         return text[start:text.index("owner decides.", start)]
 
     assert rule("sdd-discover") == rule("standalone")
+
+
+@pytest.mark.parametrize("name", ["sdd-decide", "sdd-discover"])
+def test_external_references_are_bounded_generic_and_never_block(name):
+    text = _text(_COPIES[name])
+    assert "External references (bounded)" in text
+    assert "At most 2 queries; stop as soon as you have 2–3 concrete references" in text
+    assert "never with text copied from the owner's project" in text
+    assert "A search result is not authority; the owner's decision is." in text
+    assert "Without a search tool, ask the owner for references they already know" in text
+    assert "Never block" in text
+
+
+def test_the_search_comes_before_the_options_are_presented():
+    decide = _text(_COPIES["sdd-decide"])
+    assert decide.index("External references (bounded)") < decide.index("Branch before asking")
+
+
+def test_the_bounded_search_rules_are_the_same_in_the_cli_skill_and_the_standalone():
+    def bullets(name: str) -> str:
+        text = _text(_COPIES[name])
+        start = text.index("At most 2 queries")
+        return text[start:text.index("A search result is not authority; the owner's decision is.", start)]
+
+    assert bullets("sdd-discover") == bullets("standalone")

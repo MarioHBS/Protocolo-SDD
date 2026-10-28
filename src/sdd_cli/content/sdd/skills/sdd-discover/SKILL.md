@@ -77,6 +77,25 @@ question that blocks the gate (`blocks_gate: "yes"`), never for every question.
   fixed set.
 - The owner decides. If they cannot yet, record the question as open.
 
+## External references (bounded)
+
+For a design/UI or architecture decision, before presenting the options, you may
+look up how comparable products or systems solved the same problem, if you have
+a web search tool.
+
+- At most 2 queries; stop as soon as you have 2–3 concrete references. This is
+  not a survey.
+- Phrase the query as the generic pattern or problem (for example "light/dark
+  theme patterns in a marketplace app"), never with text copied from the
+  owner's project: a search provider is a third party and the idea may be
+  confidential.
+- Cite what you found as input to the options, not as the answer. A search
+  result is not authority; the owner's decision is.
+- Without a search tool, ask the owner for references they already know, or
+  proceed and record the gap as an open question. Never block the interview for
+  lack of the tool.
+- List the references used in `discovery.md`.
+
 Deliver both files in the location the user chooses:
 
 - `discovery.md`: concise human review of the interview, assumptions, decisions,
