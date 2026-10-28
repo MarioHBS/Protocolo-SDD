@@ -247,3 +247,106 @@ def test_cmd_proposals_collect_needs_a_project_or_scan(tmp_path, monkeypatch, ca
         cmd_proposals(_args())
     assert error.value.code == 1
     assert "error:" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------ list / show
+
+@pytest.mark.parametrize(("status", "word"), [
+    ("aberta", "aberta"),
+    ("Contorno local (até a 4.5)", "contorno local"),
+    ("absorvida pelo kit (4.2.0)", "absorvida pelo kit"),
+    ("proposta", "proposta"),
+    ("em análise (semana que vem)", "em"),
+    (None, ""),
+])
+def test_status_keyword_reads_the_leading_word_without_a_closed_list(status, word):
+    assert _proposals.status_keyword(status) == word
+
+
+@pytest.fixture
+def collected(tmp_path, monkeypatch):
+    inbox = tmp_path / "inbox"
+    monkeypatch.setenv("SDD_PROPOSALS_INBOX", str(inbox))
+    _proposals.collect([_project(tmp_path, "P1", P1_FILE), _project(tmp_path, "P2", P2_FILE)], inbox)
+    return inbox
+
+
+def _view(**values):
+    return _args(**{"proposals_command": "list", "all": False, "id": None, **values})
+
+
+def test_load_orders_by_project_then_numeric_id(collected):
+    assert [e["key"] for e in _proposals.load(collected)] == [
+        "P1-IP-001", "P1-IP-005", "P1-IP-010", "P2-IP-001"]
+
+
+def test_load_skips_files_that_are_not_inbox_entries(collected):
+    (collected / "notes.md").write_text("# not ours\n\n## IP-009 — stray\n", encoding="utf-8")
+    assert len(_proposals.load(collected)) == 4
+
+
+def test_load_of_a_missing_inbox_is_empty(tmp_path):
+    assert _proposals.load(tmp_path / "nowhere") == []
+
+
+def test_list_hides_absorbed_by_default_and_all_shows_them(collected, capsys):
+    cmd_proposals(_view())
+    out = capsys.readouterr().out
+    assert "P1-IP-005" in out and "P1-IP-010" in out and "P2-IP-001" in out
+    assert "P1-IP-001" not in out
+    assert "1 absorbed by the kit hidden" in out
+    cmd_proposals(_view(all=True))
+    assert "P1-IP-001" in capsys.readouterr().out
+
+
+def test_list_json_carries_state_and_total(collected, capsys):
+    cmd_proposals(_view(json=True))
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["total"] == 4
+    assert [p["key"] for p in payload["proposals"]] == ["P1-IP-005", "P1-IP-010", "P2-IP-001"]
+    assert payload["proposals"][0]["state"] == "aberta"
+
+
+def test_list_is_deterministic(collected, capsys):
+    cmd_proposals(_view(all=True))
+    first = capsys.readouterr().out
+    cmd_proposals(_view(all=True))
+    assert capsys.readouterr().out == first
+
+
+def test_list_on_an_empty_inbox_points_at_collect(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SDD_PROPOSALS_INBOX", str(tmp_path / "inbox"))
+    cmd_proposals(_view())
+    assert "sdd proposals collect" in capsys.readouterr().out
+
+
+def test_show_prints_the_full_text_of_the_qualified_id(collected, capsys):
+    cmd_proposals(_view(proposals_command="show", id="p2-ip-001"))
+    out = capsys.readouterr().out
+    assert "Algo diferente do IP-001 de P1" in out
+    assert "O nome divergia" not in out
+
+
+def test_show_asks_for_the_qualified_id_when_a_bare_one_is_ambiguous(collected, capsys):
+    with pytest.raises(SystemExit):
+        cmd_proposals(_view(proposals_command="show", id="IP-001"))
+    err = capsys.readouterr().err
+    assert "P1-IP-001" in err and "P2-IP-001" in err
+
+
+def test_show_accepts_a_bare_id_that_only_one_project_has(collected, capsys):
+    cmd_proposals(_view(proposals_command="show", id="IP-005"))
+    assert "O gate passou sem critério" in capsys.readouterr().out
+
+
+def test_show_json_has_body_and_phase(collected, capsys):
+    cmd_proposals(_view(proposals_command="show", id="P1-IP-005", json=True))
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["phase"] == "specify, plan" and "Exigir um critério" in payload["body"]
+
+
+def test_show_unknown_id_fails_with_a_hint(collected, capsys):
+    with pytest.raises(SystemExit) as error:
+        cmd_proposals(_view(proposals_command="show", id="P9-IP-001"))
+    assert error.value.code == 1
+    assert "no proposal P9-IP-001" in capsys.readouterr().err

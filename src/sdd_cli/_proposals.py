@@ -149,3 +149,55 @@ def collect(projects: list[Path], inbox: Path) -> dict:
             report[outcome] += 1
             result[outcome] += 1
     return result
+
+
+# ------------------------------------------------------------ list / show
+
+_FRONT_RE = re.compile(r"\A---\n(.*?)\n---\n", re.S)
+_PROJECT_RE = re.compile(r"(?m)^project:[ \t]*(.+?)[ \t]*$")
+_STATUS_WORDS = ("absorvida pelo kit", "contorno local", "aberta", "proposta")
+
+
+def status_keyword(status: str | None) -> str:
+    """Leading keyword of the free-text ``Status``; any text is accepted."""
+    text = (status or "").strip().lower()
+    for word in _STATUS_WORDS:
+        if text.startswith(word):
+            return word
+    return text.split()[0].strip("(.,;:") if text else ""
+
+
+def is_absorbed(entry: dict) -> bool:
+    return status_keyword(entry["status"]) == "absorvida pelo kit"
+
+
+def load(inbox: Path) -> list[dict]:
+    """Every entry in ``inbox``, ordered by project then id. Reads only; a file
+    that is not one of ours (no front matter or no entry) is skipped."""
+    if not inbox.is_dir():
+        return []
+    loaded: list[dict] = []
+    for path in inbox.glob("*.md"):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
+        except OSError:
+            continue
+        front = _FRONT_RE.match(text)
+        project = _PROJECT_RE.search(front.group(1)) if front else None
+        entries = parse(text[front.end():]) if front else []
+        if not project or not entries:
+            continue
+        entry = entries[0]
+        entry["project"] = project.group(1)
+        entry["key"] = f"{entry['project']}-{entry['id']}"
+        loaded.append(entry)
+    loaded.sort(key=lambda e: (e["project"].lower(), int(e["id"][3:])))
+    return loaded
+
+
+def find(entries: list[dict], token: str) -> list[dict]:
+    """Entries named by ``token``: the qualified ``P1-IP-001`` (one match at
+    most), or a bare ``IP-001``, which matches once per project that has it."""
+    wanted = token.strip().lower()
+    exact = [e for e in entries if e["key"].lower() == wanted]
+    return exact or [e for e in entries if e["id"].lower() == wanted]

@@ -249,7 +249,7 @@ exactly once, in `.sdd/.reservations.json`. Sequences are declared in the
 constitution's section 7 as `` `migration` = `db/NNNN_*.sql` ``; `migration`
 defaults to `supabase/migrations/NNNN_*.sql` when that folder exists.
 
-### `sdd proposals <collect>`
+### `sdd proposals <collect|list|show>`
 
 Each project records friction with the kit in `.sdd/improvement-proposals.md`, one
 `## IP-NNN — title` entry per episode. Ids restart at `IP-001` in every project, so
@@ -265,6 +265,11 @@ an entry is identified by (project, id).
   projects. The inbox is the user data folder (`%APPDATA%\sdd-cli\proposals` on
   Windows, `$XDG_DATA_HOME` or `~/.local/share` on Linux, `~/Library/Application
   Support` on macOS) unless `SDD_PROPOSALS_INBOX` points elsewhere.
+- `sdd proposals list [--all] [--json]` prints one line per collected proposal:
+  `<project>-IP-NNN`, date, status keyword and title. Proposals the kit already
+  absorbed are hidden unless `--all` is given.
+- `sdd proposals show <project>-IP-NNN [--json]` prints one proposal in full. A bare
+  `IP-001` works only while a single project has it.
 
 ### `sdd deps <add|remove|list|graph>`
 

@@ -1552,7 +1552,48 @@ def cmd_seq(args) -> None:
     _emit_json(record) if args.json else print(record["number"])
 
 
+def _proposal_summary(entry: dict) -> dict:
+    return {"key": entry["key"], "project": entry["project"], "id": entry["id"],
+            "title": entry["title"], "date": entry["date"], "status": entry["status"],
+            "state": _proposals.status_keyword(entry["status"])}
+
+
+def _proposals_list_or_show(args) -> None:
+    inbox = _proposals.inbox_dir()
+    entries = _proposals.load(inbox)
+    if args.proposals_command == "show":
+        matches = _proposals.find(entries, args.id)
+        if not matches:
+            die(f"no proposal {args.id} in {inbox}; `sdd proposals list --all` shows what is there")
+        if len(matches) > 1:
+            die(f"{args.id} exists in several projects, use one of: "
+                + ", ".join(e["key"] for e in matches))
+        entry = matches[0]
+        if args.json:
+            _emit_json({**_proposal_summary(entry), "phase": entry["phase"], "body": entry["body"]})
+            return
+        print(dim(f"{entry['key']}  ({entry['project']})"))
+        print(entry["body"], end="")
+        return
+    shown = entries if args.all else [e for e in entries if not _proposals.is_absorbed(e)]
+    if args.json:
+        _emit_json({"inbox": str(inbox), "total": len(entries),
+                    "proposals": [_proposal_summary(e) for e in shown]})
+        return
+    if not entries:
+        print(f"inbox is empty ({inbox}); run `sdd proposals collect` first")
+        return
+    width = max((len(e["key"]) for e in shown), default=0)
+    for entry in shown:
+        print(f"{entry['key']:<{width}}  {entry['date'] or '-':<10}  "
+              f"{_proposals.status_keyword(entry['status']) or '-':<18} {entry['title']}")
+    hidden = len(entries) - len(shown)
+    print(dim(f"{len(shown)} shown" + (f", {hidden} absorbed by the kit hidden (--all shows them)" if hidden else "")))
+
+
 def cmd_proposals(args) -> None:
+    if args.proposals_command in ("list", "show"):
+        return _proposals_list_or_show(args)
     projects = [Path(p).resolve() for p in args.projects]
     for project in projects:
         if not (project / ".sdd").is_dir():
@@ -2886,6 +2927,12 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                           "updated, an unchanged one is left alone, and an entry that vanished from its source "
                           "is kept. The inbox is the user data folder, or $SDD_PROPOSALS_INBOX when set.",
                           "sdd proposals collect ../app-a ../app-b\nsdd proposals collect --scan ~/projects --json"),
+    "proposals list": ("One line per collected proposal: <project>-IP-NNN, date, status keyword, title. "
+                       "Proposals already absorbed by the kit are hidden unless --all is given.",
+                       "sdd proposals list\nsdd proposals list --all --json"),
+    "proposals show": ("Print one collected proposal in full. Use the qualified id, since IP-001 exists "
+                       "in every project; a bare id works only when one project has it.",
+                       "sdd proposals show app-a-IP-001\nsdd proposals show app-a-IP-001 --json"),
     "scaffold": ("For a stage with a locked spec.md, create the missing todo.md (from its acceptance criteria) "
                  "and, with Eval Driven Development on, evals.md and checklist.md. Never overwrites.",
                  "sdd scaffold 004-auth-model\nsdd scaffold 001-x --track login --dry-run"),
@@ -3201,6 +3248,14 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     collect.add_argument("--scan", metavar="ROOT", help="also collect from every folder under ROOT that has a .sdd/")
     collect.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     collect.set_defaults(func=cmd_proposals)
+    prop_list = proposals_sub.add_parser("list", help="list the collected proposals (absorbed ones hidden)")
+    prop_list.add_argument("--all", action="store_true", help="also show proposals absorbed by the kit")
+    prop_list.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    prop_list.set_defaults(func=cmd_proposals)
+    prop_show = proposals_sub.add_parser("show", help="print one collected proposal in full")
+    prop_show.add_argument("id", help="qualified id such as app-a-IP-001")
+    prop_show.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    prop_show.set_defaults(func=cmd_proposals)
 
     sc = sub.add_parser("scaffold", help="create missing stage artifacts from a locked spec")
     sc.add_argument("stage", help="stage identifier")

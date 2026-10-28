@@ -3,7 +3,7 @@
 ## Items
 
 - [x] C-01 — `sdd proposals collect [PROJETO...] [--scan RAIZ]` e caixa de entrada
-- [ ] C-02 — `sdd proposals list` e `show`
+- [x] C-02 — `sdd proposals list` e `show`
 - [ ] C-04 — varredura de dado privado (antes do C-03)
 - [ ] C-03 — `sdd proposals send --via file|url|issue`
 - [ ] C-05 — nota de projeto sem arquivo de propostas no `--scan`
