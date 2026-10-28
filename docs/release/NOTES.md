@@ -29,7 +29,8 @@
      `ROADMAP`, porque o índice de estágios já veio da descoberta. É o mesmo destino de antes; só o
      portão voltou.
   3. `Active stage: 001-<slug>` continua preenchido em `DECIDING`; nenhum check do `doctor` ou do
-     dashboard estranha a combinação (a suíte inteira passa, incluindo `doctor`).
+     dashboard estranha a combinação. Conferido com o wheel num projeto criado por `--discovery`: `doctor`
+     só acusa `abs_file_links`, aviso que já existia (ver as notas da 4.5.0).
 - A mensagem final do `init` e o resumo do `--discovery` agora dizem que o projeto começa em
   `DECIDING`; `init` sem descoberta segue dizendo `INITIALIZING`.
 - Não há campo novo no `discovery.json` (`sdd-discovery/v1`): `locked_on` continua sendo a data do
