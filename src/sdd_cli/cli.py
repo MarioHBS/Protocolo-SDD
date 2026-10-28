@@ -1604,6 +1604,14 @@ def _proposals_to_file(args, text: str, reason: str | None = None) -> None:
     print("Nothing was sent. Deliver this file to the kit maintainer any way you like.")
 
 
+def _confirm(prompt: str) -> bool:
+    """Yes only on an explicit y/yes; no answer (closed stdin) counts as no."""
+    try:
+        return input(prompt).strip().lower() in {"y", "yes"}
+    except EOFError:
+        return False
+
+
 def _proposals_send_cmd(args) -> None:
     source = Path(args.source).resolve() if args.source else _proposals.inbox_dir()
     entries = _proposals.load(source)
@@ -1644,13 +1652,13 @@ def _proposals_send_cmd(args) -> None:
             die("each hit needs a yes at a terminal; edit the proposals and collect again, or run it interactively")
         for hit in hits:
             print(yellow(f"line {hit['line']} [{hit['kind']}] {hit['match']}"), dim(hit["context"]))
-            if input("  Keep it in the package? [y/N]: ").strip().lower() not in {"y", "yes"}:
+            if not _confirm("  Keep it in the package? [y/N]: "):
                 print("aborted; nothing was sent.")
                 return
     if outbound and not args.yes:
         if not interactive:
             die(f"--via {args.via} without a TTY requires --yes")
-        if input(f"Send this to {_proposals_send.KIT_REPO} via {args.via}? [y/N]: ").strip().lower() not in {"y", "yes"}:
+        if not _confirm(f"Send this to {_proposals_send.KIT_REPO} via {args.via}? [y/N]: "):
             print("aborted; nothing was sent.")
             return
     if args.via == "file":

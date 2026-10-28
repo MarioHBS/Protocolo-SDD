@@ -315,3 +315,16 @@ def test_issue_success_prints_the_created_link(inbox, monkeypatch, capsys):
     monkeypatch.setattr(_proposals_send, "create_issue", lambda t, b: ("https://github.com/x/y/issues/7", ""))
     cmd_proposals(_send(via="issue"))
     assert "created https://github.com/x/y/issues/7" in capsys.readouterr().out
+
+
+def test_closed_stdin_at_a_prompt_counts_as_no(tmp_path, monkeypatch, capsys):
+    _dirty_inbox(tmp_path, monkeypatch, "Fale com dono@example.com.")
+    _terminal(monkeypatch, None)
+
+    def closed(prompt=""):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", closed)
+    cmd_proposals(_send(output=str(tmp_path / "pkg.md")))
+    assert not (tmp_path / "pkg.md").exists()
+    assert "aborted; nothing was sent" in capsys.readouterr().out
