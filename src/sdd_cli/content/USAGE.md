@@ -18,6 +18,7 @@ Commands by purpose:
 | Work | `sdd session`, `sdd scaffold`, `sdd track`, `sdd seq`, `sdd deps`, `sdd impact` |
 | Document | `sdd document`, `sdd manual` |
 | Observe | `sdd dashboard` |
+| Feedback | `sdd proposals` |
 
 Every command accepts `--help` with examples. Commands that report findings accept
 `--json` for automation.
@@ -247,6 +248,23 @@ Reserves the next number of a shared sequence (for example database migrations)
 exactly once, in `.sdd/.reservations.json`. Sequences are declared in the
 constitution's section 7 as `` `migration` = `db/NNNN_*.sql` ``; `migration`
 defaults to `supabase/migrations/NNNN_*.sql` when that folder exists.
+
+### `sdd proposals <collect>`
+
+Each project records friction with the kit in `.sdd/improvement-proposals.md`, one
+`## IP-NNN — title` entry per episode. Ids restart at `IP-001` in every project, so
+an entry is identified by (project, id).
+
+- `sdd proposals collect [PROJECT...] [--scan ROOT] [--json]` copies every entry
+  into a local inbox, one file per entry named `<project>-IP-NNN.md`, where the
+  project is its folder name. `--scan ROOT` adds every folder under `ROOT` that has a
+  `.sdd/`. An entry ends at the next `##` heading of any kind, so `## Resolvidas`
+  never leaks into the previous entry. Run it again at any time: a changed entry is
+  updated, an unchanged one is left alone, and an entry that disappeared from its
+  source stays in the inbox. It never writes to, moves or deletes anything in the
+  projects. The inbox is the user data folder (`%APPDATA%\sdd-cli\proposals` on
+  Windows, `$XDG_DATA_HOME` or `~/.local/share` on Linux, `~/Library/Application
+  Support` on macOS) unless `SDD_PROPOSALS_INBOX` points elsewhere.
 
 ### `sdd deps <add|remove|list|graph>`
 

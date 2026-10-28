@@ -23,6 +23,7 @@ from . import (
     _findings,
     _index_checks,
     _mojibake,
+    _proposals,
     _session,
     _tracks,
     _user_files,
@@ -1551,6 +1552,37 @@ def cmd_seq(args) -> None:
     _emit_json(record) if args.json else print(record["number"])
 
 
+def cmd_proposals(args) -> None:
+    projects = [Path(p).resolve() for p in args.projects]
+    for project in projects:
+        if not (project / ".sdd").is_dir():
+            die(f"no .sdd/ found in {project}")
+    if args.scan:
+        scan_root = Path(args.scan).resolve()
+        if not scan_root.is_dir():
+            die(f"not a directory: {scan_root}")
+        projects += [p for p in _proposals.scan(scan_root) if p not in projects]
+    if not projects:
+        die("give at least one project path or --scan ROOT")
+    try:
+        result = _proposals.collect(projects, _proposals.inbox_dir())
+    except (OSError, ValueError) as exc:
+        die(str(exc))
+    if args.json:
+        _emit_json(result)
+        return
+    for report in result["projects"]:
+        if report["source"] is None:
+            print(f"{report['project']}: no {_proposals.PROPOSALS_FILE.as_posix()}")
+            continue
+        print(f"{report['project']}: {report['entries']} entries "
+              f"({report['created']} created, {report['updated']} updated, {report['unchanged']} unchanged)")
+        for warning in report["warnings"]:
+            print(dim(f"  {warning}"))
+    print(f"inbox: {result['inbox']}")
+    print(f"{result['created']} created, {result['updated']} updated, {result['unchanged']} unchanged")
+
+
 def _stage_path(root: Path, token: str, track: str | None) -> Path:
     found = _find_stage(root, token, track)
     if found:
@@ -2846,6 +2878,14 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "seq next": ("Reserve the next number in .sdd/.reservations.json. Sequences are declared in the "
                  "constitution as `name` = `dir/NNNN_*.ext`; 'migration' defaults to supabase/migrations.",
                  "sdd seq next migration\nsdd seq next migration --track billing --json"),
+    "proposals": ("Gather the improvement proposals each project keeps in .sdd/improvement-proposals.md "
+                  "into one local inbox, so they can be reviewed together. Never writes to the projects.",
+                  "sdd proposals collect ../app-a ../app-b\nsdd proposals collect --scan ~/projects"),
+    "proposals collect": ("Copy every '## IP-NNN' entry of each project into the inbox, one file per entry "
+                          "named <project>-IP-NNN.md (the project is its folder name). A changed entry is "
+                          "updated, an unchanged one is left alone, and an entry that vanished from its source "
+                          "is kept. The inbox is the user data folder, or $SDD_PROPOSALS_INBOX when set.",
+                          "sdd proposals collect ../app-a ../app-b\nsdd proposals collect --scan ~/projects --json"),
     "scaffold": ("For a stage with a locked spec.md, create the missing todo.md (from its acceptance criteria) "
                  "and, with Eval Driven Development on, evals.md and checklist.md. Never overwrites.",
                  "sdd scaffold 004-auth-model\nsdd scaffold 001-x --track login --dry-run"),
@@ -3152,6 +3192,15 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     seq_next.add_argument("--track", help="track holding this reservation")
     seq_next.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     seq_next.set_defaults(func=cmd_seq)
+
+    proposals = sub.add_parser("proposals", help="gather improvement proposals from several projects")
+    proposals_sub = proposals.add_subparsers(dest="proposals_command", required=True)
+    collect = proposals_sub.add_parser(
+        "collect", help="copy each project's improvement proposals into a local inbox (read-only on projects)")
+    collect.add_argument("projects", nargs="*", help="project roots (each with a .sdd/)")
+    collect.add_argument("--scan", metavar="ROOT", help="also collect from every folder under ROOT that has a .sdd/")
+    collect.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    collect.set_defaults(func=cmd_proposals)
 
     sc = sub.add_parser("scaffold", help="create missing stage artifacts from a locked spec")
     sc.add_argument("stage", help="stage identifier")
