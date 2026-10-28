@@ -14,4 +14,4 @@
 - [x] Verificado em um projeto real que `sdd update` reescreve só arquivos gerenciados
 - [x] `CHANGELOG.md` cita N-01 a N-03; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.5.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
+- [x] tag `v4.5.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
