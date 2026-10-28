@@ -10,6 +10,7 @@ Entry ids restart at ``IP-001`` in every project, so identity is the pair
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import sys
@@ -26,6 +27,7 @@ _HEADING_RE = re.compile(r"(?m)^##(?!#)[ \t]*(.*)$")
 _ENTRY_RE = re.compile(r"^(IP-\d+)\s*[—–-]*\s*(.*)$")
 _FIELDS = {"date": "Data", "status": "Status", "phase": "Fase afetada"}
 _HASH_RE = re.compile(r"(?m)^sha256:\s*([0-9a-f]+)\s*$")
+CODES_FILE = ".codes.json"
 
 
 # ------------------------------------------------------------------ parse
@@ -110,6 +112,31 @@ def scan(root: Path) -> list[Path]:
     return sorted(found)
 
 
+def read_codes(inbox: Path) -> dict[str, str]:
+    """Anonymous code (``P1``, ``P2``...) of each project, kept only in the inbox."""
+    try:
+        data = json.loads((inbox / CODES_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
+
+
+def _next_code(codes: Mapping[str, str]) -> str:
+    used = [int(c[1:]) for c in codes.values() if re.fullmatch(r"P\d+", c)]
+    return f"P{max(used, default=0) + 1}"
+
+
+def aliases(entries: list[dict], inbox: Path) -> dict[str, str]:
+    """Anonymous code for every project in ``entries``. Codes already recorded
+    in the inbox win; a project it never saw (files copied in by hand) gets the
+    next free one, in name order, without writing anything."""
+    codes = read_codes(inbox)
+    for project in sorted({e["project"] for e in entries}, key=str.lower):
+        if project not in codes:
+            codes[project] = _next_code(codes)
+    return {project: codes[project] for project in {e["project"] for e in entries}}
+
+
 def collect(projects: list[Path], inbox: Path) -> dict:
     """Copy each project's entries into ``inbox`` as ``<project>-IP-NNN.md``.
 
@@ -122,6 +149,8 @@ def collect(projects: list[Path], inbox: Path) -> dict:
     if clashes:
         raise ValueError(f"same project code for different folders: {', '.join(clashes)}")
     result = {"inbox": str(inbox), "projects": [], "created": 0, "updated": 0, "unchanged": 0}
+    known = read_codes(inbox)
+    anonymous = dict(known)
     for project, code in zip(projects, codes, strict=True):
         source = project / PROPOSALS_FILE
         report = {"project": code, "source": None, "entries": 0,
@@ -131,7 +160,10 @@ def collect(projects: list[Path], inbox: Path) -> dict:
             continue
         report["source"] = PROPOSALS_FILE.as_posix()
         seen: set[str] = set()
-        for entry in parse(source.read_text(encoding="utf-8", errors="replace")):
+        found = parse(source.read_text(encoding="utf-8", errors="replace"))
+        if found and code not in anonymous:
+            anonymous[code] = _next_code(anonymous)
+        for entry in found:
             if entry["id"] in seen:
                 report["warnings"].append(f"{entry['id']} appears more than once; kept the first")
                 continue
@@ -148,6 +180,8 @@ def collect(projects: list[Path], inbox: Path) -> dict:
                 _write(target, _render(code, entry))
             report[outcome] += 1
             result[outcome] += 1
+    if anonymous != known:
+        _write(inbox / CODES_FILE, json.dumps(anonymous, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
     return result
 
 

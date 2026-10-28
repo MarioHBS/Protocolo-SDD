@@ -126,7 +126,7 @@ def test_collect_writes_one_file_per_entry_named_by_project_and_id(tmp_path):
     p2 = _project(tmp_path, "P2", P2_FILE)
     inbox = tmp_path / "inbox"
     result = _proposals.collect([p1, p2], inbox)
-    assert sorted(f.name for f in inbox.iterdir()) == [
+    assert sorted(f.name for f in inbox.glob("*.md")) == [
         "P1-IP-001.md", "P1-IP-005.md", "P1-IP-010.md", "P2-IP-001.md"]
     assert result["created"] == 4 and result["updated"] == 0 and result["unchanged"] == 0
     assert "Algo diferente" in (inbox / "P2-IP-001.md").read_text(encoding="utf-8")
@@ -202,6 +202,45 @@ def test_collect_refuses_two_projects_with_the_same_folder_name(tmp_path):
     with pytest.raises(ValueError, match="same project code"):
         _proposals.collect([first, second], tmp_path / "inbox")
     assert not (tmp_path / "inbox").exists()
+
+
+# ------------------------------------------------------------ anonymous codes
+
+def test_collect_gives_each_project_with_entries_a_stable_anonymous_code(tmp_path):
+    p1 = _project(tmp_path, "alpha", P1_FILE)
+    p2 = _project(tmp_path, "beta", P2_FILE)
+    p3 = _project(tmp_path, "gamma", None)
+    inbox = tmp_path / "inbox"
+    _proposals.collect([p1, p3], inbox)
+    assert _proposals.read_codes(inbox) == {"alpha": "P1"}
+    _proposals.collect([p2, p1], inbox)
+    assert _proposals.read_codes(inbox) == {"alpha": "P1", "beta": "P2"}
+
+
+def test_collect_does_not_rewrite_the_codes_when_nothing_is_new(tmp_path):
+    p1 = _project(tmp_path, "alpha", P1_FILE)
+    inbox = tmp_path / "inbox"
+    _proposals.collect([p1], inbox)
+    before = (inbox / ".codes.json").stat().st_mtime_ns
+    _proposals.collect([p1], inbox)
+    assert (inbox / ".codes.json").stat().st_mtime_ns == before
+
+
+def test_aliases_keep_recorded_codes_and_number_unknown_projects_without_writing(tmp_path):
+    inbox = tmp_path / "inbox"
+    _proposals.collect([_project(tmp_path, "alpha", P1_FILE)], inbox)
+    entries = _proposals.load(inbox)
+    entries.append({**entries[0], "project": "zed"})
+    assert _proposals.aliases(entries, inbox) == {"alpha": "P1", "zed": "P2"}
+    assert _proposals.read_codes(inbox) == {"alpha": "P1"}
+
+
+def test_load_ignores_the_codes_file_and_a_corrupt_one_reads_as_empty(tmp_path):
+    inbox = tmp_path / "inbox"
+    _proposals.collect([_project(tmp_path, "alpha", P1_FILE)], inbox)
+    (inbox / ".codes.json").write_text("{not json", encoding="utf-8")
+    assert _proposals.read_codes(inbox) == {}
+    assert len(_proposals.load(inbox)) == 3
 
 
 # ------------------------------------------------------------------- scan
