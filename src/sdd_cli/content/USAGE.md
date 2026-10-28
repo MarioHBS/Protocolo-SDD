@@ -261,7 +261,9 @@ an entry is identified by (project, id).
   `.sdd/`. An entry ends at the next `##` heading of any kind, so `## Resolvidas`
   never leaks into the previous entry. Run it again at any time: a changed entry is
   updated, an unchanged one is left alone, and an entry that disappeared from its
-  source stays in the inbox. It never writes to, moves or deletes anything in the
+  source stays in the inbox. A project that has a `.sdd/` but no
+  `improvement-proposals.md` (the name is exact) gets an informational `note:` line, not
+  an error, since it may simply have nothing to report. It never writes to, moves or deletes anything in the
   projects. The inbox is the user data folder (`%APPDATA%\sdd-cli\proposals` on
   Windows, `$XDG_DATA_HOME` or `~/.local/share` on Linux, `~/Library/Application
   Support` on macOS) unless `SDD_PROPOSALS_INBOX` points elsewhere.

@@ -1696,7 +1696,7 @@ def cmd_proposals(args) -> None:
         return
     for report in result["projects"]:
         if report["source"] is None:
-            print(f"{report['project']}: no {_proposals.PROPOSALS_FILE.as_posix()}")
+            print(dim(f"note: {report['project']}: {report['note']}"))
             continue
         print(f"{report['project']}: {report['entries']} entries "
               f"({report['created']} created, {report['updated']} updated, {report['unchanged']} unchanged)")

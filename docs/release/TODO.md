@@ -6,7 +6,7 @@
 - [x] C-02 — `sdd proposals list` e `show`
 - [x] C-04 — varredura de dado privado (antes do C-03)
 - [x] C-03 — `sdd proposals send --via file|url|issue`
-- [ ] C-05 — nota de projeto sem arquivo de propostas no `--scan`
+- [x] C-05 — nota de projeto sem arquivo de propostas no `--scan`
 
 ## Gate
 

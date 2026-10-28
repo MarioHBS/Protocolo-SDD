@@ -389,3 +389,29 @@ def test_show_unknown_id_fails_with_a_hint(collected, capsys):
         cmd_proposals(_view(proposals_command="show", id="P9-IP-001"))
     assert error.value.code == 1
     assert "no proposal P9-IP-001" in capsys.readouterr().err
+
+
+# --------------------------------------------- projects without the file (C-05)
+
+def test_scan_notes_each_project_without_the_file_and_still_succeeds(tmp_path, monkeypatch, capsys):
+    _project(tmp_path / "work", "P1", P1_FILE)
+    _project(tmp_path / "work", "P3", None)
+    typo = _project(tmp_path / "work", "P4", None)
+    (typo / ".sdd" / "improvements-proposals.md").write_text(P2_FILE, encoding="utf-8")
+    monkeypatch.setenv("SDD_PROPOSALS_INBOX", str(tmp_path / "inbox"))
+    cmd_proposals(_args(scan=str(tmp_path / "work")))
+    out = capsys.readouterr().out
+    assert "note: P3: no .sdd/improvement-proposals.md" in out
+    assert "note: P4: no .sdd/improvement-proposals.md" in out
+    assert "P1: 3 entries" in out and "error" not in out
+    assert not (tmp_path / "inbox" / "P4-IP-001.md").exists()
+
+
+def test_json_carries_the_note_only_for_projects_without_the_file(tmp_path, monkeypatch, capsys):
+    _project(tmp_path / "work", "P1", P1_FILE)
+    _project(tmp_path / "work", "P3", None)
+    monkeypatch.setenv("SDD_PROPOSALS_INBOX", str(tmp_path / "inbox"))
+    cmd_proposals(_args(scan=str(tmp_path / "work"), json=True))
+    reports = {r["project"]: r for r in json.loads(capsys.readouterr().out)["projects"]}
+    assert reports["P1"]["note"] is None
+    assert "no .sdd/improvement-proposals.md" in reports["P3"]["note"]

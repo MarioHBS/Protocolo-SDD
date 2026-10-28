@@ -154,9 +154,12 @@ def collect(projects: list[Path], inbox: Path) -> dict:
     for project, code in zip(projects, codes, strict=True):
         source = project / PROPOSALS_FILE
         report = {"project": code, "source": None, "entries": 0,
-                  "created": 0, "updated": 0, "unchanged": 0, "warnings": []}
+                  "created": 0, "updated": 0, "unchanged": 0, "warnings": [], "note": None}
         result["projects"].append(report)
         if not source.is_file():
+            # A note, never an error: the project may simply have registered no friction. The
+            # name is exact on purpose, so a misspelt file (improvements-proposals.md) shows up here.
+            report["note"] = f"no {PROPOSALS_FILE.as_posix()} (nothing registered, or a different file name)"
             continue
         report["source"] = PROPOSALS_FILE.as_posix()
         seen: set[str] = set()
