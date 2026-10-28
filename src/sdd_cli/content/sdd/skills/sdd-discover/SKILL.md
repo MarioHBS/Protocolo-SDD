@@ -1,17 +1,17 @@
 ---
 name: sdd-discover
-description: Conduct pre-project discovery for SDD and produce the reviewed discovery.md plus a valid discovery.json import contract. Use before a repository exists or before sdd init --discovery.
+description: Conduct pre-project discovery for SDD and produce the reviewed discovery.md plus a valid discovery.json import contract. Use before a repository exists or before sddkit init --discovery.
 ---
 
 # SDD discovery
 
 Use this outside a project repository to turn an uncertain idea into a reviewable
-project brief and a deterministic input for `sdd init --discovery`.
+project brief and a deterministic input for `sddkit init --discovery`.
 
 ## Explain the installation choices first
 
 The owner will have to decide these when the kit is installed in the project
-(`sdd init`), and may not know they exist. Before the interview, explain each
+(`sddkit init`), and may not know they exist. Before the interview, explain each
 one in plain language, give your recommendation for *this* project with the
 reason, and record the owner's answer (or "undecided") in a `## Installation
 choices` section of `discovery.md`. Answers that are booleans go into
@@ -26,13 +26,13 @@ constitution's Settings, so an "undecided" is safe.
 | `documentation` | `sdd-document` plans a documentation set (README, architecture, manuals...) with the owner, and stages refresh it on close. | The project has readers beyond the developers: clients, auditors, new hires. | Documents someone must maintain; a stale document is worse than none. |
 | `edd` | Eval Driven Development: each stage has an `evals.md` of testable criteria (`E-NNN`) and closes with evidence in `checklist.md`. | Correctness matters and "done" must be provable; regulated or high-cost-of-error areas. | Writing criteria up front; more ceremony on small projects. |
 
-Also ask, and record in the same section (they are `sdd init` flags, not part of
+Also ask, and record in the same section (they are `sddkit init` flags, not part of
 the JSON): the **language** for artifacts and conversation (`project.language`),
 which **AI tools** will drive the project (`--provider`, list with
-`sdd providers`; one `.sdd/` serves several) and, for the CLI dashboard, the
+`sddkit providers`; one `.sdd/` serves several) and, for the CLI dashboard, the
 preferred renderer (`static`, `interactive`, `plain` or `web`, the last one a
 plain HTML file). Show the owner the final command, for example
-`sdd init . --provider claude --language pt-BR --discovery discovery.json`.
+`sddkit init . --provider claude --language pt-BR --discovery discovery.json`.
 
 Interview progressively. Establish the project, audience, outcome, constraints,
 features, structural decisions, unresolved questions, delivery slices, each

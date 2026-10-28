@@ -133,7 +133,7 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
     on_hold = on_hold_track_slugs(sdd)
     findings: list[TrackDivergence] = []
     for directory in sorted(tracks_dir.iterdir()):
-        # _closed/ is the archive bucket (see `sdd track close --archive`):
+        # _closed/ is the archive bucket (see `sddkit track close --archive`):
         # its contents are history, not a track slug to audit.
         if not directory.is_dir() or directory.name.startswith(".") or directory.name == "_closed":
             continue

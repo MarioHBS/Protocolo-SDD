@@ -176,7 +176,7 @@ def test_send_with_an_empty_inbox_says_what_to_do(tmp_path, monkeypatch, capsys)
     monkeypatch.setenv("SDD_PROPOSALS_INBOX", str(tmp_path / "empty"))
     with pytest.raises(SystemExit):
         cmd_proposals(_send())
-    assert "sdd proposals collect" in capsys.readouterr().err
+    assert "sddkit proposals collect" in capsys.readouterr().err
 
 
 def test_send_leaves_inbox_and_projects_untouched(inbox, tmp_path, monkeypatch):

@@ -68,7 +68,7 @@ Write all output in the language set in `constitution.md → Settings → Langua
 
 5. **Quick hygiene sweep** (see README): flag any `.sdd/` file that is not valid
    UTF-8, has mixed line endings, or shows accented characters replaced by `?`.
-   `sdd doctor` automates this — run it or mirror its checks.
+   `sddkit doctor` automates this — run it or mirror its checks.
 
 6. **`todo.md` audit (closed stages).** For every stage that already has a
    `report.md` on disk (i.e. it is closed), confirm its `todo.md` is fully
@@ -89,7 +89,7 @@ Write all output in the language set in `constitution.md → Settings → Langua
    no evaluation file. Audit-only: raise, do not rewrite.
 
 8. **Tracks, numbering and worktrees** (only when tracks or shared sequences
-   exist). Run `sdd track check` (footprints must be disjoint) and `sdd doctor`
+   exist). Run `sddkit track check` (footprints must be disjoint) and `sddkit doctor`
    (duplicate numbers in a shared sequence, a session on the wrong branch, a
    linked git worktree or nested worktree copies carrying a stale `.sdd/`). Treat
    each as a finding to raise with the user; never resolve a collision by

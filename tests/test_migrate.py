@@ -1,4 +1,4 @@
-"""`sdd migrate --to v4` and `sdd update`, driven on a synthetic project shaped like the
+"""`sddkit migrate --to v4` and `sddkit update`, driven on a synthetic project shaped like the
 real project install (kit v3.3.0, one provider, hand-written user files).
 
 Nothing here copies client data: the project is generated from scratch.
@@ -95,11 +95,11 @@ def test_migration_replaces_managed_files_and_never_touches_user_files(tmp_path)
     assert (tmp_path / ".sdd" / "README.md").read_text(encoding="utf-8") == \
         (CONTENT_DIR / "sdd" / "README.md").read_text(encoding="utf-8")
     track_skill = (tmp_path / ".sdd" / "skills" / "sdd-track" / "SKILL.md").read_text(encoding="utf-8")
-    assert "sdd track incorporate" in track_skill          # the 4.1 skill, not the old one
+    assert "sddkit track incorporate" in track_skill          # the 4.1 skill, not the old one
     assert (tmp_path / ".sdd" / "templates" / "cross-cutting.template.md").is_file()   # a template that is new in 4.1
     assert (tmp_path / ".sdd" / "templates" / "evals.template.md").is_file()           # EDD templates arrive too
     shim = (tmp_path / ".kilo" / "commands" / "sdd.md").read_text(encoding="utf-8")
-    assert "sdd context" in shim and "linked git worktree" in shim
+    assert "sddkit context" in shim and "linked git worktree" in shim
 
 
 def test_manifest_moves_to_the_new_kit_and_keeps_what_the_owner_chose(tmp_path):
@@ -220,7 +220,7 @@ def test_update_from_4_0_0_syncs_managed_files_and_adds_new_ones(tmp_path):
         (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / rel).write_text(text, encoding="utf-8")
     cmd_update(types.SimpleNamespace(path=str(tmp_path), dry_run=False, major=False))
-    assert "sdd track incorporate" in (tmp_path / ".sdd" / "skills" / "sdd-track" / "SKILL.md").read_text(encoding="utf-8")
+    assert "sddkit track incorporate" in (tmp_path / ".sdd" / "skills" / "sdd-track" / "SKILL.md").read_text(encoding="utf-8")
     assert (tmp_path / ".sdd" / "templates" / "cross-cutting.template.md").is_file()
     assert _manifest(tmp_path)["kit_version"] == KIT_VERSION
     for rel, text in {".sdd/backlog.md": "mine", ".sdd/documentation.json": "{}",

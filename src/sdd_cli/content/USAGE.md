@@ -1,24 +1,24 @@
-# sdd — usage manual (kit {{VERSION}})
+# sddkit — usage manual (kit {{VERSION}})
 
 Spec-Driven Development scaffolding for AI coding agents.
 
-`sdd` installs the method and keeps it honest; it does not think for you. It
+`sddkit` installs the method and keeps it honest; it does not think for you. It
 copies files, records a manifest and runs **deterministic** checks and repairs.
 All the reasoning — understanding your project, asking questions, writing specs —
 lives in the skills under `.sdd/skills/` and runs inside your AI agent. The two
-meet in a few places where the CLI asks the *user* directly (`sdd init`,
-`sdd document`).
+meet in a few places where the CLI asks the *user* directly (`sddkit init`,
+`sddkit document`).
 
 Commands by purpose:
 
 | Purpose | Commands |
 |---------|----------|
-| Set up | `sdd init`, `sdd providers`, `sdd update`, `sdd migrate` |
-| Diagnose | `sdd doctor`, `sdd fix`, `sdd health`, `sdd context`, `sdd evaluate` |
-| Work | `sdd session`, `sdd scaffold`, `sdd track`, `sdd seq`, `sdd deps`, `sdd impact` |
-| Document | `sdd document`, `sdd manual` |
-| Observe | `sdd dashboard` |
-| Feedback | `sdd proposals` |
+| Set up | `sddkit init`, `sddkit providers`, `sddkit update`, `sddkit migrate` |
+| Diagnose | `sddkit doctor`, `sddkit fix`, `sddkit health`, `sddkit context`, `sddkit evaluate` |
+| Work | `sddkit session`, `sddkit scaffold`, `sddkit track`, `sddkit seq`, `sddkit deps`, `sddkit impact` |
+| Document | `sddkit document`, `sddkit manual` |
+| Observe | `sddkit dashboard` |
+| Feedback | `sddkit proposals` |
 
 Every command accepts `--help` with examples. Commands that report findings accept
 `--json` for automation.
@@ -32,16 +32,21 @@ The kit is installed from its checkout (it is not published to a package index):
 ```bash
 pipx install .                    # from the sdd-cli folder; or: uv tool install .
 pipx install '.[dashboard]'       # add the optional dashboard (rich + textual)
-sdd --version
+sddkit --version
 ```
 
 Python 3.12 or newer is required.
+
+The command was called `sdd` before kit 4.5.0. `sdd` is still installed as a deprecated
+alias: it behaves exactly like `sddkit`, prints one warning line on stderr (stdout and
+`--json` are unchanged) and will be removed in v5. Agent permissions and notes written
+as `sdd ...` keep working until then; rewrite them to `sddkit ...` at your own pace.
 
 ---
 
 ## Set up
 
-### `sdd init [PATH]`
+### `sddkit init [PATH]`
 
 Installs the kit into a project (default: current directory).
 
@@ -50,7 +55,7 @@ Installs the kit into a project (default: current directory).
 | `--provider KEY` | Agent to install a shim for. Repeatable — several agents can share one `.sdd/`. |
 | `--language CODE` | Language for interactions and generated artifacts (e.g. `pt-BR`). |
 | `--estimation` | Enable schedule estimate tracking. |
-| `--docs` | Enable documentation planning (offers `sdd document` at the end). |
+| `--docs` | Enable documentation planning (offers `sddkit document` at the end). |
 | `--tracks` | Enable parallel tracks (`sdd-track`). |
 | `--edd` | Enable Eval Driven Development. |
 | `--discovery FILE.json` | Import a validated `sdd-discovery/v1` pre-project contract; previews and confirms before writing. |
@@ -59,10 +64,10 @@ Installs the kit into a project (default: current directory).
 | `-y`, `--yes` | Non-interactive; accept defaults. |
 
 ```bash
-sdd init                                        # interactive
-sdd init --provider claude --language pt-BR -y  # agent-driven, no prompts
-sdd init --provider claude --provider cursor    # two agents, one .sdd/
-sdd init . --discovery discovery.json -y        # reviewed discovery, non-interactive import
+sddkit init                                        # interactive
+sddkit init --provider claude --language pt-BR -y  # agent-driven, no prompts
+sddkit init --provider claude --provider cursor    # two agents, one .sdd/
+sddkit init . --discovery discovery.json -y        # reviewed discovery, non-interactive import
 ```
 
 `init` never overwrites `constitution.md`, `roadmap.md` or `stages/`. Re-running
@@ -75,12 +80,12 @@ backlog and an ordered `stages` list. The first stage becomes canonical `001`;
 the rest form the provisional queue. `init` never waits for input without a TTY:
 an import then requires `--yes` after successful validation.
 
-### `sdd providers [--plain]`
+### `sddkit providers [--plain]`
 
 Lists supported agents. Available: {{PROVIDERS}}. `--plain` prints bare keys, one
 per line — for an agent that must discover a valid `--provider` value itself.
 
-### `sdd update [PATH] [--dry-run] [--major]`
+### `sddkit update [PATH] [--dry-run] [--major]`
 
 Syncs managed files (`README.md`, `skills/`, `templates/`, shims) when the bundled
 kit is a **minor or patch** step over what is installed. It diffs old-bundled
@@ -93,7 +98,7 @@ files (a new template, for example) are added. It never touches `constitution.md
 yours. It refuses to cross a major version — use `migrate` for that (`--major`
 routes through the same planner).
 
-### `sdd migrate --to v4 [PATH] [--dry-run] [--provider KEY]`
+### `sddkit migrate --to v4 [PATH] [--dry-run] [--provider KEY]`
 
 Upgrades an older `.sdd/` (v1, v2, v3) to the current major.
 
@@ -111,7 +116,7 @@ After migrating, a few constitution edits remain manual: the CLI writes
 `.sdd/.migration-todo.md`, which the agent walks the owner through one confirmed
 step at a time, ending with the `sdd-reconcile` skill.
 
-### `sdd migrate --edd-source-of-truth [PATH] [--dry-run] [-y]`
+### `sddkit migrate --edd-source-of-truth [PATH] [--dry-run] [-y]`
 
 An opt-in migration for existing EDD stages. It plans the conversion, prints the
 stages and E-NNN IDs, and asks for confirmation before writing (or requires `-y`
@@ -124,31 +129,31 @@ writes and is listed for a human decision. Re-running after success is idempoten
 
 ## Diagnose
 
-### `sdd doctor [PATH] [--json]`
+### `sddkit doctor [PATH] [--json]`
 
 Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 `error`. Findings (`code`, severity):
 
 | Area | Code | Meaning |
 |------|------|---------|
-| Encoding | `mojibake_v2` (error) | Deterministic double-encoding; `sdd fix --mojibake` repairs it. |
+| Encoding | `mojibake_v2` (error) | Deterministic double-encoding; `sddkit fix --mojibake` repairs it. |
 | | `mojibake_v1` (warn) | Possible lost accent (`?`); ambiguous, never auto-fixed. |
 | | `invalid_utf8` (error) | File is not UTF-8. |
 | Stages | `spec_without_todo`, `closed_open_todo` | Spec with no todo; closed stage with open checkboxes (`[x]`, `[-]`, `[!]` count as resolved). |
 | Size | `constitution_oversized`, `long_table_cell`, `cold_file_oversized` | Files or rows that inflate every session. |
-| Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sdd fix --links`). |
-| Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sdd fix --features`). |
+| Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sddkit fix --links`). |
+| Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sddkit fix --features`). |
 | Settings | `tracks_setting_missing` | Real track activity but no explicit `Parallel tracks:` line in Settings — add `on` or `off` by hand. |
-| Kit | `manifest_eol_drift` (note; `sdd fix --manifest`), `managed_file_edited`, `readme_anchor_missing`, `migration_todo_pending` (note), `provider_shim_unmanaged`, `cli_older_than_project` | A managed file edited by hand that `sdd update` kept (it stays listed after the version bump); a skill or template citing a README section the project's `.sdd/README.md` lacks; a shim on disk the manifest does not manage; a `.migration-todo.md` left behind by `sdd migrate`; the CLI is older than the project's kit. |
+| Kit | `manifest_eol_drift` (note; `sddkit fix --manifest`), `managed_file_edited`, `readme_anchor_missing`, `migration_todo_pending` (note), `provider_shim_unmanaged`, `cli_older_than_project` | A managed file edited by hand that `sddkit update` kept (it stays listed after the version bump); a skill or template citing a README section the project's `.sdd/README.md` lacks; a shim on disk the manifest does not manage; a `.migration-todo.md` left behind by `sddkit migrate`; the CLI is older than the project's kit. |
 | EDD | `edd_missing_evals`, `edd_missing_checklist`, `edd_eval_uncovered`, `edd_spec_not_pointer`, `edd_todo_not_evals`, `edd_missing_performance_doc`, `edd_milestone_without_evaluation`, `milestone_not_contiguous` | Evals without evidence, duplicate criteria, or milestone problems. |
 | Backlog | `backlog_orphan`, `queue_row_without_section` | Backlog and provisional queue disagree. |
 | Documentation | `docs_missing_file`, `docs_missing_header`, `docs_path_outside_project` | The documentation plan versus disk. |
 | Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch` | A saved session that no longer fits reality. |
-| Tracks | `track_not_started`, `track_not_incorporated`, `track_closed_in_place` (note; `sdd track close`), `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
-| Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path) | A stale copy of `.sdd/` (see `sdd track`). |
-| Dependencies | `dependency_inconsistent` | `sdd deps` records that no longer hold. |
+| Tracks | `track_not_started`, `track_not_incorporated`, `track_closed_in_place` (note; `sddkit track close`), `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
+| Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path) | A stale copy of `.sdd/` (see `sddkit track`). |
+| Dependencies | `dependency_inconsistent` | `sddkit deps` records that no longer hold. |
 
-### `sdd fix [PATH] [--dry-run] [--json]`
+### `sddkit fix [PATH] [--dry-run] [--json]`
 
 Repairs **deterministic** problems only; run with `--dry-run` first.
 
@@ -165,11 +170,11 @@ Repairs **deterministic** problems only; run with `--dry-run` first.
 Exit status: `0` nothing to repair, `1` repairs applied (or, with `--dry-run`,
 would be), `2` something needs a human.
 
-### `sdd health [PATH] [--json]`
+### `sddkit health [PATH] [--json]`
 
 A score from the doctor findings: 100 minus 25 per error and 5 per warning.
 
-### `sdd discover [PATH] [--check FILE] [--against PROJECT]`
+### `sddkit discover [PATH] [--check FILE] [--against PROJECT]`
 
 Explains the discovery flow and prints where the `sdd-discover` skill file lives
 (this project's copy and the installed kit's), so it can be given to any AI
@@ -179,9 +184,9 @@ and prints its summary without writing anything. `--against PROJECT` also compar
 the planned stage slugs with the project's canonical index and provisional queue:
 which planned stages are missing, and which project stages the discovery does not
 cover. It is a comparison by name (a renamed or split stage appears on both lists).
-Import into a new project with `sdd init PATH --discovery FILE`.
+Import into a new project with `sddkit init PATH --discovery FILE`.
 
-### `sdd context [PATH] [--budget] [--json]`
+### `sddkit context [PATH] [--budget] [--json]`
 
 Prints what a session needs to start — Settings and Current state, the active
 stage's files — and **nothing more**. `--budget` adds each file's size and token
@@ -189,7 +194,7 @@ estimate (bytes/4), split into **hot** (read at startup) and **cold** (read only
 when a task needs it), and what reading the whole constitution would have cost.
 Agent shims call it at startup.
 
-### `sdd evaluate [PATH] [--write] [--json]`
+### `sddkit evaluate [PATH] [--write] [--json]`
 
 Captures local, sanitized evidence about how the kit behaved in this project.
 `--write` saves `.sdd/kit-evaluation/snapshot.json`; the folder is normally
@@ -199,7 +204,7 @@ ignored by Git.
 
 ## Work
 
-### `sdd session <resume|status|pause|close|sync>`
+### `sddkit session <resume|status|pause|close|sync>`
 
 A resumable work context (`.sdd/.session.json`, or per track with `--track`) so
 interrupted implementation continues where it stopped. `sync` creates or
@@ -207,13 +212,13 @@ refreshes it while the state is IMPLEMENTING and records the Git branch;
 `pause --reason planned|emergency|context_switch --context TEXT --task ID` records
 why work stopped; `resume` shows it; `close` deletes it once the report exists.
 
-### `sdd scaffold STAGE [PATH] [--track SLUG] [--dry-run]`
+### `sddkit scaffold STAGE [PATH] [--track SLUG] [--dry-run]`
 
 For a stage with a **locked** `spec.md`, creates the missing `todo.md` (from the
 spec's acceptance criteria) and, with Eval Driven Development on, `evals.md` and
 `checklist.md`. Never overwrites.
 
-### `sdd track <claim|check|verify|incorporate|close>`
+### `sddkit track <claim|check|verify|incorporate|close>`
 
 Parallel tracks share **one working tree**, so nothing physical keeps two agent
 sessions apart. The CLI makes the separation checkable: two stages may live in
@@ -221,41 +226,41 @@ different tracks only if they cannot affect each other — not through the files
 they edit, the numbers they take from a shared sequence, or the runtime resources
 they need exclusively.
 
-- `sdd track claim SLUG --stage ID --path GLOB... [--seq NAME] [--runtime NAME] [--stability-sensitive] [--branch NAME]`
+- `sddkit track claim SLUG --stage ID --path GLOB... [--seq NAME] [--runtime NAME] [--stability-sensitive] [--branch NAME]`
   records the track's footprint in `.sdd/tracks/<slug>/claims.json`.
-- `sdd track check [--json]` fails (exit 1) when two active tracks' footprints
+- `sddkit track check [--json]` fails (exit 1) when two active tracks' footprints
   overlap. The fix is to sequence the stages with `Depends on`, not to tolerate it.
-- `sdd track verify SLUG [--since REV]` fails when real Git changes (untracked
+- `sddkit track verify SLUG [--since REV]` fails when real Git changes (untracked
   files included) fall outside every claim, or inside two. A file that only a
   sibling track claims is that track's work and is ignored.
-- `sdd track incorporate SLUG STAGE [--dry-run]` moves a **closed** track stage into
+- `sddkit track incorporate SLUG STAGE [--dry-run]` moves a **closed** track stage into
   the canonical queue: under a lock it takes the next free number (disk, section 5
   and the ledger), renames the folder, appends the index row and releases the
   claims. Two sessions can no longer take the same number.
-- `sdd track close SLUG [--archive] [--dry-run]` finishes a track once every
+- `sddkit track close SLUG [--archive] [--dry-run]` finishes a track once every
   local stage is incorporated and no claim remains: marks `state.md` CLOSED,
   drops its row from `Active tracks`. `--archive` also moves the folder to
   `.sdd/tracks/_closed/<slug>` (a closed track left in place is reported as
   the note `track_closed_in_place`).
 
 Agents such as Kilo Code create git **worktrees** on their own: each is a full
-copy including a stale `.sdd/`. `sdd doctor` reports them; `sdd fix --gitignore`
+copy including a stale `.sdd/`. `sddkit doctor` reports them; `sddkit fix --gitignore`
 ignores them; exclude them from your test, lint and type-check globs too.
 
-### `sdd seq next NAME [PATH] [--track SLUG] [--json]`
+### `sddkit seq next NAME [PATH] [--track SLUG] [--json]`
 
 Reserves the next number of a shared sequence (for example database migrations)
 exactly once, in `.sdd/.reservations.json`. Sequences are declared in the
 constitution's section 7 as `` `migration` = `db/NNNN_*.sql` ``; `migration`
 defaults to `supabase/migrations/NNNN_*.sql` when that folder exists.
 
-### `sdd proposals <collect|list|show|send>`
+### `sddkit proposals <collect|list|show|send>`
 
 Each project records friction with the kit in `.sdd/improvement-proposals.md`, one
 `## IP-NNN — title` entry per episode. Ids restart at `IP-001` in every project, so
 an entry is identified by (project, id).
 
-- `sdd proposals collect [PROJECT...] [--scan ROOT] [--json]` copies every entry
+- `sddkit proposals collect [PROJECT...] [--scan ROOT] [--json]` copies every entry
   into a local inbox, one file per entry named `<project>-IP-NNN.md`, where the
   project is its folder name. `--scan ROOT` adds every folder under `ROOT` that has a
   `.sdd/`. An entry ends at the next `##` heading of any kind, so `## Resolvidas`
@@ -267,12 +272,12 @@ an entry is identified by (project, id).
   projects. The inbox is the user data folder (`%APPDATA%\sdd-cli\proposals` on
   Windows, `$XDG_DATA_HOME` or `~/.local/share` on Linux, `~/Library/Application
   Support` on macOS) unless `SDD_PROPOSALS_INBOX` points elsewhere.
-- `sdd proposals list [--all] [--json]` prints one line per collected proposal:
+- `sddkit proposals list [--all] [--json]` prints one line per collected proposal:
   `<project>-IP-NNN`, date, status keyword and title. Proposals the kit already
   absorbed are hidden unless `--all` is given.
-- `sdd proposals show <project>-IP-NNN [--json]` prints one proposal in full. A bare
+- `sddkit proposals show <project>-IP-NNN [--json]` prints one proposal in full. A bare
   `IP-001` works only while a single project has it.
-- `sdd proposals send [ID...] --via file|url|issue [--all] [--output FILE] [--snapshot FILE]`
+- `sddkit proposals send [ID...] --via file|url|issue [--all] [--output FILE] [--snapshot FILE]`
   packages the collected proposals for the kit maintainer. By default it takes every
   proposal not yet absorbed; give ids to pick some, or `--all` for everything. Each
   project is replaced by its anonymous code (`P1`, `P2`...), which lives only in the
@@ -286,15 +291,15 @@ an entry is identified by (project, id).
     browser; you still press the button there.
   - `--via issue` does the same but creates the issue with `gh`. Without `gh`, without a
     login, or when it fails, it says why and writes the file instead.
-  - `--snapshot FILE` appends a `sdd evaluate --write` `snapshot.json`.
+  - `--snapshot FILE` appends a `sddkit evaluate --write` `snapshot.json`.
   Projects and the inbox are never changed.
 
-### `sdd deps <add|remove|list|graph>`
+### `sddkit deps <add|remove|list|graph>`
 
 Records dependencies on other local projects (`--kind requires|provides`,
 `--stage`, `--description`); `graph --format mermaid` draws them.
 
-### `sdd impact DECISION [PATH] [--json]`
+### `sddkit impact DECISION [PATH] [--json]`
 
 Lists every `.sdd/` artifact that mentions a locked decision such as `D-013` —
 read it before changing the decision.
@@ -303,7 +308,7 @@ read it before changing the decision.
 
 ## Document
 
-### `sdd document [PATH] [--resume] [--answers FILE] [--create-stubs] [--dry-run]`
+### `sddkit document [PATH] [--resume] [--answers FILE] [--create-stubs] [--dry-run]`
 
 Documentation as an **active** tool: the CLI interviews you, one question at a
 time, until the plan is detailed:
@@ -327,20 +332,20 @@ leaves a one-line pointer in section 7. Answers are saved after every step:
 missing files (existing files are never overwritten).
 
 Without a terminal — an agent session — pass the same answers as JSON:
-`sdd document --answers plan.json --dry-run`, then again without `--dry-run`.
-`sdd doctor` keeps the plan honest (missing files, missing headers).
+`sddkit document --answers plan.json --dry-run`, then again without `--dry-run`.
+`sddkit doctor` keeps the plan honest (missing files, missing headers).
 
-### `sdd manual [--md [FILE]]`
+### `sddkit manual [--md [FILE]]`
 
 Prints this manual; `--md` writes it to a file. An agent that has never seen the
-tool can run it to learn the workflow. `sdd docs` is a deprecated alias, removed in
+tool can run it to learn the workflow. `sddkit docs` is a deprecated alias, removed in
 v5.
 
 ---
 
 ## Observe
 
-### `sdd dashboard [PATH] [--ui static|interactive|plain|web] [--out FILE] [--set-default]`
+### `sddkit dashboard [PATH] [--ui static|interactive|plain|web] [--out FILE] [--set-default]`
 
 A read-only dashboard over the same data as `doctor` and `context`: overview,
 constitution section sizes, stages and tracks, EDD, doctor findings with the
@@ -368,7 +373,7 @@ the file in the IDE or a browser and re-run the command to refresh it.
 +-- stages/              your per-stage artifacts (yours)
 +-- tracks/              parallel tracks: state.md, claims.json, stages/ (yours)
 +-- backlog.md           detail of stages still in the provisional queue (yours)
-+-- documentation.json   the documentation plan from `sdd document` (yours)
++-- documentation.json   the documentation plan from `sddkit document` (yours)
 +-- .sdd-manifest.json   version, language, flags, file hashes (managed)
 
 <provider shim>          e.g. .claude/commands/sdd.md (managed)
@@ -415,8 +420,8 @@ A session that reads everything pays for everything. At startup an agent reads
 its shim, `.sdd/README.md` and the constitution **through `## 1.`** (Settings and
 Current state); the rest of the constitution, prior reports and skills load only
 when the task needs them, and `roadmap.md`, `estimates.md`, `CHANGELOG.md` and
-inactive `tracks/*/state.md` are **cold**. `sdd context --budget` shows the
-numbers; `sdd doctor` flags what makes them grow (an oversized constitution, long
+inactive `tracks/*/state.md` are **cold**. `sddkit context --budget` shows the
+numbers; `sddkit doctor` flags what makes them grow (an oversized constitution, long
 table rows, absolute links, narrative in sections 5 and 6).
 
 ---
@@ -424,16 +429,16 @@ table rows, absolute links, narrative in sections 5 and 6).
 ## Features and language
 
 Recorded in `.sdd/constitution.md` under `Settings`; toggle by editing that block.
-`sdd fix --features` then brings the manifest in line, and `sdd doctor` reports a
+`sddkit fix --features` then brings the manifest in line, and `sddkit doctor` reports a
 disagreement (`feature_mismatch`).
 
 - **Language** — every interaction and artifact uses it. The skill instructions
   stay in English by design; your specs, reports and docs come out in your language.
 - **Estimation** — off by default. Stage start/end dates are recorded in every
   report regardless, so enabling it later reconstructs past durations.
-- **Documentation** — off by default. `sdd document` plans it with you; the
+- **Documentation** — off by default. `sddkit document` plans it with you; the
   `sdd-document` skill produces and maintains it.
-- **Parallel tracks** — off by default; see `sdd track`.
+- **Parallel tracks** — off by default; see `sddkit track`.
 - **Eval Driven Development** — off by default. `evals.md` is the single source of
   a stage's acceptance criteria (`E-NNN`); items may be `[x]` met, `[-]` not
   applicable, `[!]` evaluated and not met.
@@ -446,5 +451,5 @@ Install several shims; they all point at the same `.sdd/`. The methodology,
 artifacts and history are shared — only the trigger differs per agent.
 
 ```bash
-sdd init --provider claude --provider cursor --provider copilot
+sddkit init --provider claude --provider cursor --provider copilot
 ```

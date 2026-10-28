@@ -58,8 +58,8 @@ Write all artifacts in the language set in
 
    > **If this stage's folder lives under `tracks/<slug>/stages/`** (a
    > parallel track, see `sdd-track`), this step is the "incorporate" step
-   > instead. First run `sdd track verify <slug>` (every changed file must fall
-   > inside a declared claim). Then run `sdd track incorporate <slug> <stage>`:
+   > instead. First run `sddkit track verify <slug>` (every changed file must fall
+   > inside a declared claim). Then run `sddkit track incorporate <slug> <stage>`:
    > atomically, under a lock, it picks the next free number, moves the folder
    > into the canonical `stages/` queue and appends the §5 row — two sessions can
    > no longer take the same number. **Skip step 6** (roadmap regeneration is
@@ -129,7 +129,7 @@ Write all artifacts in the language set in
     any closed stage that still has open checkboxes.)
 
 12. **(If the Documentation feature is on)** read `.sdd/documentation.json`
-    (created by `sdd document`) and list the documents whose `covers` include this
+    (created by `sddkit document`) and list the documents whose `covers` include this
     stage or whose subject it changed; update them, or record in the report why
     they stay as they are, and invoke `sdd-document` for anything new. The plan's
     paths may live outside `.sdd/`.
@@ -143,11 +143,11 @@ Write all artifacts in the language set in
     when a divergence actually exists.
 
 13. **Evaluation feedback (optional).** When the stage exposed kit friction,
-    run `sdd evaluate --write` and record a sanitized observation in
+    run `sddkit evaluate --write` and record a sanitized observation in
     `.sdd/kit-evaluation/README.md`; this local directory is normally ignored.
 
-After the stage state leaves IMPLEMENTING, run `sdd session sync` to clear the
-formal interruption context (or use `sdd session close` after the report exists).
+After the stage state leaves IMPLEMENTING, run `sddkit session sync` to clear the
+formal interruption context (or use `sddkit session close` after the report exists).
 
 ## Markdown hygiene
 

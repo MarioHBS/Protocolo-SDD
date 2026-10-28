@@ -103,7 +103,7 @@ def test_missing_extras_is_an_explained_error_not_a_traceback(tmp_path, monkeypa
         cmd_dashboard(types.SimpleNamespace(path=str(project), ui="static", set_default=False))
     assert error.value.code == 1
     err = capsys.readouterr().err
-    assert "sdd-cli[dashboard]" in err and "sdd dashboard --ui plain" in err
+    assert "sdd-cli[dashboard]" in err and "sddkit dashboard --ui plain" in err
     # R3-06: names the interpreter actually running `sdd`, since a manual
     # `import rich` check can pass in a different Python than this one.
     import sys as _sys

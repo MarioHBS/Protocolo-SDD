@@ -9,7 +9,7 @@
 > - `sdd-specify` reads the section, embeds what still applies in the spec and
 >   **removes the section**, so the work cannot be implemented twice.
 > - The backlog never holds status or order — that is the queue's job (single
->   index). `sdd doctor` reports a section nobody points at and a queue row that
+>   index). `sddkit doctor` reports a section nobody points at and a queue row that
 >   cites a section that does not exist.
 > - **Format the doctor actually reads:** the queue row must be a markdown
 >   table row with a literal `Slug` column, for example

@@ -1,4 +1,4 @@
-"""`sdd document`: interview, resume, plan validation, persistence and audit."""
+"""`sddkit document`: interview, resume, plan validation, persistence and audit."""
 
 from __future__ import annotations
 

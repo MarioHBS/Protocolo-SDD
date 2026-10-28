@@ -46,12 +46,12 @@ Write all artifacts in the language set in
   "Included" list does not get done silently: it becomes a new stage, or an
   amendment recorded in the spec with its own `Origin` and the reason. Growing a
   stage in place is how "one more small thing" turns into letter-suffix stages.
-- **Inside a parallel track**, run `sdd track check` before the first edit. **MUST
+- **Inside a parallel track**, run `sddkit track check` before the first edit. **MUST
   NOT** start while it fails. Stay inside the stage's declared `Touches`; needing
-  a file outside it means amending the claim (`sdd track claim`) and re-running
+  a file outside it means amending the claim (`sddkit track claim`) and re-running
   the check first, not editing and hoping.
 - **Shared numbers** (migrations, canonical stage numbers) are never guessed: get
-  the next one with `sdd seq next <name>`; two sessions guessing the same one is
+  the next one with `sddkit seq next <name>`; two sessions guessing the same one is
   a real, already-observed collision.
 
 ## When Eval Driven Development is on

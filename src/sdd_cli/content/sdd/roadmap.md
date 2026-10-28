@@ -2,7 +2,7 @@
      sdd-roadmap, sdd-close and sdd-reconcile preserve unique prose and custom
      columns when synchronizing. Review a full diff before removing content.
 
-     This file is YOURS: the sdd CLI creates it once and never overwrites it. -->
+     This file is YOURS: the sddkit CLI creates it once and never overwrites it. -->
 
 # Roadmap — <PROJECT NAME>
 

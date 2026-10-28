@@ -5,7 +5,7 @@
   (e) this project's decision conventions. Every agent reads it right after
   README.md.
 
-  This file is YOURS: the sdd CLI creates it once and never overwrites it.
+  This file is YOURS: the sddkit CLI creates it once and never overwrites it.
   Fields in <...> are filled in when the agent is invoked and the project is
   explained. IDs (stages, D-NNN, Q-NNN) are append-only and immutable.
 -->
@@ -14,7 +14,7 @@
 
 ## Settings
 
-<!-- Set by `sdd init`. Edit by hand to toggle features later. -->
+<!-- Set by `sddkit init`. Edit by hand to toggle features later. -->
 
 - **Language:** {{LANGUAGE}}
   <!-- All interactions and generated artifacts use this language.
@@ -219,6 +219,6 @@
 - **Migration / artifact versioning:** [convention — e.g. "migrations numbered
   NNNN, versioned, never loose SQL"]
 - **Sequences:** none
-  <!-- Numbers that parallel tracks share and `sdd seq next` hands out, declared as
+  <!-- Numbers that parallel tracks share and `sddkit seq next` hands out, declared as
        `name` = `dir/NNNN_*.ext` — e.g. `migration` = `db/migrations/NNNN_*.sql`. -->
 - **Validation environment:** [where stages are validated before closing]

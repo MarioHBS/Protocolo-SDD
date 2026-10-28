@@ -1,6 +1,6 @@
-"""Tests for `sdd update` — selective patch/minor sync of managed files.
+"""Tests for `sddkit update` — selective patch/minor sync of managed files.
 
-Unlike `sdd migrate`, this never wipes `.sdd/skills/`/`.sdd/templates/`
+Unlike `sddkit migrate`, this never wipes `.sdd/skills/`/`.sdd/templates/`
 wholesale: it diffs each managed file's old-bundled vs new-bundled content
 and only touches what actually changed, preserving hand-edited files (backed
 up, not overwritten). It requires an existing manifest as a diff baseline and
@@ -184,7 +184,7 @@ def test_refuses_across_major_boundary(capsys, tmp_path):
     }
     out, code = _run(capsys, root)
     assert code == 1
-    assert "sdd migrate --to v" in out
+    assert "sddkit migrate --to v" in out
     after = {
         p: p.read_bytes()
         for p in (root / ".sdd").rglob("*") if p.is_file()

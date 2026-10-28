@@ -10,9 +10,9 @@
 
 - **Branched from stage:** [NNN]
 - **Git branch:** [the shared branch, or the dedicated one if this track uses its own —
-  record it here AND with `sdd track claim <slug> --branch <name>`; two sessions
+  record it here AND with `sddkit track claim <slug> --branch <name>`; two sessions
   on the wrong branch is how a stage ends up implemented twice]
-- **Footprint:** [declared in `claims.json` via `sdd track claim`; `sdd track check`
+- **Footprint:** [declared in `claims.json` via `sddkit track claim`; `sddkit track check`
   must pass before this track's stage spec is locked]
 - **State:** [one of: SPECIFYING / IMPLEMENTING / CLOSING]
 - **Active stage in this track:** [tracks/[slug]/stages/NNN-<slug> or (none yet)]

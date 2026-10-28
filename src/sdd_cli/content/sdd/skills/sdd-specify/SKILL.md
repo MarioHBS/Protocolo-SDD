@@ -48,8 +48,8 @@ Write all artifacts in the language set in
      project's cost was omission and how much was change — be honest with it.
    - Fill **`Touches`** (paths, shared sequences, exclusive runtime resources,
      stability-sensitive). It is **required** for a stage inside a parallel track:
-     run `sdd track claim <slug> --stage <local stage> --path <glob>...` and then
-     `sdd track check`. **MUST NOT** lock the spec while `sdd track check` fails —
+     run `sddkit track claim <slug> --stage <local stage> --path <glob>...` and then
+     `sddkit track check`. **MUST NOT** lock the spec while `sddkit track check` fails —
      sequence the stage after the one it collides with (`Depends on`) instead.
    - If `.sdd/cross-cutting.md` exists (start from
      `templates/cross-cutting.template.md`), turn each item into an acceptance
@@ -88,7 +88,7 @@ Write all artifacts in the language set in
 7. **Release implementation.** Only with the spec `locked`: `State: IMPLEMENTING`,
    `Next action: implement the active stage following stages/NNN-<slug>/spec.md`,
    mark the stage "in progress" in §5, update the date.
-   Immediately run `sdd session sync` so the resumable work context is created.
+   Immediately run `sddkit session sync` so the resumable work context is created.
 
 ## Atomicity — the calibration
 

@@ -1,4 +1,4 @@
-"""Tests for `sdd doctor` — the SDD presence/version + mojibake/hygiene audit.
+"""Tests for `sddkit doctor` — the SDD presence/version + mojibake/hygiene audit.
 
 Covers the three paths introduced by the presence/version gate:
 
@@ -59,7 +59,7 @@ def test_no_sdd_exits_zero(capsys, tmp_path):
 
 def test_no_sdd_suggests_init(capsys, tmp_path):
     out, _ = _run(capsys, tmp_path)
-    assert "sdd init" in out
+    assert "sddkit init" in out
 
 
 def test_no_sdd_does_not_audits_mojibake(capsys, tmp_path):
@@ -95,7 +95,7 @@ def test_legacy_reports_v1_no_manifest(capsys, tmp_path):
     out, code = _run(capsys, root)
     assert "v1 (no manifest)" in out
     # And it points the owner at migrate to upgrade.
-    assert "sdd migrate --to v4" in out
+    assert "sddkit migrate --to v4" in out
     # Empty stages => no mojibake, no hygiene divergence => the audit is clean.
     # cmd_doctor returns normally on a clean run (no SystemExit raised), so
     # code is None; a clean legacy dir must NOT exit non-zero.
@@ -159,7 +159,7 @@ def test_modern_without_tracks_dir_produces_no_track_output(capsys, tmp_path):
 
 
 def test_modern_with_empty_tracks_dir_produces_no_track_output(capsys, tmp_path):
-    """A freshly-`sdd init`'d project (post-feature) has an empty tracks/ dir
+    """A freshly-`sddkit init`'d project (post-feature) has an empty tracks/ dir
     -- still zero track output until a track is actually opened."""
     root = _make_modern(tmp_path)
     (root / ".sdd" / "tracks").mkdir()
@@ -240,7 +240,7 @@ def test_doctor_reports_overlapping_track_claims_and_nested_worktrees(tmp_path):
 
 
 def test_nested_worktree_already_gitignored_is_downgraded_to_a_note(tmp_path, monkeypatch):
-    # R3-03: once `sdd fix --gitignore` already ran, repeating the same WARN
+    # R3-03: once `sddkit fix --gitignore` already ran, repeating the same WARN
     # forever trains the owner to ignore the doctor. The real remaining gap
     # is the test/lint tool config, which the note must name.
     root = _make_modern(tmp_path)
@@ -287,7 +287,7 @@ def test_git_already_ignores_degrades_to_none_outside_a_repo(tmp_path):
 def test_real_track_activity_without_the_settings_line_is_flagged(tmp_path):
     # P2/IP-010: a track was opened (row in Active tracks, a branch, local
     # stages) with no `Parallel tracks:` line in Settings at all -- the
-    # constitution predates the field and sdd update/migrate never touch a
+    # constitution predates the field and sddkit update/migrate never touch a
     # user file. feature_mismatch alone cannot catch this: it only compares
     # values when the line exists.
     root = _make_modern(tmp_path)
@@ -364,7 +364,7 @@ def test_active_track_slugs_ignores_template_comment_rows(tmp_path):
 
 
 def test_human_report_lists_every_finding_the_json_report_carries(tmp_path, capsys):
-    """`sdd doctor` used to say "clean." while `--json` listed problems (reported by a real project)."""
+    """`sddkit doctor` used to say "clean." while `--json` listed problems (reported by a real project)."""
     sdd = tmp_path / ".sdd"
     sdd.mkdir()
     (sdd / "constitution.md").write_text(
@@ -377,8 +377,8 @@ def test_human_report_lists_every_finding_the_json_report_carries(tmp_path, caps
 
     cmd_doctor(types.SimpleNamespace(path=str(tmp_path), json=False))
     out = capsys.readouterr().out
-    assert "feature_mismatch" in out and "sdd fix --features" in out
-    assert "abs_file_links" in out and "sdd fix --links" in out
+    assert "feature_mismatch" in out and "sddkit fix --features" in out
+    assert "abs_file_links" in out and "sddkit fix --links" in out
     assert "\nclean." not in out
 
 

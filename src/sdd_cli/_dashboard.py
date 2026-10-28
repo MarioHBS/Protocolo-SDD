@@ -14,7 +14,7 @@ from . import _findings
 
 VIEW_NAMES = ("Overview", "Constitution", "Stages / Tracks", "EDD", "Doctor / Fix", "Session")
 # R3-06: a manual check of `rich`/`textual` can pass in a different Python
-# than the one running `sdd` (e.g. a venv on PATH vs. a pipx/editable
+# than the one running `sddkit` (e.g. a venv on PATH vs. a pipx/editable
 # install), so name the exact interpreter the message is about.
 INSTALL_HINT = ("the {ui} dashboard needs an optional package for this interpreter:\n"
                 "  {python}\n"
@@ -22,7 +22,7 @@ INSTALL_HINT = ("the {ui} dashboard needs an optional package for this interpret
                 "  {python} -m pip install rich textual\n"
                 "or, from the sdd-cli folder:\n"
                 "  pipx install --force './sdd-cli[dashboard]'\n"
-                "or use the dependency-free view:  sdd dashboard --ui plain")
+                "or use the dependency-free view:  sddkit dashboard --ui plain")
 
 
 def _health(findings: list[dict]) -> tuple[int, int, int]:
@@ -132,7 +132,7 @@ def render_html(views: dict[str, str], generated: str) -> str:
         "border-radius:8px;padding:0 16px 8px;margin:12px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;"
         "font:13px/1.45 ui-monospace,Consolas,monospace}small{color:var(--accent)}</style></head><body>"
         f"<h1>SDD Dashboard</h1><small>read-only snapshot generated {escape(generated)} "
-        f"- regenerate with <code>sdd dashboard --ui web</code></small><nav>{nav}</nav>{body}</body></html>")
+        f"- regenerate with <code>sddkit dashboard --ui web</code></small><nav>{nav}</nav>{body}</body></html>")
 
 
 def render_rich(views: dict[str, str], console=None) -> None:

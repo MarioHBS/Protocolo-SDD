@@ -90,7 +90,7 @@ def test_edd_migration_blocks_conflicting_lists(tmp_path):
     assert "Acceptance criteria" in (stage / "spec.md").read_text(encoding="utf-8")
 
 
-# ---- `sdd discover` (4.2.1): explain, validate, compare -- never write ----
+# ---- `sddkit discover` (4.2.1): explain, validate, compare -- never write ----
 
 def _discovery_file(tmp_path, *slugs):
     path = tmp_path / "discovery.json"
@@ -110,7 +110,7 @@ def _discover(**kw):
 def test_discover_without_arguments_explains_the_flow_and_prints_the_skill_path(capsys):
     cmd_discover(_discover())
     out = capsys.readouterr().out
-    assert "sdd discover --check" in out and "sdd init PATH --discovery" in out
+    assert "sddkit discover --check" in out and "sddkit init PATH --discovery" in out
     assert "sdd-discover" in out and "SKILL.md" in out
 
 

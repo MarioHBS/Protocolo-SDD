@@ -1,4 +1,4 @@
-"""`sdd init`: what a first install writes, and what it must never overwrite."""
+"""`sddkit init`: what a first install writes, and what it must never overwrite."""
 
 from __future__ import annotations
 
@@ -56,17 +56,17 @@ def test_settings_placeholders_are_filled_from_the_flags(tmp_path):
 def test_shim_tells_the_agent_to_load_only_what_it_needs(tmp_path):
     cmd_init(_args(tmp_path))
     shim = (tmp_path / ".claude" / "commands" / "sdd.md").read_text(encoding="utf-8")
-    assert "sdd context" in shim and "`## 1.`" in shim
+    assert "sddkit context" in shim and "`## 1.`" in shim
     assert "linked git worktree" in shim
 
 
-# R3-01: an agent in a Node/JS project ran `npx sdd doctor`, which executed an
+# R3-01: an agent in a Node/JS project ran `npx sddkit doctor`, which executed an
 # unrelated npm package. Every shim and the README must say, with the exact
 # same core wording (not reworded per provider, which would drift silently),
 # that `sdd` is a Python binary on PATH and never invoked through npx/npm.
 # Markdown may hard-wrap the sentence (the README's is inside a `>` blockquote),
 # so the comparison folds whitespace and strips blockquote markers first.
-_NPX_WARNING = "never `npx`/`npm`; if not found, check `where sdd` / `which sdd` before assuming it is missing"
+_NPX_WARNING = "never `npx`/`npm`; if not found, check `where sddkit` / `which sddkit` before assuming it is missing"
 
 
 def _normalized(text: str) -> str:
@@ -173,4 +173,4 @@ def test_unknown_provider_and_missing_path_are_refused(tmp_path):
 
 def test_documentation_flag_points_to_sdd_document(tmp_path, capsys):
     cmd_init(_args(tmp_path, docs=True))
-    assert "sdd document" in capsys.readouterr().out
+    assert "sddkit document" in capsys.readouterr().out

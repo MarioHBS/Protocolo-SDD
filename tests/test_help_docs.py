@@ -30,11 +30,11 @@ def _manual() -> str:
 
 
 def _documented(manual: str, path: tuple[str, ...]) -> bool:
-    """`sdd a b` spelled out, or `b` listed in the `sdd a <b|c|d>` heading of its parent."""
-    if f"sdd {' '.join(path)}" in manual:
+    """`sddkit a b` spelled out, or `b` listed in the `sddkit a <b|c|d>` heading of its parent."""
+    if f"sddkit {' '.join(path)}" in manual:
         return True
     if len(path) == 2:
-        return bool(re.search(rf"sdd {re.escape(path[0])} <[^>]*\b{re.escape(path[1])}\b[^>]*>", manual))
+        return bool(re.search(rf"sddkit {re.escape(path[0])} <[^>]*\b{re.escape(path[1])}\b[^>]*>", manual))
     return False
 
 
@@ -58,7 +58,7 @@ def test_every_parser_action_has_help_when_it_is_user_facing():
 def test_every_command_explains_itself_and_every_subcommand_is_listed_with_help():
     parser = build_parser()
     for path, child in _walk(parser):
-        assert child.description, f"sdd {' '.join(path)} has no description"
+        assert child.description, f"sddkit {' '.join(path)} has no description"
     for action in parser._actions:
         if isinstance(action, argparse._SubParsersAction):
             assert all(item.help for item in action._choices_actions), "a top-level command has no help line"
@@ -70,13 +70,13 @@ def test_every_documented_example_actually_parses():
     for path, child in _walk(parser):
         for line in (child.epilog or "").splitlines():
             line = line.strip()
-            if not line.startswith("sdd ") or "|" in line:
+            if not line.startswith("sddkit ") or "|" in line:
                 continue
             argv = shlex.split(re.split(r"\s+#\s", line)[0])[1:]
             try:
                 parser.parse_args(argv)
             except SystemExit as exc:  # argparse exits on an invalid command line
-                raise AssertionError(f"example does not parse: {line!r} (from sdd {' '.join(path)})") from exc
+                raise AssertionError(f"example does not parse: {line!r} (from sddkit {' '.join(path)})") from exc
             checked += 1
     assert checked >= 20  # guards against the loop silently checking nothing
 

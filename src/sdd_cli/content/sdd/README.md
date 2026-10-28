@@ -7,13 +7,14 @@ etc.) pointing back here.
 
 > **You are an AI agent reading this inside an IDE.** Before doing anything,
 > read this file, then only the `Settings` and `Current state` prefix of
-> `constitution.md` (or run `sdd context`). Its `Current state` field tells you
+> `constitution.md` (or run `sddkit context`). Its `Current state` field tells you
 > which phase the project is in and which skill to load. Never skip phases.
 >
-> `sdd` is a Python binary already on PATH (installed via `pipx`/`uv tool`, or
+> `sddkit` is a Python binary already on PATH (installed via `pipx`/`uv tool`, or
 > an editable checkout), even in a Node/JS project where reaching for a
 > package runner is the usual habit — never `npx`/`npm`; if not found, check
-> `where sdd` / `which sdd` before assuming it is missing.
+> `where sddkit` / `which sddkit` before assuming it is missing. The former name
+> `sdd` still works until v5 (it warns on stderr); prefer `sddkit`.
 
 **Language rule:** these instructions are written in English for reliability.
 All *interactions with the user* and all *generated artifacts* (constitution,
@@ -30,7 +31,7 @@ at startup; load a later constitution section, a prior report, or a skill only
 when the current task needs it. Load `sdd-track` only when **Parallel tracks**
 is on. `roadmap.md`, `estimates.md`, `CHANGELOG.md`, and inactive
 `tracks/*/state.md` are cold files: never read them by default. Use
-`sdd context --budget` to inspect the estimated startup cost.
+`sddkit context --budget` to inspect the estimated startup cost.
 
 ---
 
@@ -133,8 +134,8 @@ any state:
   Documentation feature is on; see Settings).
 - `sdd-discover` — pre-project (or re-check) discovery: an interview that writes
   `discovery.md` for review and `discovery.json` (`sdd-discovery/v1`). It also runs
-  outside a project, in any AI chat; `sdd discover` explains the flow and prints the
-  skill's path, and `sdd discover --check FILE --against .` compares the planned
+  outside a project, in any AI chat; `sddkit discover` explains the flow and prints the
+  skill's path, and `sddkit discover --check FILE --against .` compares the planned
   stages with this project's.
 - `sdd-track` — open, govern and merge **parallel tracks**: two or more
   stages worked at the same time by separate agent sessions, without git
@@ -196,7 +197,7 @@ Optional management artifacts (created only when the matching feature is on):
   `checklist.md` (evidence per ID); per milestone `milestones/<slug>/` with its
   evaluation, and `avaliacao-desempenho.md` for the cross-milestone view. Eval and
   todo items may be `[x]` met, `[-]` not applicable (with reason) or `[!]`
-  evaluated and not met (pointing to `report.md` §7); `sdd doctor` reports an
+  evaluated and not met (pointing to `report.md` §7); `sddkit doctor` reports an
   `E-NNN` that no checklist or report covers.
 - `backlog.md` — detail for stages still in the Provisional queue (context,
   tasks, findings), one section per slug, so a queue row stays 2-3 sentences.
@@ -204,7 +205,7 @@ Optional management artifacts (created only when the matching feature is on):
 - `cross-cutting.md` — optional project checklist (theme, responsiveness,
   accessibility, permissions...) turned into acceptance criteria by
   `sdd-specify`; start from `templates/cross-cutting.template.md`.
-- `documentation.json` — the documentation plan agreed by `sdd document`:
+- `documentation.json` — the documentation plan agreed by `sddkit document`:
   which documents exist, where they live (they may be outside `.sdd/`) and which
   stages must refresh them.
 - documentation set — shape decided with the user by `sdd-document`.
@@ -251,15 +252,15 @@ protocol. In short:
   build, e2e, benchmarking) is never opened as a parallel sibling of a track
   that mutates shared code — it is sequenced after it via `Depends on`.
 - **Two stages share a track family only if they cannot affect each other at all.**
-  Each track declares a footprint (`sdd track claim`: paths, shared numeric
-  sequences, exclusive runtime resources) and `sdd track check` refuses
-  overlaps; `sdd track verify` compares the real Git changes with the claims;
-  `sdd track incorporate` and `sdd seq next` hand out shared numbers under a lock.
+  Each track declares a footprint (`sddkit track claim`: paths, shared numeric
+  sequences, exclusive runtime resources) and `sddkit track check` refuses
+  overlaps; `sddkit track verify` compares the real Git changes with the claims;
+  `sddkit track incorporate` and `sddkit seq next` hand out shared numbers under a lock.
   Colliding footprints are sequenced with `Depends on`, not tolerated.
 - Provider tools may create git worktrees on their own (Kilo, Claude Code,
   Cursor). A worktree is a full copy, including a stale `.sdd/`: if the working
-  directory is a linked worktree, stop and use the main checkout. `sdd doctor`
-  reports nested worktree copies and `sdd fix --gitignore` ignores them.
+  directory is a linked worktree, stop and use the main checkout. `sddkit doctor`
+  reports nested worktree copies and `sddkit fix --gitignore` ignores them.
 - The queue can fork into tracks and join back to sequential as many times
   as the roadmap needs — each fork/join is independent of the others.
 

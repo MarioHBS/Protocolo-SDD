@@ -356,7 +356,7 @@ def test_list_is_deterministic(collected, capsys):
 def test_list_on_an_empty_inbox_points_at_collect(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SDD_PROPOSALS_INBOX", str(tmp_path / "inbox"))
     cmd_proposals(_view())
-    assert "sdd proposals collect" in capsys.readouterr().out
+    assert "sddkit proposals collect" in capsys.readouterr().out
 
 
 def test_show_prints_the_full_text_of_the_qualified_id(collected, capsys):

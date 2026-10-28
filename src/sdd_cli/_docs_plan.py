@@ -1,6 +1,6 @@
 """The documentation plan: an interview that ends in ``.sdd/documentation.json``.
 
-``sdd document`` asks the user, one question at a time, what documentation the
+``sddkit document`` asks the user, one question at a time, what documentation the
 project needs, where each file lives (it may be outside ``.sdd/`` and even
 outside the project folder) and which stages must keep it fresh. The interview
 engine here has no I/O of its own -- it talks through an injected ``Console`` --

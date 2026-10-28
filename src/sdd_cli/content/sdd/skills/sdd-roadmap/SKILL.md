@@ -49,7 +49,7 @@ Write all output in the language set in `constitution.md → Settings → Langua
    touch the same file, the same numbering sequence or the same exclusive
    resource are **not** parallel — sequence them (`Depends on`) or put them in the
    same track, one after the other. The precise footprint is declared later, at
-   `sdd-specify`, and enforced by `sdd track check`.
+   `sdd-specify`, and enforced by `sddkit track check`.
 
 3. **Fill the canonical index and the Provisional queue (§5 of the
    constitution).** Only the first stage — the one about to become `Active
@@ -62,7 +62,7 @@ Write all output in the language set in `constitution.md → Settings → Langua
    **Keep each provisional row to 2-3 sentences** (what, why, dependency) plus a
    pointer to its section in `backlog.md` — a row is an index entry, not a place
    for tasks or findings, for example
-   `| my-slug | pending | — | See backlog.md#my-slug |`. `sdd doctor`'s
+   `| my-slug | pending | — | See backlog.md#my-slug |`. `sddkit doctor`'s
    `backlog_orphan`/`queue_row_without_section` checks read the queue's literal
    `Slug` column as a markdown table — a bullet list or a link with no table
    row is not parsed, and the finding then looks like the section or the row

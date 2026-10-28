@@ -52,7 +52,7 @@ def die(msg: str) -> None:
 
 
 def _cli_executable_path() -> str:
-    """Resolve the path of the running `sdd` command itself (R3-01).
+    """Resolve the path of the running `sddkit` command itself (R3-01).
 
     An agent that cannot find the command on PATH, or that reaches a
     different install than expected (pipx vs. an editable checkout), gets a
@@ -181,9 +181,9 @@ sdd-discover is a SKILL, not a command: an AI agent interviews you and writes tw
      parallel tracks, documentation, Eval Driven Development, language, AI tools) and records your answers.
   2. Review discovery.md (the human brief) and correct it in the chat.
   3. Keep discovery.json (contract sdd-discovery/v1) and check it here:
-       sdd discover --check discovery.json
-  4. New project:       sdd init PATH --discovery discovery.json
-     Existing project:  sdd discover --check discovery.json --against PATH   (read-only comparison
+       sddkit discover --check discovery.json
+  4. New project:       sddkit init PATH --discovery discovery.json
+     Existing project:  sddkit discover --check discovery.json --against PATH   (read-only comparison
                         of the stages it plans with the ones the project already has)
 """.rstrip())
         print("\nSkill file (copy it wherever your AI provider reads instructions):")
@@ -508,7 +508,7 @@ def cmd_init(args) -> None:
     if existing and not args.force:
         print(f"{yellow('note:')} .sdd/ already initialized "
               f"(kit {existing.get('kit_version')}).")
-        print("      Use 'sdd migrate --to v4' to upgrade, or --force to "
+        print("      Use 'sddkit migrate --to v4' to upgrade, or --force to "
               "reinstall managed files.")
         raise SystemExit(0)
 
@@ -533,7 +533,7 @@ def cmd_init(args) -> None:
         for key in args.provider:
             p = providers.get(key)
             if not p:
-                die(f"unknown provider '{key}'. Run 'sdd providers' to list.")
+                die(f"unknown provider '{key}'. Run 'sddkit providers' to list.")
             chosen.append(p)
     elif interactive:
         print(bold("\nWhich AI agent(s) will use this project?"))
@@ -655,11 +655,11 @@ def cmd_init(args) -> None:
           f"tracks={'on' if features['tracks'] else 'off'}")
     if features["documentation"]:
         if not getattr(args, "yes", False) and sys.stdin.isatty() \
-                and _docs_plan.Console().confirm("\nPlan the project documentation now ('sdd document')?", False):
+                and _docs_plan.Console().confirm("\nPlan the project documentation now ('sddkit document')?", False):
             cmd_document(argparse.Namespace(path=str(root), answers=None, resume=False, create_stubs=False,
                                             dry_run=False, json=False))
         else:
-            print(dim("\nDocumentation is on: run 'sdd document' when you are ready to plan it."))
+            print(dim("\nDocumentation is on: run 'sddkit document' when you are ready to plan it."))
     print(dim("\nNext: open your agent and trigger "
               f"{chosen[0].invoke} -- it will read .sdd/ and start the "
               "INITIALIZING phase."))
@@ -676,8 +676,8 @@ def cmd_providers(args) -> None:
     for p in providers.PROVIDERS:
         print(f"  {bold(p.key.ljust(w))}  {p.name}")
         print(f"  {' ' * w}  {dim(p.kind + ' | ' + p.shim_path + ' | ' + p.invoke)}")
-    print(dim("\nUse: sdd init --provider <key> [--provider <key> ...]"))
-    print(dim("Machine-readable list: sdd providers --plain"))
+    print(dim("\nUse: sddkit init --provider <key> [--provider <key> ...]"))
+    print(dim("Machine-readable list: sddkit providers --plain"))
 
 
 # -------------------------------------------------------------------- docs
@@ -810,7 +810,7 @@ def cmd_doctor(args) -> None:
     # hygiene) only makes sense once an .sdd/ exists.
     if not sdd.exists():
         print(f"  {yellow('note')}  no .sdd/ here — not an SDD project.")
-        print(dim("        Run 'sdd init' to scaffold one."))
+        print(dim("        Run 'sddkit init' to scaffold one."))
         raise SystemExit(0)
 
     m = manifest.load(root)
@@ -820,7 +820,7 @@ def cmd_doctor(args) -> None:
         project_ver = "v1 (no manifest)"
         print(f"  sdd    {project_ver}")
         print(dim("        Legacy install (no .sdd/.sdd-manifest.json). "
-                  "Run 'sdd migrate --to v4' to record a manifest and upgrade."))
+                  "Run 'sddkit migrate --to v4' to record a manifest and upgrade."))
     else:
         project_ver = m.get("kit_version") or "unknown"
         print(f"  sdd    {project_ver}")
@@ -903,7 +903,7 @@ def cmd_doctor(args) -> None:
 
     if not hyg.changelog_exists:
         print(yellow("  note  no CHANGELOG.md — the constitution §6 is an index "
-                     "pointing here; create it with 'sdd init' (new) or migrate "
+                     "pointing here; create it with 'sddkit init' (new) or migrate "
                      "(legacy)."))
     else:
         print(green("  ok    CHANGELOG.md present"))
@@ -1047,7 +1047,7 @@ def _doctor_payload(root: Path) -> dict:
                     findings.append({"severity": "warn", "code": "feature_mismatch", "feature": key,
                                      "constitution": expected, "manifest": actual, "actionable": True})
         # R3-07: a constitution older than the "Parallel tracks" Settings
-        # field (never overwritten by `sdd update`/`migrate`) can have real
+        # field (never overwritten by `sddkit update`/`migrate`) can have real
         # track activity -- an Active tracks row, or a track folder with its
         # own state.md -- with no explicit on/off line to say whether that
         # activity means real concurrency or just a sequential grouping.
@@ -1163,7 +1163,7 @@ def _doctor_payload(root: Path) -> dict:
         if copies:
             rel = str(worktree_dir.relative_to(root)).replace("\\", "/")
             # R3-03: the doctor used to repeat the same WARN after the owner
-            # already ran `sdd fix --gitignore` — the real damage was Vitest/
+            # already ran `sddkit fix --gitignore` — the real damage was Vitest/
             # ESLint/tsc still scanning the copy by path, which .gitignore
             # cannot stop. Downgrade to a note once Git already ignores it,
             # and name what is actually still missing.
@@ -1241,7 +1241,7 @@ def _lf(path: Path) -> bytes:
 def _managed_files_edited(root: Path, data: dict | None) -> list[str]:
     """Managed files that differ from what the manifest recorded and from the bundled kit.
 
-    ``sdd update`` preserves a hand-edited managed file and says so once; afterwards the
+    ``sddkit update`` preserves a hand-edited managed file and says so once; afterwards the
     manifest still holds the old hash, so this is how the divergence stays visible.
     """
     edited = []
@@ -1278,7 +1278,7 @@ def cmd_fix(args) -> None:
     root = Path(args.path).resolve()
     sdd = root / ".sdd"
     if not sdd.is_dir():
-        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+        die(f"no .sdd/ found in {root}. Run 'sddkit init' first.")
     dry_run = bool(getattr(args, "dry_run", False))
     use_mojibake = bool(getattr(args, "mojibake", False) or getattr(args, "all", False))
     use_eol = bool(getattr(args, "eol", False) or getattr(args, "all", False))
@@ -1565,7 +1565,7 @@ def _proposals_list_or_show(args) -> None:
     if args.proposals_command == "show":
         matches = _proposals.find(entries, args.id)
         if not matches:
-            die(f"no proposal {args.id} in {inbox}; `sdd proposals list --all` shows what is there")
+            die(f"no proposal {args.id} in {inbox}; `sddkit proposals list --all` shows what is there")
         if len(matches) > 1:
             die(f"{args.id} exists in several projects, use one of: "
                 + ", ".join(e["key"] for e in matches))
@@ -1582,7 +1582,7 @@ def _proposals_list_or_show(args) -> None:
                     "proposals": [_proposal_summary(e) for e in shown]})
         return
     if not entries:
-        print(f"inbox is empty ({inbox}); run `sdd proposals collect` first")
+        print(f"inbox is empty ({inbox}); run `sddkit proposals collect` first")
         return
     width = max((len(e["key"]) for e in shown), default=0)
     for entry in shown:
@@ -1620,7 +1620,7 @@ def _proposals_send_cmd(args) -> None:
         for token in args.ids:
             matches = _proposals.find(entries, token)
             if not matches:
-                die(f"no proposal {token} in {source}; `sdd proposals list --all` shows what is there")
+                die(f"no proposal {token} in {source}; `sddkit proposals list --all` shows what is there")
             if len(matches) > 1:
                 die(f"{token} exists in several projects, use one of: " + ", ".join(e["key"] for e in matches))
             if matches[0] not in chosen:
@@ -1628,7 +1628,7 @@ def _proposals_send_cmd(args) -> None:
     else:
         chosen = entries if args.all else [e for e in entries if not _proposals.is_absorbed(e)]
     if not chosen:
-        die(f"nothing to send from {source}; run `sdd proposals collect`, or pass ids or --all")
+        die(f"nothing to send from {source}; run `sddkit proposals collect`, or pass ids or --all")
     snapshot = None
     if args.snapshot:
         try:
@@ -1874,7 +1874,7 @@ def cmd_document(args) -> None:
         except ValueError as exc:
             die(str(exc))
     elif not sys.stdin.isatty():
-        die("sdd document asks questions and needs a terminal; without one, pass --answers FILE.json "
+        die("sddkit document asks questions and needs a terminal; without one, pass --answers FILE.json "
             "(same shape as .sdd/documentation.json)")
     else:
         interactive = True
@@ -1886,7 +1886,7 @@ def cmd_document(args) -> None:
                 root, _docs_plan.Console(), state=state,
                 save_state=lambda s: _docs_plan._atomic_write(_docs_plan.state_path(root), s))
         except _docs_plan.InterviewAborted:
-            die("interview interrupted; answers so far are kept: run 'sdd document --resume'")
+            die("interview interrupted; answers so far are kept: run 'sddkit document --resume'")
         except ValueError as exc:
             die(str(exc))
     targets = [_docs_plan.resolve(root, plan, item) for item in plan["documents"]]
@@ -1955,7 +1955,7 @@ def sdd_dashboard_default(root: Path) -> Path:
 def cmd_dashboard(args) -> None:
     root = Path(args.path).resolve()
     if not (root / ".sdd").is_dir():
-        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+        die(f"no .sdd/ found in {root}. Run 'sddkit init' first.")
     stored = _normalize_dashboard_renderer((manifest.load(root) or {}).get("dashboard_renderer"))
     renderer = _normalize_dashboard_renderer(args.ui) or stored or "static"
     if renderer not in DASHBOARD_RENDERERS:
@@ -2161,7 +2161,7 @@ def _write_migration_todo(root: Path, sdd: Path, old: dict | None,
 
     sections.append(f"""# Migration TODO — {old_version} -> {KIT_VERSION}
 
-> This file was generated by `sdd migrate --to v{target}` as a POINT-IN-TIME snapshot
+> This file was generated by `sddkit migrate --to v{target}` as a POINT-IN-TIME snapshot
 > of the constitution's state at migration time. The CLI is deliberately dumb:
 > it replaced the MANAGED files (`.sdd/README.md`, `.sdd/skills/`,
 > `.sdd/templates/`, the provider shims) and left YOUR files
@@ -2210,7 +2210,7 @@ the live constitution first -- if `## Settings` is already present, skip.
 ```markdown
 ## Settings
 
-<!-- Set by `sdd init`. Edit by hand to toggle features later. -->
+<!-- Set by `sddkit init`. Edit by hand to toggle features later. -->
 
 - **Language:** {lang_code}
   <!-- All interactions and generated artifacts use this language.
@@ -2521,7 +2521,7 @@ def _edd_migration_plan(root: Path) -> tuple[list[dict], list[str]]:
 def cmd_migrate_edd(args) -> None:
     root = Path(args.path).resolve()
     if not (root / ".sdd").is_dir():
-        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+        die(f"no .sdd/ found in {root}. Run 'sddkit init' first.")
     plans, ambiguities = _edd_migration_plan(root)
     print(bold(f"EDD source-of-truth migration — {root}"))
     for plan in plans:
@@ -2583,7 +2583,7 @@ def cmd_migrate(args) -> None:
     root = Path(args.path).resolve()
     sdd = root / ".sdd"
     if not sdd.exists():
-        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+        die(f"no .sdd/ found in {root}. Run 'sddkit init' first.")
 
     target = args.to.lower().lstrip("v")
     current_major = str(manifest.parse_version(KIT_VERSION)[0])
@@ -2624,8 +2624,8 @@ def cmd_migrate(args) -> None:
                       f"in {len(v2_files)} file(s). Migration aborts — migrating "
                       "on top of mojibake would copy the corruption forward."))
             print(dim("  Nothing was written. Resolve it first:"))
-            print(dim("    sdd doctor            # full report (v2 + v1 + hygiene)"))
-            print(dim("    sdd migrate --to v4 --fix-mojibake   # repair v2 inline"))
+            print(dim("    sddkit doctor            # full report (v2 + v1 + hygiene)"))
+            print(dim("    sddkit migrate --to v4 --fix-mojibake   # repair v2 inline"))
             print(dim("  v1 accent-loss (`?`) is NOT auto-fixed; review it by "
                       "hand after migrate."))
             raise SystemExit(1)
@@ -2783,19 +2783,19 @@ def cmd_update(args) -> None:
     root = Path(args.path).resolve()
     sdd = root / ".sdd"
     if not sdd.exists():
-        die(f"no .sdd/ found in {root}. Run 'sdd init' first.")
+        die(f"no .sdd/ found in {root}. Run 'sddkit init' first.")
 
     m = manifest.load(root)
     if m is None:
-        die("no .sdd-manifest.json found -- 'sdd update' needs an existing "
+        die("no .sdd-manifest.json found -- 'sddkit update' needs an existing "
             "manifest as a baseline to diff against. Legacy v1 projects have "
-            "none; run 'sdd migrate --to v4' first.")
+            "none; run 'sddkit migrate --to v4' first.")
 
     try:
         installed = manifest.parse_version(m.get("kit_version", ""))
     except ValueError:
         die(f"manifest kit_version {m.get('kit_version')!r} is not a "
-            f"parseable semver -- run 'sdd migrate --to v4' instead.")
+            f"parseable semver -- run 'sddkit migrate --to v4' instead.")
 
     bundled = manifest.parse_version(KIT_VERSION)
 
@@ -2811,8 +2811,8 @@ def cmd_update(args) -> None:
             cmd_migrate(migrated)
             return
         die(f"installed kit is v{installed[0]}.x, bundled kit is "
-            f"v{bundled[0]}.x -- 'sdd update' only handles minor/patch "
-            f"changes within the same major. Run 'sdd migrate --to "
+            f"v{bundled[0]}.x -- 'sddkit update' only handles minor/patch "
+            f"changes within the same major. Run 'sddkit migrate --to "
             f"v{bundled[0]}' instead.")
 
     if installed >= bundled:
@@ -2824,7 +2824,7 @@ def cmd_update(args) -> None:
             for rel in edited:
                 print(f"    {rel}")
             print(dim("  Compare each with the bundled kit and merge by hand, or restore it from "
-                      ".sdd/.pre-migrate-backup/; `sdd doctor` keeps reporting it."))
+                      ".sdd/.pre-migrate-backup/; `sddkit doctor` keeps reporting it."))
         return
 
     src_sdd = CONTENT_DIR / "sdd"
@@ -2951,106 +2951,106 @@ commands by purpose:
   document     document, manual
   observe      dashboard
 
-Run 'sdd <command> --help' for details and examples, or 'sdd manual' for the full manual.
-('sdd docs' is a deprecated alias of 'sdd manual'; it is removed in v5.)
+Run 'sdd <command> --help' for details and examples, or 'sddkit manual' for the full manual.
+('sddkit docs' is a deprecated alias of 'sddkit manual'; it is removed in v5.)
 """
 
 # One place for what every command does and how to call it, so --help stays
 # consistent. Keyed by the command path; value = (description, examples).
 _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "init": ("Install the SDD kit into a project: .sdd/, the skills, and one shim per agent you use.",
-             "sdd init                                        # interactive\n"
-             "sdd init --provider claude --language pt-BR -y  # no prompts (agents)\n"
-             "sdd init --provider claude --provider cursor    # two agents, one .sdd/"),
+             "sddkit init                                        # interactive\n"
+             "sddkit init --provider claude --language pt-BR -y  # no prompts (agents)\n"
+             "sddkit init --provider claude --provider cursor    # two agents, one .sdd/"),
     "providers": ("List the AI agents a shim can be installed for.",
-                  "sdd providers\nsdd providers --plain      # bare keys, for scripts"),
+                  "sddkit providers\nsddkit providers --plain      # bare keys, for scripts"),
     "manual": ("Print the full usage manual (the kit's USAGE.md).",
-               "sdd manual\nsdd manual --md      # writes .sdd/SDD-USAGE.md"),
+               "sddkit manual\nsddkit manual --md      # writes .sdd/SDD-USAGE.md"),
     "discover": ("Explain the discovery flow (the sdd-discover skill for any AI provider, where its file is) "
                  "and validate a discovery.json; --against compares its stages with an existing project.",
-                 "sdd discover                                  # how it works + skill path\n"
-                 "sdd discover --check discovery.json           # validate, show the summary\n"
-                 "sdd discover --check discovery.json --against .   # is the project's stage list complete?"),
+                 "sddkit discover                                  # how it works + skill path\n"
+                 "sddkit discover --check discovery.json           # validate, show the summary\n"
+                 "sddkit discover --check discovery.json --against .   # is the project's stage list complete?"),
     "context": ("Print only what a session needs to start: Settings and Current state, the active stage's "
                 "files and, with --budget, what each file costs in tokens (bytes/4, an estimate).",
-                "sdd context\nsdd context --budget       # hot (read at startup) vs cold files\nsdd context --json"),
+                "sddkit context\nsddkit context --budget       # hot (read at startup) vs cold files\nsddkit context --json"),
     "fix": ("Repair deterministic problems only: v2 mojibake, line endings, absolute file links, manifest "
             "features that disagree with the constitution, manifest hashes that differ only by line endings. "
             "Nothing ambiguous is touched.",
-            "sdd fix --dry-run                 # show what would change\nsdd fix --links                   # only the links\n"
-            "sdd fix --gitignore               # ignore agent worktree folders"),
+            "sddkit fix --dry-run                 # show what would change\nsddkit fix --links                   # only the links\n"
+            "sddkit fix --gitignore               # ignore agent worktree folders"),
     "session": ("Keep a resumable work context (.session.json) so interrupted implementation can continue.",
-                "sdd session sync\nsdd session pause --reason planned --context 'waiting for API keys'\nsdd session resume"),
+                "sddkit session sync\nsddkit session pause --reason planned --context 'waiting for API keys'\nsddkit session resume"),
     "session pause": ("Record why work stopped and where.",
-                      "sdd session pause --reason context_switch --task T-3 --context 'blocked on review'"),
-    "session resume": ("Show the saved context so work can continue.", "sdd session resume"),
-    "session status": ("Show the current session, if any.", "sdd session status --json"),
-    "session close": ("Delete the session once the stage report exists.", "sdd session close"),
-    "session sync": ("Create/refresh the session while IMPLEMENTING; clear it otherwise.", "sdd session sync"),
+                      "sddkit session pause --reason context_switch --task T-3 --context 'blocked on review'"),
+    "session resume": ("Show the saved context so work can continue.", "sddkit session resume"),
+    "session status": ("Show the current session, if any.", "sddkit session status --json"),
+    "session close": ("Delete the session once the stage report exists.", "sddkit session close"),
+    "session sync": ("Create/refresh the session while IMPLEMENTING; clear it otherwise.", "sddkit session sync"),
     "track": ("Parallel tracks share one working tree, so their footprints are declared and checked: two "
               "stages may live in different tracks only if they cannot affect each other.",
-              "sdd track claim billing --stage 001 --path 'src/billing/**' --seq migration\n"
-              "sdd track check\nsdd track verify billing\nsdd track incorporate billing 001-invoice-export\n"
-              "sdd track close billing --archive"),
+              "sddkit track claim billing --stage 001 --path 'src/billing/**' --seq migration\n"
+              "sddkit track check\nsddkit track verify billing\nsddkit track incorporate billing 001-invoice-export\n"
+              "sddkit track close billing --archive"),
     "track claim": ("Record a track's footprint: paths, shared sequences, exclusive runtime resources.",
-                    "sdd track claim api --stage 001 --path 'src/api/**' --runtime db-write"),
-    "track check": ("Fail (exit 1) when two active tracks' footprints overlap.", "sdd track check --json"),
+                    "sddkit track claim api --stage 001 --path 'src/api/**' --runtime db-write"),
+    "track check": ("Fail (exit 1) when two active tracks' footprints overlap.", "sddkit track check --json"),
     "track verify": ("Fail when real Git changes fall outside every claim, or inside two.",
-                     "sdd track verify api\nsdd track verify api --since main"),
+                     "sddkit track verify api\nsddkit track verify api --since main"),
     "track incorporate": ("Move a closed track stage into the canonical queue: takes the next free number, "
                           "renames the folder, appends the section-5 row, releases the claims - under a lock.",
-                          "sdd track incorporate billing 001-invoice-export --dry-run"),
+                          "sddkit track incorporate billing 001-invoice-export --dry-run"),
     "track close": ("Finish a track whose work is fully incorporated: refuses if local stages or claims "
                     "remain, marks state.md CLOSED, drops its Active tracks row, optionally archives the "
                     "folder under .sdd/tracks/_closed/.",
-                    "sdd track close billing --dry-run\nsdd track close billing --archive"),
+                    "sddkit track close billing --dry-run\nsddkit track close billing --archive"),
     "seq": ("Hand out numbers of a shared sequence (for example database migrations) exactly once.",
-            "sdd seq next migration --track billing"),
+            "sddkit seq next migration --track billing"),
     "seq next": ("Reserve the next number in .sdd/.reservations.json. Sequences are declared in the "
                  "constitution as `name` = `dir/NNNN_*.ext`; 'migration' defaults to supabase/migrations.",
-                 "sdd seq next migration\nsdd seq next migration --track billing --json"),
+                 "sddkit seq next migration\nsddkit seq next migration --track billing --json"),
     "proposals": ("Gather the improvement proposals each project keeps in .sdd/improvement-proposals.md "
                   "into one local inbox, so they can be reviewed together. Never writes to the projects.",
-                  "sdd proposals collect ../app-a ../app-b\nsdd proposals collect --scan ~/projects"),
+                  "sddkit proposals collect ../app-a ../app-b\nsddkit proposals collect --scan ~/projects"),
     "proposals collect": ("Copy every '## IP-NNN' entry of each project into the inbox, one file per entry "
                           "named <project>-IP-NNN.md (the project is its folder name). A changed entry is "
                           "updated, an unchanged one is left alone, and an entry that vanished from its source "
                           "is kept. The inbox is the user data folder, or $SDD_PROPOSALS_INBOX when set.",
-                          "sdd proposals collect ../app-a ../app-b\nsdd proposals collect --scan ~/projects --json"),
+                          "sddkit proposals collect ../app-a ../app-b\nsddkit proposals collect --scan ~/projects --json"),
     "proposals list": ("One line per collected proposal: <project>-IP-NNN, date, status keyword, title. "
                        "Proposals already absorbed by the kit are hidden unless --all is given.",
-                       "sdd proposals list\nsdd proposals list --all --json"),
+                       "sddkit proposals list\nsddkit proposals list --all --json"),
     "proposals show": ("Print one collected proposal in full. Use the qualified id, since IP-001 exists "
                        "in every project; a bare id works only when one project has it.",
-                       "sdd proposals show app-a-IP-001\nsdd proposals show app-a-IP-001 --json"),
+                       "sddkit proposals show app-a-IP-001\nsddkit proposals show app-a-IP-001 --json"),
     "proposals send": ("Package collected proposals for the kit maintainer, with each project replaced by "
                        "an anonymous code (P1, P2...). Warns about e-mails, absolute paths, secret-looking "
                        "words and real project names, and asks about each hit. 'file' only writes a Markdown "
                        "file; 'url' and 'issue' show the exact text and ask before sending. 'issue' falls back "
                        "to a file when gh is missing or not logged in. Never changes the projects.",
-                       "sdd proposals send --via file --output proposals.md\n"
-                       "sdd proposals send app-a-IP-003 --via url"),
+                       "sddkit proposals send --via file --output proposals.md\n"
+                       "sddkit proposals send app-a-IP-003 --via url"),
     "scaffold": ("For a stage with a locked spec.md, create the missing todo.md (from its acceptance criteria) "
                  "and, with Eval Driven Development on, evals.md and checklist.md. Never overwrites.",
-                 "sdd scaffold 004-auth-model\nsdd scaffold 001-x --track login --dry-run"),
+                 "sddkit scaffold 004-auth-model\nsddkit scaffold 001-x --track login --dry-run"),
     "deps": ("Record dependencies on other local projects and inspect them.",
-             "sdd deps add ../shared-lib --kind requires --description 'shared types'\nsdd deps graph --format mermaid"),
-    "deps list": ("List recorded dependencies.", "sdd deps list"),
-    "deps graph": ("Print the dependency graph.", "sdd deps graph --format mermaid"),
-    "deps add": ("Record a dependency.", "sdd deps add ../shared-lib"),
-    "deps remove": ("Remove a recorded dependency.", "sdd deps remove ../shared-lib"),
+             "sddkit deps add ../shared-lib --kind requires --description 'shared types'\nsddkit deps graph --format mermaid"),
+    "deps list": ("List recorded dependencies.", "sddkit deps list"),
+    "deps graph": ("Print the dependency graph.", "sddkit deps graph --format mermaid"),
+    "deps add": ("Record a dependency.", "sddkit deps add ../shared-lib"),
+    "deps remove": ("Remove a recorded dependency.", "sddkit deps remove ../shared-lib"),
     "impact": ("List the artifacts that mention a locked decision, before changing it.",
-               "sdd impact D-013\nsdd impact D-013 --json"),
+               "sddkit impact D-013\nsddkit impact D-013 --json"),
     "health": ("Score the project's SDD hygiene from the doctor findings (100 minus 25 per error, 5 per "
-               "warning).", "sdd health\nsdd health --json"),
+               "warning).", "sddkit health\nsddkit health --json"),
     "evaluate": ("Capture local, sanitized evidence about how the kit behaved in this project.",
-                 "sdd evaluate\nsdd evaluate --write      # save .sdd/kit-evaluation/snapshot.json"),
+                 "sddkit evaluate\nsddkit evaluate --write      # save .sdd/kit-evaluation/snapshot.json"),
     "dashboard": ("Open the read-only dashboard: overview, constitution sizes, stages and tracks, EDD, "
                   "doctor findings (with the command that fixes each) and session. 'static' (one panel, "
                   "prints once) and 'interactive' (live TUI) need the optional extras; 'plain' needs nothing. "
                   "'rich'/'textual' still work as deprecated aliases for 'static'/'interactive'.",
-                  "sdd dashboard --ui plain          # no dependencies\nsdd dashboard --ui static\n"
-                  "sdd dashboard --ui interactive --set-default   # live TUI, keep as the default"),
+                  "sddkit dashboard --ui plain          # no dependencies\nsddkit dashboard --ui static\n"
+                  "sddkit dashboard --ui interactive --set-default   # live TUI, keep as the default"),
 }
 
 
@@ -3109,13 +3109,13 @@ def build_parser() -> argparse.ArgumentParser:
     d = sub.add_parser(
         "docs",
         help="deprecated alias of 'manual' (removed in v5)",
-        description="Deprecated alias of 'sdd manual', removed in v5: print the full "
+        description="Deprecated alias of 'sddkit manual', removed in v5: print the full "
                      "SDD usage manual (the kit's USAGE.md).",
         epilog="""\
 examples:
-  sdd docs                       # print the manual to stdout
-  sdd docs --md                  # write .sdd/SDD-USAGE.md (or ./SDD-USAGE.md outside a project)
-  sdd docs --md notes/manual.md  # write it to a chosen path instead
+  sddkit docs                       # print the manual to stdout
+  sddkit docs --md                  # write .sdd/SDD-USAGE.md (or ./SDD-USAGE.md outside a project)
+  sddkit docs --md notes/manual.md  # write it to a chosen path instead
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -3154,16 +3154,16 @@ flags:
   path                project root (default: current directory)
 
 examples:
-  sdd migrate --to v4 --dry-run      # preview first -- always do this
-  sdd migrate --to v4                # migrate to the current kit
-  sdd migrate --to v4 --fix-mojibake # repair v2 mojibake, then apply
+  sddkit migrate --to v4 --dry-run      # preview first -- always do this
+  sddkit migrate --to v4                # migrate to the current kit
+  sddkit migrate --to v4 --fix-mojibake # repair v2 mojibake, then apply
 
 mojibake gate:
   If double-encoding mojibake (v2: Ã§, Ã£, Ã© ...) is found anywhere under .sdd/,
   migrate ABORTS without writing anything -- migrating on top of corruption
   would copy it forward. Resolve it with --fix-mojibake (v2 only; the ambiguous
   v1 accent-loss `?` is never auto-fixed and stays for manual review) or with
-  `sdd doctor` for a full report. The re-scan after --fix-mojibake asserts
+  `sddkit doctor` for a full report. The re-scan after --fix-mojibake asserts
   nothing v2 remains before the migration proceeds.
 
 migration todo:
@@ -3201,21 +3201,21 @@ migration todo:
                     "minor/patch bump over what's installed, preserving "
                     "hand-edited files (backed up, not overwritten). "
                     "Refuses across a major-version boundary -- use "
-                    "'sdd migrate' for that.",
+                    "'sddkit migrate' for that.",
         epilog="""\
 examples:
-  sdd update              # sync this project to the bundled kit's minor/patch
-  sdd update PATH         # sync another project
-  sdd update --dry-run    # preview what would change; write nothing
+  sddkit update              # sync this project to the bundled kit's minor/patch
+  sddkit update PATH         # sync another project
+  sddkit update --dry-run    # preview what would change; write nothing
 
-Unlike 'sdd migrate', this never does a full skills/templates wipe: it diffs
+Unlike 'sddkit migrate', this never does a full skills/templates wipe: it diffs
 old-bundled vs new-bundled content per managed file and only touches files
 that actually changed, skipping any file you've hand-edited (those are
 backed up under .sdd/.pre-migrate-backup/<timestamp>/ instead of being
 overwritten). Requires an existing .sdd/.sdd-manifest.json -- a legacy v1
 project with no manifest has no baseline to diff against; run
-'sdd migrate --to v2' first. Refuses to run across a major-version boundary;
-run 'sdd migrate --to vN' for that instead.
+'sddkit migrate --to v2' first. Refuses to run across a major-version boundary;
+run 'sddkit migrate --to vN' for that instead.
 """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -3237,8 +3237,8 @@ run 'sdd migrate --to vN' for that instead.
                     "rewrites a file.",
         epilog="""\
 examples:
-  sdd doctor            # full report; exit 0 if no SDD, exit 1 if v2 mojibake
-  sdd doctor PATH       # audit another project
+  sddkit doctor            # full report; exit 0 if no SDD, exit 1 if v2 mojibake
+  sddkit doctor PATH       # audit another project
 
 doctor first reports whether the directory is an SDD project and which kit
 version is installed (from .sdd/.sdd-manifest.json, or 'v1 (no manifest)' for
@@ -3362,7 +3362,7 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
                                 "issue: create it with gh")
     prop_send.add_argument("--all", action="store_true", help="include proposals already absorbed by the kit")
     prop_send.add_argument("--output", metavar="FILE", help="package path for --via file (default: sdd-proposals.md)")
-    prop_send.add_argument("--snapshot", metavar="FILE", help="append a `sdd evaluate --write` snapshot.json")
+    prop_send.add_argument("--snapshot", metavar="FILE", help="append a `sddkit evaluate --write` snapshot.json")
     prop_send.add_argument("-y", "--yes", action="store_true",
                            help="skip the final send confirmation (never the private-data warnings)")
     prop_send.set_defaults(func=cmd_proposals)
@@ -3416,10 +3416,10 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
                     ".sdd/), how documents are numbered and which stages must refresh them, then save the "
                     "plan to .sdd/documentation.json and turn the Documentation feature on.",
         epilog="examples:\n"
-               "  sdd document                    # interactive interview\n"
-               "  sdd document --resume           # continue an interrupted interview\n"
-               "  sdd document --answers plan.json --create-stubs   # agent/non-interactive\n"
-               "  sdd document --answers plan.json --dry-run        # validate only",
+               "  sddkit document                    # interactive interview\n"
+               "  sddkit document --resume           # continue an interrupted interview\n"
+               "  sddkit document --answers plan.json --create-stubs   # agent/non-interactive\n"
+               "  sddkit document --answers plan.json --dry-run        # validate only",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     document.add_argument("path", nargs="?", default=".", help="project root (default: .)")
     document.add_argument("--answers", metavar="FILE", help="JSON plan for non-interactive execution "

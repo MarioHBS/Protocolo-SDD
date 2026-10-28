@@ -24,13 +24,13 @@ apart; the separation has to be **declared and checked**:
 
 | Tool | What it guarantees |
 |---|---|
-| `sdd track claim` | records a track's footprint in `tracks/<slug>/claims.json` |
-| `sdd track check` | fails when two active tracks' footprints overlap |
-| `sdd track verify <slug>` | fails when real Git changes fall outside every claim (or inside two) |
-| `sdd seq next <name>` | hands out the next number of a shared sequence, once |
-| `sdd track incorporate` | moves a closed stage into the canonical queue under a lock |
-| `sdd track close <slug>` | once every local stage is incorporated and no claim remains: marks `state.md` CLOSED, drops the `### Active tracks` row (`--archive` also moves the folder to `tracks/_closed/`) |
-| `sdd doctor` | reports `track_overlap`, `sequence_duplicate`, `session_branch_mismatch`, `track_closed_in_place` (a closed track not yet archived) |
+| `sddkit track claim` | records a track's footprint in `tracks/<slug>/claims.json` |
+| `sddkit track check` | fails when two active tracks' footprints overlap |
+| `sddkit track verify <slug>` | fails when real Git changes fall outside every claim (or inside two) |
+| `sddkit seq next <name>` | hands out the next number of a shared sequence, once |
+| `sddkit track incorporate` | moves a closed stage into the canonical queue under a lock |
+| `sddkit track close <slug>` | once every local stage is incorporated and no claim remains: marks `state.md` CLOSED, drops the `### Active tracks` row (`--archive` also moves the folder to `tracks/_closed/`) |
+| `sddkit doctor` | reports `track_overlap`, `sequence_duplicate`, `session_branch_mismatch`, `track_closed_in_place` (a closed track not yet archived) |
 
 If a candidate stage collides with a sibling, **do not open it in parallel**:
 sequence it after the colliding stage (fill its §5 `Depends on`) or put both in
@@ -66,7 +66,7 @@ acceptance needs a **stable, buildable, runnable shared artifact** (manual QA on
 a build, on-device or end-to-end testing, a release build, benchmarking). It
 **cannot** run as a parallel sibling of a track that is mid-flight mutating shared
 code, because that track routinely leaves the build red. Declare it with
-`--stability-sensitive`; `sdd track check` then refuses it next to any track that
+`--stability-sensitive`; `sddkit track check` then refuses it next to any track that
 claims paths. Sequence it instead: after the mutating tracks join back (a join
 stage whose `Depends on` lists them), or strictly after the one stage it validates.
 
@@ -77,8 +77,8 @@ stage whose `Depends on` lists them), or strictly after the one stage it validat
 +-- tracks/
     +-- <slug>/
         +-- state.md          — free-form, agent-owned, never parsed by the CLI
-        +-- claims.json       — the track's declared footprint, written by `sdd track claim`
-        +-- .session.json     — (optional) resumable work context, `sdd session`
+        +-- claims.json       — the track's declared footprint, written by `sddkit track claim`
+        +-- .session.json     — (optional) resumable work context, `sddkit session`
         +-- stages/
             +-- 001-<slug>/    — same shape as a normal stage folder
             +-- 002-<slug>/       (spec.md, todo.md, report.md, checklist.md)
@@ -86,7 +86,7 @@ stage whose `Depends on` lists them), or strictly after the one stage it validat
     +-- NNN[-LETTER]-<slug>/    — the letter suffix here is STILL the existing
                                    "inserted without renumbering" convention;
                                    it has nothing to do with tracks
-+-- .reservations.json         — shared numbers already handed out (`sdd seq`, `incorporate`)
++-- .reservations.json         — shared numbers already handed out (`sddkit seq`, `incorporate`)
 ```
 
 **A track's ID is a slug you choose when opening it** (`login`, `billing`),
@@ -99,7 +99,7 @@ queue.
 
 By default, tracks share the working tree **and the current branch**. A track
 that needs its own branch is allowed, but the choice is recorded — in its
-`state.md` and with `sdd track claim <slug> --branch <name>` — so `sdd doctor`
+`state.md` and with `sddkit track claim <slug> --branch <name>` — so `sddkit doctor`
 can report `session_branch_mismatch` when a session runs on the wrong one. A
 session on the wrong branch is how a stage ends up implemented twice.
 
@@ -114,8 +114,8 @@ type-check globs with copies of the code.
 - If the working directory is a **linked worktree** (`.git` is a file, not a
   folder), **stop**: continue from the main checkout. Never read or edit `.sdd/`
   inside a worktree.
-- `sdd doctor` reports `inside_linked_worktree` and `nested_worktree_copies`;
-  `sdd fix --gitignore` adds the folders to `.gitignore`; also exclude them from
+- `sddkit doctor` reports `inside_linked_worktree` and `nested_worktree_copies`;
+  `sddkit fix --gitignore` adds the folders to `.gitignore`; also exclude them from
   the test, lint and type-check globs of the project.
 - Tracks are the kit's answer to parallel work: same tree, checked footprints.
   Worktree-per-track is not managed by the kit; if you truly need an isolated
@@ -143,11 +143,11 @@ type-check globs with copies of the code.
    *stability-sensitive*? Then declare and check:
 
    ```text
-   sdd track claim <slug> --stage <local stage> --path "src/billing/**" [--seq migration] [--runtime db-write] [--stability-sensitive]
-   sdd track check
+   sddkit track claim <slug> --stage <local stage> --path "src/billing/**" [--seq migration] [--runtime db-write] [--stability-sensitive]
+   sddkit track check
    ```
 
-   **MUST NOT** open the tracks while `sdd track check` fails. Pull the colliding
+   **MUST NOT** open the tracks while `sddkit track check` fails. Pull the colliding
    stage out and sequence it (`Depends on`). For each track you do open:
    - create `tracks/<slug>/` and seed `tracks/<slug>/state.md` from
      `templates/track-state.template.md`;
@@ -168,22 +168,22 @@ type-check globs with copies of the code.
    numbering, never directly under the canonical `stages/`). Hard rules:
    - **MUST NOT** write to any `tracks/<other-slug>/` path.
    - **MUST NOT** edit files claimed by another track. Need a file outside your
-     claim? Amend the claim (`sdd track claim`), re-run `sdd track check`, and
+     claim? Amend the claim (`sddkit track claim`), re-run `sddkit track check`, and
      only then edit.
    - **MUST NOT** write to `constitution.md` or `roadmap.md` except via the
      narrow incorporation step (next item) — no trimming `Current state`,
      no touching another track's `### Active tracks` row, no regenerating
      `roadmap.md` (that is `sdd-reconcile`'s job, run once all tracks of
      interest have reached a stable point — step 4).
-   - Get shared numbers with `sdd seq next <name> --track <slug>`; never guess
+   - Get shared numbers with `sddkit seq next <name> --track <slug>`; never guess
      "the next migration number".
    - Track-local progress (what's active *within this track*, what's next)
      lives in `tracks/<slug>/state.md`, not in the shared `Current state`.
 
 3. **Closing a stage inside a track / incorporating it.** Run `sdd-close`
    normally for the stage's `report.md`/`todo.md` mechanics. Then:
-   1. `sdd track verify <slug>` — every changed file must fall inside a claim.
-   2. `sdd track incorporate <slug> <stage>` (add `--dry-run` to preview). Under a
+   1. `sddkit track verify <slug>` — every changed file must fall inside a claim.
+   2. `sddkit track incorporate <slug> <stage>` (add `--dry-run` to preview). Under a
       lock it takes the **next free number** (checking disk, §5 and
       `.reservations.json`), moves the folder from
       `tracks/<slug>/stages/NNN-<slug-etapa>/` to
@@ -209,14 +209,14 @@ type-check globs with copies of the code.
    `roadmap.md` from the now-complete §5 (the single deferred regeneration
    point); if a join stage was waiting on these tracks, confirm it is now
    unblocked; and decide with the user the single next `Active stage`. Then
-   run `sdd track close <slug>` for each finished track: it refuses unless
+   run `sddkit track close <slug>` for each finished track: it refuses unless
    every local stage is already incorporated and no claim remains, marks
    `tracks/<slug>/state.md` CLOSED and drops the row from `### Active
    tracks` under the same lock `incorporate` uses — doing by hand, and
    atomically, what used to be "remember to drop the row yourself." Do
    **not** delete the finished `tracks/<slug>/` directory — `close
    --archive` moves it to `tracks/_closed/<slug>/` instead, so it stays as
-   historical evidence without sitting among the open tracks (`sdd doctor`
+   historical evidence without sitting among the open tracks (`sddkit doctor`
    reports `track_closed_in_place` for one left in place).
 
 A track parked on purpose (waiting for the client, another team, a decision) stays in
@@ -262,7 +262,7 @@ a listed track dependency is still pending — catch-early, not a gate.
   the same `tracks/<slug>/state.md`.
 - **Stages in different tracks must be unable to affect each other.** Footprints
   are declared before the spec is locked and verified before the stage is
-  incorporated; a failing `sdd track check` is never overridden.
+  incorporated; a failing `sddkit track check` is never overridden.
 - **Tracks isolate the index, not the build.** A stability-sensitive stage
   (needs a stable shared build/runtime/device) is never a parallel sibling of
   a track that mutates shared code in the same window — sequence it after via
@@ -272,7 +272,7 @@ a listed track dependency is still pending — catch-early, not a gate.
 - The next-free-number a track stage gets at incorporation comes from the
   **same pool** §5's Provisional queue draws from when it promotes a solo
   stage — whichever closes first gets the next `NNN`, regardless of planning
-  order. `sdd track incorporate` serializes that pool.
+  order. `sddkit track incorporate` serializes that pool.
 - `roadmap.md` regeneration only happens via `sdd-reconcile`, never inside a
   track's own incorporation step.
 - **Mid-flight structural decisions are the one real collision risk the

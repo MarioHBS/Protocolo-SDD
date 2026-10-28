@@ -1,4 +1,4 @@
-"""The manifest is what makes `sdd migrate` safe.
+"""The manifest is what makes `sddkit migrate` safe.
 
 It records, per project: kit version, language, feature flags, installed
 providers, and a hash of every MANAGED file at install time.

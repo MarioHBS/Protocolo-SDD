@@ -2,7 +2,7 @@
 
 > This user-owned file captures evidence for improving a future sdd-cli release.
 > It contains no automatic external telemetry. Generate a current structured
-> snapshot with `sdd evaluate --write`. The whole `.sdd/kit-evaluation/`
+> snapshot with `sddkit evaluate --write`. The whole `.sdd/kit-evaluation/`
 > directory is normally local evidence; add it to `.gitignore` unless the owner
 > explicitly wants to version sanitized findings.
 
