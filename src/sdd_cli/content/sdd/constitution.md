@@ -98,7 +98,8 @@
 ## 3. Locked structural decisions
 
 > Decisions whose change would undo work across several stages. Must be settled
-> before leaving DECIDING (or cited during bootstrap). Rows are **append-only**;
+> before leaving DECIDING (or cited during bootstrap; rows imported from discovery
+> read `proposed` in the last column until `sdd-decide` audits and locks them). Rows are **append-only**;
 > display in ascending ID order. Changing one requires the anti-regression
 > procedure (see `sdd-specify`) and an entry in `CHANGELOG.md` (refresh §6's
 > dated-band index to keep pointing there).

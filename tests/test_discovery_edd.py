@@ -7,7 +7,7 @@ import types
 
 import pytest
 
-from sdd_cli.cli import cmd_discover, cmd_init, cmd_migrate
+from sdd_cli.cli import cmd_discover, cmd_init, cmd_migrate, cmd_update
 
 
 def _init_args(path, discovery, **more):
@@ -43,10 +43,59 @@ def test_discovery_import_bootstraps_reviewed_project(tmp_path):
     cmd_init(_init_args(tmp_path, source))
     constitution = (tmp_path / ".sdd" / "constitution.md").read_text(encoding="utf-8")
     assert "# Constitution — Atlas" in constitution
-    assert "**State:** SPECIFYING" in constitution
+    assert "**State:** DECIDING" in constitution
+    assert "**Active stage:** 001-search" in constitution
     assert "001-search" in constitution and "export" in constitution
     assert (tmp_path / ".sdd" / "stages" / "001-search").is_dir()
     assert "src/search/**" in (tmp_path / ".sdd" / "backlog.md").read_text(encoding="utf-8")
+
+
+def test_discovery_decisions_are_proposals_until_the_gate_audits_them(tmp_path):
+    source = _discovery(tmp_path)
+    cmd_init(_init_args(tmp_path, source))
+    constitution = (tmp_path / ".sdd" / "constitution.md").read_text(encoding="utf-8")
+    row = next(line for line in constitution.splitlines() if line.startswith("| D-001 |"))
+    assert "SQLite" in row and "proposed (agreed 2026-09-22)" in row
+    assert "| 2026-09-22 |" not in row
+    next_action = next(line for line in constitution.splitlines() if line.startswith("- **Next action:**"))
+    assert "sdd-decide" in next_action and "self-audit" in next_action and "sdd-specify" not in next_action
+
+
+def test_discovery_decision_without_a_date_is_just_proposed(tmp_path):
+    source = _discovery(tmp_path)
+    data = json.loads(source.read_text(encoding="utf-8"))
+    del data["decisions"][0]["locked_on"]
+    source.write_text(json.dumps(data), encoding="utf-8")
+    cmd_init(_init_args(tmp_path, source))
+    constitution = (tmp_path / ".sdd" / "constitution.md").read_text(encoding="utf-8")
+    row = next(line for line in constitution.splitlines() if line.startswith("| D-001 |"))
+    assert row.rstrip().endswith("| proposed |")
+
+
+def test_discovery_summary_and_next_step_say_the_project_starts_in_deciding(tmp_path, capsys):
+    cmd_init(_init_args(tmp_path, _discovery(tmp_path)))
+    out = capsys.readouterr().out
+    assert "state after import: DECIDING" in out
+    assert "DECIDING audit of the imported decisions" in out and "INITIALIZING phase" not in out
+
+
+def test_update_leaves_the_state_of_a_discovery_project_alone(tmp_path):
+    cmd_init(_init_args(tmp_path, _discovery(tmp_path)))
+    user_files = [tmp_path / ".sdd" / name for name in ("constitution.md", "backlog.md")]
+    before = [path.read_bytes() for path in user_files]
+    cmd_update(types.SimpleNamespace(path=str(tmp_path), dry_run=True, major=False))
+    cmd_update(types.SimpleNamespace(path=str(tmp_path), dry_run=False, major=False))
+    assert [path.read_bytes() for path in user_files] == before
+    assert "**State:** DECIDING" in user_files[0].read_text(encoding="utf-8")
+
+
+def test_init_without_discovery_still_starts_in_initializing(tmp_path, capsys):
+    args = _init_args(tmp_path, "unused")
+    args.discovery = None
+    cmd_init(args)
+    constitution = (tmp_path / ".sdd" / "constitution.md").read_text(encoding="utf-8")
+    assert "**State:** INITIALIZING" in constitution
+    assert "INITIALIZING phase" in capsys.readouterr().out
 
 
 def test_discovery_rejects_invalid_contract_before_writing(tmp_path):

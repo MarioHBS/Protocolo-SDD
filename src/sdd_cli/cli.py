@@ -153,7 +153,8 @@ def _discovery_summary(data: dict) -> str:
             f"  decisions: {len(data.get('decisions', []))}\n"
             f"  open questions: {len(data.get('open_questions', []))}\n"
             f"  stages: 001-{data['stages'][0]['slug']} active + {max(0, len(data['stages']) - 1)} provisional\n"
-            "  creates: Settings, vision, decisions, questions, backlog.md, canonical index, provisional queue and stage folder")
+            "  creates: Settings, vision, decisions (as proposals), questions, backlog.md, canonical index, provisional queue and stage folder\n"
+            "  state after import: DECIDING; sdd-decide audits the proposed decisions before specification starts")
 
 
 def _discovery_skill_paths(root: Path) -> list[tuple[str, Path]]:
@@ -225,6 +226,15 @@ def _discovery_list(items: list[dict], fields: tuple[str, ...], prefix: str) -> 
     return "\n".join(rows) or f"| {prefix}-001 | [none recorded] |  |  |"
 
 
+_DISCOVERY_NEXT_ACTION = ("- **Next action:** load the `sdd-decide` skill and run only its cold self-audit "
+                          "(step 4) on the decisions imported from discovery")
+
+
+def _proposed_marker(agreed: object) -> str:
+    """The `Locked on` cell of a decision the interview agreed on but no audit has locked yet."""
+    return f"proposed (agreed {agreed})" if agreed else "proposed"
+
+
 def _apply_discovery(root: Path, data: dict) -> None:
     """Fill only the user-owned bootstrap files created by this invocation."""
     sdd = root / ".sdd"
@@ -233,14 +243,14 @@ def _apply_discovery(root: Path, data: dict) -> None:
     constitution = sdd / "constitution.md"
     text = constitution.read_text(encoding="utf-8")
     text = text.replace("[PROJECT NAME]", project["name"])
-    text = text.replace("- **State:** INITIALIZING", "- **State:** SPECIFYING")
+    text = text.replace("- **State:** INITIALIZING", "- **State:** DECIDING")
     text = text.replace("- **Active stage:** (none)", f"- **Active stage:** 001-{first['slug']}")
-    text = text.replace("- **Next action:** load the `sdd-init` skill", "- **Next action:** load the `sdd-specify` skill")
+    text = text.replace("- **Next action:** load the `sdd-init` skill", _DISCOVERY_NEXT_ACTION)
     text = text.replace("- **Last updated:** [date]", f"- **Last updated:** {datetime.now(UTC).date().isoformat()}", 1)
     text = text.replace("- **What it is:** [one to three sentences]", f"- **What it is:** {vision['what_it_is']}")
     text = text.replace("- **Who it is for:** [users / audience]", f"- **Who it is for:** {vision['who_it_is_for']}")
     text = text.replace("- **Definition of done:** [what must be true for the project to be complete]", f"- **Definition of done:** {vision['definition_of_done']}")
-    decisions = data.get("decisions", [])
+    decisions = [{**item, "locked_on": _proposed_marker(item.get("locked_on"))} for item in data.get("decisions", [])]
     decision_rows = _discovery_list(decisions, ("decision", "choice", "rationale", "locked_on"), "D")
     text = re.sub(r"\| D-001 \|[^\n]*\|", decision_rows, text)
     questions = data.get("open_questions", [])
@@ -660,9 +670,9 @@ def cmd_init(args) -> None:
                                             dry_run=False, json=False))
         else:
             print(dim("\nDocumentation is on: run 'sddkit document' when you are ready to plan it."))
+    phase = "DECIDING audit of the imported decisions" if discovery else "INITIALIZING phase"
     print(dim("\nNext: open your agent and trigger "
-              f"{chosen[0].invoke} -- it will read .sdd/ and start the "
-              "INITIALIZING phase."))
+              f"{chosen[0].invoke} -- it will read .sdd/ and start the {phase}."))
 
 
 # --------------------------------------------------------------- providers
