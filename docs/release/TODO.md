@@ -14,4 +14,4 @@
 - [x] Verificado só leitura em P1, P2 e P5 (nenhum arquivo dos projetos muda)
 - [x] `CHANGELOG.md` cita C-01 a C-05; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.4.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
+- [x] tag `v4.4.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
