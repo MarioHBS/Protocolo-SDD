@@ -1,17 +1,19 @@
-# TODO — sdd-cli 4.5.0
+# TODO — sdd-cli 4.6.0
 
 ## Items
 
-- [x] N-00 — o dono decide o nome (bloqueia todos os demais; ver tabela de disponibilidade no PLAN)
-- [x] N-01 — segundo entry point com o nome novo
-- [x] N-02 — `sdd` imprime aviso de deprecação em `stderr` e executa normalmente
-- [x] N-03 — textos gerenciados (shims, README, skills) com o nome novo
+- [ ] G-01 — design system na lista estrutural de `sdd-decide`; `sdd-discover` (CLI) com a mesma lista; teste de paridade com o standalone
+- [ ] G-03 — `sdd-decide` nomeia 2–3 perspectivas em decisão estrutural sem resposta óbvia
+- [ ] G-05 — `sdd-discover` (CLI) ramifica interpretações em ponto que bloqueia o portão
+- [ ] G-04 — busca externa delimitada em `sdd-decide` e `sdd-discover` (teto de 2 consultas, consulta genérica, fallback)
+- [ ] G-02 — `init --discovery` deixa `State: DECIDING` com decisões propostas; resolver as 3 questões do PLAN
 
 ## Gate
 
-- [x] `python -m pytest -q` e `ruff check src tests` verdes; testes novos por item
-- [x] Wheel instalado em ambiente limpo: os dois executáveis respondem, só `sdd` avisa, `--json` idêntico
-- [x] Verificado em um projeto real que `sdd update` reescreve só arquivos gerenciados
-- [x] `CHANGELOG.md` cita N-01 a N-03; versão em `pyproject.toml` e `content/VERSION`
-- [x] `docs/release/NOTES.md`
-- [x] tag `v4.5.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
+- [ ] `python -m pytest -q` e `ruff check src tests` verdes (linha de base: 328 testes); testes novos por item
+- [ ] Teste de `init --discovery` (estado final e §3 como proposto) e do fallback sem busca
+- [ ] `sddkit update --dry-run` em cópia de projeto real: só arquivos gerenciados mudam
+- [ ] Conferido se algum projeto real usou `--discovery` antes de mudar o estado final (G-02)
+- [ ] `CHANGELOG.md` cita G-01 a G-05; versão em `pyproject.toml` e `content/VERSION`
+- [ ] `docs/release/NOTES.md`
+- [ ] tag `v4.6.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
