@@ -10,10 +10,10 @@
 
 ## Gate
 
-- [ ] `python -m pytest -q` e `ruff check src tests` verdes (linha de base: 328 testes); testes novos por item
-- [ ] Teste de `init --discovery` (estado final e §3 como proposto) e do fallback sem busca
-- [ ] `sddkit update --dry-run` em cópia de projeto real: só arquivos gerenciados mudam
-- [ ] Conferido se algum projeto real usou `--discovery` antes de mudar o estado final (G-02)
-- [ ] `CHANGELOG.md` cita G-01 a G-05; versão em `pyproject.toml` e `content/VERSION`
-- [ ] `docs/release/NOTES.md`
+- [x] `python -m pytest -q` e `ruff check src tests` verdes (343 testes; linha de base 328); testes novos por item
+- [x] Teste de `init --discovery` (estado final e §3 como proposto) e do fallback sem busca
+- [x] `sddkit update --dry-run` em cópia de projeto real: só arquivos gerenciados mudam
+- [x] Conferido se algum projeto real usou `--discovery` antes de mudar o estado final (G-02)
+- [x] `CHANGELOG.md` cita G-01 a G-05; versão em `pyproject.toml` e `content/VERSION`
+- [x] `docs/release/NOTES.md`
 - [ ] tag `v4.6.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
