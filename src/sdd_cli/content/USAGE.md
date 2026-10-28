@@ -249,7 +249,7 @@ exactly once, in `.sdd/.reservations.json`. Sequences are declared in the
 constitution's section 7 as `` `migration` = `db/NNNN_*.sql` ``; `migration`
 defaults to `supabase/migrations/NNNN_*.sql` when that folder exists.
 
-### `sdd proposals <collect|list|show>`
+### `sdd proposals <collect|list|show|send>`
 
 Each project records friction with the kit in `.sdd/improvement-proposals.md`, one
 `## IP-NNN — title` entry per episode. Ids restart at `IP-001` in every project, so
@@ -270,6 +270,22 @@ an entry is identified by (project, id).
   absorbed are hidden unless `--all` is given.
 - `sdd proposals show <project>-IP-NNN [--json]` prints one proposal in full. A bare
   `IP-001` works only while a single project has it.
+- `sdd proposals send [ID...] --via file|url|issue [--all] [--output FILE] [--snapshot FILE]`
+  packages the collected proposals for the kit maintainer. By default it takes every
+  proposal not yet absorbed; give ids to pick some, or `--all` for everything. Each
+  project is replaced by its anonymous code (`P1`, `P2`...), which lives only in the
+  inbox. Before anything leaves, it scans the text for e-mails, absolute system paths
+  (`C:\Users\...`, `/home/...`), secret-looking words (`api key`, `token`, `secret`,
+  `password`) and the real project names, and asks about every hit; `--yes` never skips
+  those questions. The scan is a heuristic, so read the package yourself.
+  - `--via file` writes a Markdown package (`sdd-proposals.md` unless `--output` says
+    otherwise, never overwriting) and sends nothing.
+  - `--via url` prints the exact text, asks, then opens a pre-filled issue in the
+    browser; you still press the button there.
+  - `--via issue` does the same but creates the issue with `gh`. Without `gh`, without a
+    login, or when it fails, it says why and writes the file instead.
+  - `--snapshot FILE` appends a `sdd evaluate --write` `snapshot.json`.
+  Projects and the inbox are never changed.
 
 ### `sdd deps <add|remove|list|graph>`
 

@@ -24,6 +24,7 @@ from . import (
     _index_checks,
     _mojibake,
     _proposals,
+    _proposals_send,
     _session,
     _tracks,
     _user_files,
@@ -1591,9 +1592,90 @@ def _proposals_list_or_show(args) -> None:
     print(dim(f"{len(shown)} shown" + (f", {hidden} absorbed by the kit hidden (--all shows them)" if hidden else "")))
 
 
+def _proposals_to_file(args, text: str, reason: str | None = None) -> None:
+    path = Path(args.output or "sdd-proposals.md")
+    if reason:
+        print(yellow(f"warning: {reason}; writing the package to a file instead"))
+    try:
+        _proposals_send.write_package(path, text)
+    except (OSError, FileExistsError) as exc:
+        die(str(exc))
+    print(f"wrote {path.resolve()}")
+    print("Nothing was sent. Deliver this file to the kit maintainer any way you like.")
+
+
+def _proposals_send_cmd(args) -> None:
+    source = Path(args.source).resolve() if args.source else _proposals.inbox_dir()
+    entries = _proposals.load(source)
+    if args.ids:
+        chosen: list[dict] = []
+        for token in args.ids:
+            matches = _proposals.find(entries, token)
+            if not matches:
+                die(f"no proposal {token} in {source}; `sdd proposals list --all` shows what is there")
+            if len(matches) > 1:
+                die(f"{token} exists in several projects, use one of: " + ", ".join(e["key"] for e in matches))
+            if matches[0] not in chosen:
+                chosen.append(matches[0])
+    else:
+        chosen = entries if args.all else [e for e in entries if not _proposals.is_absorbed(e)]
+    if not chosen:
+        die(f"nothing to send from {source}; run `sdd proposals collect`, or pass ids or --all")
+    snapshot = None
+    if args.snapshot:
+        try:
+            snapshot = Path(args.snapshot).read_text(encoding="utf-8")
+        except OSError as exc:
+            die(f"cannot read --snapshot: {exc}")
+    codes = _proposals.aliases(chosen, source)
+    title, text = _proposals_send.build_package(chosen, codes, KIT_VERSION, snapshot)
+    hits = _proposals_send.scan_private(text, sorted({e["project"] for e in chosen}))
+    interactive = sys.stdin.isatty()
+    outbound = args.via != "file"
+    if outbound:
+        print(dim(f"--- {title} ---"))
+        print(text)
+        print(dim("--- end of package ---"))
+    if hits:
+        print(yellow(f"{len(hits)} possible private item(s) found (a heuristic, not a guarantee):"))
+        if not interactive:
+            for hit in hits:
+                print(yellow(f"  line {hit['line']} [{hit['kind']}] {hit['match']}"))
+            die("each hit needs a yes at a terminal; edit the proposals and collect again, or run it interactively")
+        for hit in hits:
+            print(yellow(f"line {hit['line']} [{hit['kind']}] {hit['match']}"), dim(hit["context"]))
+            if input("  Keep it in the package? [y/N]: ").strip().lower() not in {"y", "yes"}:
+                print("aborted; nothing was sent.")
+                return
+    if outbound and not args.yes:
+        if not interactive:
+            die(f"--via {args.via} without a TTY requires --yes")
+        if input(f"Send this to {_proposals_send.KIT_REPO} via {args.via}? [y/N]: ").strip().lower() not in {"y", "yes"}:
+            print("aborted; nothing was sent.")
+            return
+    if args.via == "file":
+        return _proposals_to_file(args, text)
+    if args.via == "url":
+        url = _proposals_send.issue_url(title, text)
+        if url is None:
+            return _proposals_to_file(args, text, "the package is too long for a pre-filled issue link")
+        import webbrowser
+        if not webbrowser.open(url):
+            print(f"Could not open a browser. Open this link to review and submit the issue:\n{url}")
+        else:
+            print("Opened a pre-filled issue in your browser; nothing is submitted until you press the button there.")
+        return
+    created, reason = _proposals_send.create_issue(title, text)
+    if created is None:
+        return _proposals_to_file(args, text, reason)
+    print(f"created {created}")
+
+
 def cmd_proposals(args) -> None:
     if args.proposals_command in ("list", "show"):
         return _proposals_list_or_show(args)
+    if args.proposals_command == "send":
+        return _proposals_send_cmd(args)
     projects = [Path(p).resolve() for p in args.projects]
     for project in projects:
         if not (project / ".sdd").is_dir():
@@ -2933,6 +3015,13 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "proposals show": ("Print one collected proposal in full. Use the qualified id, since IP-001 exists "
                        "in every project; a bare id works only when one project has it.",
                        "sdd proposals show app-a-IP-001\nsdd proposals show app-a-IP-001 --json"),
+    "proposals send": ("Package collected proposals for the kit maintainer, with each project replaced by "
+                       "an anonymous code (P1, P2...). Warns about e-mails, absolute paths, secret-looking "
+                       "words and real project names, and asks about each hit. 'file' only writes a Markdown "
+                       "file; 'url' and 'issue' show the exact text and ask before sending. 'issue' falls back "
+                       "to a file when gh is missing or not logged in. Never changes the projects.",
+                       "sdd proposals send --via file --output proposals.md\n"
+                       "sdd proposals send app-a-IP-003 --via url"),
     "scaffold": ("For a stage with a locked spec.md, create the missing todo.md (from its acceptance criteria) "
                  "and, with Eval Driven Development on, evals.md and checklist.md. Never overwrites.",
                  "sdd scaffold 004-auth-model\nsdd scaffold 001-x --track login --dry-run"),
@@ -3256,6 +3345,19 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     prop_show.add_argument("id", help="qualified id such as app-a-IP-001")
     prop_show.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     prop_show.set_defaults(func=cmd_proposals)
+    prop_send = proposals_sub.add_parser(
+        "send", help="package collected proposals for the kit maintainer (never without confirmation)")
+    prop_send.add_argument("ids", nargs="*", help="qualified ids to send (default: every proposal not yet absorbed)")
+    prop_send.add_argument("--from", dest="source", metavar="FOLDER", help="inbox folder (default: the user inbox)")
+    prop_send.add_argument("--via", choices=["file", "url", "issue"], required=True,
+                           help="file: write a Markdown package; url: open a pre-filled issue in the browser; "
+                                "issue: create it with gh")
+    prop_send.add_argument("--all", action="store_true", help="include proposals already absorbed by the kit")
+    prop_send.add_argument("--output", metavar="FILE", help="package path for --via file (default: sdd-proposals.md)")
+    prop_send.add_argument("--snapshot", metavar="FILE", help="append a `sdd evaluate --write` snapshot.json")
+    prop_send.add_argument("-y", "--yes", action="store_true",
+                           help="skip the final send confirmation (never the private-data warnings)")
+    prop_send.set_defaults(func=cmd_proposals)
 
     sc = sub.add_parser("scaffold", help="create missing stage artifacts from a locked spec")
     sc.add_argument("stage", help="stage identifier")
