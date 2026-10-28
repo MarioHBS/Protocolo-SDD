@@ -62,21 +62,21 @@ uv tool install .\sdd-cli          # Windows (PowerShell)
 
 ```bash
 sdd --version      # deve imprimir a versão instalada do sdd
-sdd providers      # lista os providers suportados
-sdd manual         # imprime o manual completo (`sdd docs` é um alias obsoleto)
-sdd manual --md SDD-USAGE.md   # grava o manual num arquivo
+sddkit providers      # lista os providers suportados
+sddkit manual         # imprime o manual completo (`sddkit docs` é um alias obsoleto)
+sddkit manual --md SDD-USAGE.md   # grava o manual num arquivo
 ```
 
 ## Opcional: o dashboard
 
-`sdd dashboard` precisa de `rich` e/ou `textual`, que a instalação básica não traz.
+`sddkit dashboard` precisa de `rich` e/ou `textual`, que a instalação básica não traz.
 O kit é instalado a partir da pasta dele, então peça os extras ali:
 
 ```bash
 pipx install --force './sdd-cli[dashboard]'      # rich + textual (no Windows use .\sdd-cli)
 # ou só um renderizador:  './sdd-cli[dashboard-rich]'  /  './sdd-cli[dashboard-textual]'
 # sem extras no pipx:     pipx inject sdd-cli rich textual
-sdd dashboard --ui rich
+sddkit dashboard --ui rich
 ```
 
 ## Erro comum: `npm error could not determine executable to run`
@@ -91,19 +91,19 @@ que não existe neste projeto.
 Dentro da pasta de um projeto:
 
 ```bash
-sdd init --provider claude --language pt-BR -y
+sddkit init --provider claude --language pt-BR -y
 ```
 
 Depois abra seu agente (Claude Code, Cursor, etc.) no projeto e dispare `/sdd` (ou o
-gatilho do seu provider — veja `sdd providers`). O agente vai ler `.sdd/README.md` e
+gatilho do seu provider — veja `sddkit providers`). O agente vai ler `.sdd/README.md` e
 entrar na fase INITIALIZING conversando em português.
 
 ## Migração de um projeto v1
 
 ```bash
 # SEMPRE faça primeiro um backup do projeto e rode o dry-run:
-sdd migrate --to v2 --dry-run
-sdd migrate --to v2
+sddkit migrate --to v2 --dry-run
+sddkit migrate --to v2
 ```
 
 O `migrate` detecta seu(s) provider(s), idioma e edições manuais; substitui só os
@@ -114,8 +114,8 @@ edições restantes na constituição, pedindo sua confirmação **uma mudança 
 ## Atualizar um projeto v2 para v3
 
 ```bash
-sdd migrate --to v3 --dry-run
-sdd migrate --to v3
+sddkit migrate --to v3 --dry-run
+sddkit migrate --to v3
 ```
 
 Um projeto v2 cuja constituição já é canônica (headings em inglês, `## Settings`,

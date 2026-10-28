@@ -21,10 +21,13 @@ pipx install git+https://github.com/MarioHBS/Protocolo-SDD.git   # latest versio
 pipx install git+https://github.com/MarioHBS/Protocolo-SDD.git@v4.2.1
 
 cd your-project
-sdd init            # choose language and AI providers
-sdd doctor          # audit the result
-sdd manual          # full manual
+sddkit init            # choose language and AI providers
+sddkit doctor          # audit the result
+sddkit manual          # full manual
 ```
+
+The command is `sddkit` (since 4.5.0). The former name `sdd` is still installed as a deprecated
+alias that prints one warning line on stderr and will be removed in v5.
 
 Per-OS guides (Windows, macOS, Linux × pipx, uv) are in [docs/install/](docs/install/):
 [English](docs/install/INSTALL.en.md) ·
@@ -55,9 +58,9 @@ language chosen at `init`.
 | Document | `document`, `manual` |
 | Observe | `dashboard` |
 
-Run `sdd <command> --help` for details, or `sdd manual` for everything. For a project that
+Run `sddkit <command> --help` for details, or `sddkit manual` for everything. For a project that
 does not exist yet, the `sdd-discover` skill produces a reviewed `discovery.md` plus a
-`discovery.json` that `sdd init PATH --discovery discovery.json` imports.
+`discovery.json` that `sddkit init PATH --discovery discovery.json` imports.
 
 ## Versions
 

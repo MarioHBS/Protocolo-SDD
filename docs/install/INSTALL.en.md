@@ -62,21 +62,21 @@ uv tool install .\sdd-cli          # Windows (PowerShell)
 
 ```bash
 sdd --version      # should print the installed sdd version
-sdd providers      # lists the supported providers
-sdd manual         # prints the full manual (`sdd docs` is a deprecated alias)
-sdd manual --md SDD-USAGE.md   # writes the manual to a file
+sddkit providers      # lists the supported providers
+sddkit manual         # prints the full manual (`sddkit docs` is a deprecated alias)
+sddkit manual --md SDD-USAGE.md   # writes the manual to a file
 ```
 
 ## Optional: the dashboard
 
-`sdd dashboard` needs `rich` and/or `textual`, which the base install does not carry.
+`sddkit dashboard` needs `rich` and/or `textual`, which the base install does not carry.
 The kit is installed from its folder, so ask for the extras there:
 
 ```bash
 pipx install --force './sdd-cli[dashboard]'      # rich + textual (use .\sdd-cli on Windows)
 # or only one renderer:  './sdd-cli[dashboard-rich]'  /  './sdd-cli[dashboard-textual]'
 # without pipx extras:   pipx inject sdd-cli rich textual
-sdd dashboard --ui rich
+sddkit dashboard --ui rich
 ```
 
 ## Common error: `npm error could not determine executable to run`
@@ -90,24 +90,24 @@ JavaScript binary that does not exist in this project.
 
 For a new idea, use the `sdd-discover` skill first. It creates a reviewed
 `discovery.md` and a `sdd-discovery/v1` `discovery.json`; import it only after
-review with `sdd init --discovery discovery.json` (add `-y` in automation).
+review with `sddkit init --discovery discovery.json` (add `-y` in automation).
 
 Inside a project folder:
 
 ```bash
-sdd init --provider claude --language pt-BR -y
+sddkit init --provider claude --language pt-BR -y
 ```
 
 Then open your agent (Claude Code, Cursor, etc.) in the project and trigger `/sdd` (or
-your provider's trigger — see `sdd providers`). The agent will read `.sdd/README.md` and
+your provider's trigger — see `sddkit providers`). The agent will read `.sdd/README.md` and
 enter the INITIALIZING phase, talking to you in the configured language.
 
 ## Migrating a v1 project
 
 ```bash
 # ALWAYS back up the project first and run a dry-run:
-sdd migrate --to v2 --dry-run
-sdd migrate --to v2
+sddkit migrate --to v2 --dry-run
+sddkit migrate --to v2
 ```
 
 `migrate` detects your provider(s), language and hand-edits; it only replaces the
@@ -118,8 +118,8 @@ through the remaining constitution edits, asking you to confirm **one change at 
 ## Refreshing a v2 project to v3
 
 ```bash
-sdd migrate --to v3 --dry-run
-sdd migrate --to v3
+sddkit migrate --to v3 --dry-run
+sddkit migrate --to v3
 ```
 
 A v2 project whose constitution is already canonical (English headings, `## Settings`,

@@ -62,21 +62,21 @@ uv tool install .\sdd-cli          # Windows (PowerShell)
 
 ```bash
 sdd --version      # debe imprimir la versión instalada de sdd
-sdd providers      # lista los providers soportados
-sdd manual         # imprime el manual completo (`sdd docs` es un alias obsoleto)
-sdd manual --md SDD-USAGE.md   # escribe el manual en un archivo
+sddkit providers      # lista los providers soportados
+sddkit manual         # imprime el manual completo (`sddkit docs` es un alias obsoleto)
+sddkit manual --md SDD-USAGE.md   # escribe el manual en un archivo
 ```
 
 ## Opcional: el dashboard
 
-`sdd dashboard` necesita `rich` y/o `textual`, que la instalación básica no incluye.
+`sddkit dashboard` necesita `rich` y/o `textual`, que la instalación básica no incluye.
 El kit se instala desde su carpeta, así que pide los extras allí:
 
 ```bash
 pipx install --force './sdd-cli[dashboard]'      # rich + textual (en Windows usa .\sdd-cli)
 # o solo un renderizador:  './sdd-cli[dashboard-rich]'  /  './sdd-cli[dashboard-textual]'
 # sin extras en pipx:      pipx inject sdd-cli rich textual
-sdd dashboard --ui rich
+sddkit dashboard --ui rich
 ```
 
 ## Error común: `npm error could not determine executable to run`
@@ -91,19 +91,19 @@ que no existe en este proyecto.
 Dentro de la carpeta de un proyecto:
 
 ```bash
-sdd init --provider claude --language pt-BR -y
+sddkit init --provider claude --language pt-BR -y
 ```
 
 Luego abre tu agente (Claude Code, Cursor, etc.) en el proyecto y lanza `/sdd` (o el
-disparador de tu provider — ver `sdd providers`). El agente leerá `.sdd/README.md` y
+disparador de tu provider — ver `sddkit providers`). El agente leerá `.sdd/README.md` y
 entrará en la fase INITIALIZING hablando en el idioma configurado.
 
 ## Migración de un proyecto v1
 
 ```bash
 # SIEMPRE haz primero un respaldo del proyecto y ejecuta dry-run:
-sdd migrate --to v2 --dry-run
-sdd migrate --to v2
+sddkit migrate --to v2 --dry-run
+sddkit migrate --to v2
 ```
 
 `migrate` detecta tu(s) provider(s), idioma y ediciones manuales; sólo reemplaza los

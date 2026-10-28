@@ -22,10 +22,13 @@ pipx install git+https://github.com/MarioHBS/Protocolo-SDD.git   # versão mais 
 pipx install git+https://github.com/MarioHBS/Protocolo-SDD.git@v4.2.1
 
 cd seu-projeto
-sdd init            # escolha o idioma e os agentes de IA
-sdd doctor          # audite o resultado
-sdd manual          # manual completo
+sddkit init            # escolha o idioma e os agentes de IA
+sddkit doctor          # audite o resultado
+sddkit manual          # manual completo
 ```
+
+O comando é `sddkit` (desde a 4.5.0). O nome antigo, `sdd`, continua instalado como alias
+deprecado: imprime uma linha de aviso em stderr e será removido na v5.
 
 Guias por sistema (Windows, macOS, Linux × pipx, uv) em [docs/install/](docs/install/):
 [English](docs/install/INSTALL.en.md) ·
@@ -56,9 +59,9 @@ artefatos usam o idioma escolhido no `init`.
 | Documentar | `document`, `manual` |
 | Observar | `dashboard` |
 
-Rode `sdd <comando> --help` para detalhes, ou `sdd manual` para tudo. Para um projeto que ainda
+Rode `sddkit <comando> --help` para detalhes, ou `sddkit manual` para tudo. Para um projeto que ainda
 não existe, o skill `sdd-discover` produz um `discovery.md` revisado e um `discovery.json` que
-`sdd init CAMINHO --discovery discovery.json` importa.
+`sddkit init CAMINHO --discovery discovery.json` importa.
 
 ## Versões
 

@@ -1,6 +1,6 @@
 ---
 name: sdd-discover
-description: Conduct pre-project discovery for SDD (Specification-Driven Development) and produce the reviewed discovery.md plus a valid discovery.json (contract sdd-discovery/v1) that `sdd init --discovery` imports. Use before a repository exists, or to re-check the scope of an existing project, in any AI chat, with no project files and no CLI access.
+description: Conduct pre-project discovery for SDD (Specification-Driven Development) and produce the reviewed discovery.md plus a valid discovery.json (contract sdd-discovery/v1) that `sddkit init --discovery` imports. Use before a repository exists, or to re-check the scope of an existing project, in any AI chat, with no project files and no CLI access.
 ---
 
 # SDD discovery (standalone)
@@ -8,7 +8,7 @@ description: Conduct pre-project discovery for SDD (Specification-Driven Develop
 You are running outside any project repository, possibly in a plain chat with no
 file access and no terminal. Your job: turn an uncertain idea into a reviewable
 project brief (`discovery.md`) and a deterministic import file
-(`discovery.json`) that the owner later feeds to `sdd init PATH --discovery discovery.json`.
+(`discovery.json`) that the owner later feeds to `sddkit init PATH --discovery discovery.json`.
 
 Work in the owner's language (ask which one in the first message if unclear).
 Never invent answers: record uncertainty as an open question or a provisional
@@ -18,7 +18,7 @@ backlog item.
 
 - You cannot run the `sdd` CLI. Validate the JSON yourself with the checklist at
   the end, and tell the owner they can double-check with
-  `sdd discover --check discovery.json`.
+  `sddkit discover --check discovery.json`.
 - If you cannot write files, deliver both files as two separate fenced code
   blocks (`markdown` and `json`), each preceded by its file name, so they can be
   copied verbatim. If you can write files, write them where the owner chooses.
@@ -29,7 +29,7 @@ backlog item.
 
 ## Step 1 — Explain the installation choices first
 
-The owner will have to decide these when the kit is installed (`sdd init`) and may
+The owner will have to decide these when the kit is installed (`sddkit init`) and may
 not know they exist. Before the interview, explain each one in plain language,
 give your recommendation for *this* project with the reason, and record the
 owner's answer (or "undecided"). All can be turned on later by editing the
@@ -49,11 +49,11 @@ Rules for recording the answers:
 - Record every answer (including "undecided") in a `## Installation choices`
   section of `discovery.md`.
 
-Also ask and record in that same section. These are `sdd init` flags, **not**
+Also ask and record in that same section. These are `sddkit init` flags, **not**
 part of the JSON, except the language:
 
 - **Language** for artifacts and conversation → `project.language` (e.g. `pt-BR`, `en`).
-- **AI tools** that will drive the project (`--provider`; list with `sdd providers`;
+- **AI tools** that will drive the project (`--provider`; list with `sddkit providers`;
   one `.sdd/` serves several).
 - Preferred **dashboard renderer**: `static`, `interactive`, `plain` or `web`
   (the last is a plain HTML file).
@@ -61,7 +61,7 @@ part of the JSON, except the language:
 Finish by showing the owner the resulting command, for example:
 
 ```
-sdd init . --provider claude --language pt-BR --discovery discovery.json
+sddkit init . --provider claude --language pt-BR --discovery discovery.json
 ```
 
 ## Step 2 — Interview
@@ -91,7 +91,7 @@ A decision is structural if changing it would force rework in more than one
 stage. Use these categories as a checklist (adapt to the project). They mirror
 the checklist used later by the project's decision gate (the `sdd-decide`
 skill). That skill is part of the CLI and only becomes available inside the
-project, after `sdd init`; you do not have it now, so apply this list yourself:
+project, after `sddkit init`; you do not have it now, so apply this list yourself:
 
 - Stack, language, main frameworks/libraries
 - Overall architecture (layers, monolith vs services, module boundaries)
@@ -223,15 +223,15 @@ Semantics the importer applies:
 Tell the owner, in order:
 
 1. Save both files: `discovery.md` (for the team) and `discovery.json` (for the CLI).
-2. Optionally validate: `sdd discover --check discovery.json`.
-3. Create the project: `sdd init PATH --discovery discovery.json` with the
+2. Optionally validate: `sddkit discover --check discovery.json`.
+3. Create the project: `sddkit init PATH --discovery discovery.json` with the
    provider/language flags decided in Step 1. The CLI shows a second summary
    and asks for confirmation (use `--yes` when there is no terminal) before
    writing anything.
-4. Inside the new project, once `sdd init` has run, have the agent load
+4. Inside the new project, once `sddkit init` has run, have the agent load
    `sdd-decide` to audit the proposed decisions before specification starts, if
    the constitution does not already point there.
 5. For a project that already exists, compare the plan with what it has,
-   read-only: `sdd discover --check discovery.json --against PATH`. The files
+   read-only: `sddkit discover --check discovery.json --against PATH`. The files
    are input for deliberation: the project can restructure its decisions and
    stages from them and does not have to adopt them as they came out.
