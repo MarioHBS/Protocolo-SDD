@@ -1,56 +1,69 @@
-# Plan — sdd-cli 4.4.0
+# Plan — sdd-cli 4.5.0
 
-**Branch:** `4.4.0` (from `main` = 4.3.2) · **Language:** Portuguese
+**Branch:** `4.5.0` (from `main` = 4.4.0) · **Language:** Portuguese
 
-Tema: um caminho do próprio CLI para levar os atritos registrados em `.sdd/improvement-proposals.md`
-de vários projetos até o mantenedor, sem cópia manual e sem escrever nada nos projetos de origem.
-Comando novo: `sdd proposals collect|list|show|send`.
+Tema: dar ao executável um nome que não colida com pacotes de outros ecossistemas, mantendo `sdd`
+funcionando como alias deprecado até a v5. Motivo: P2/IP-003, em que `npx sdd` executou código de
+terceiros. O texto de R3-01 (4.3.0) já ensina o agente a invocar o binário certo; renomear fecha o
+risco de palpite de `npx`.
 
-## Formato real das entradas (lido em 28 entradas de três projetos)
+## Decisão que bloqueia a construção
 
-- Cabeçalho `## IP-NNN — título`; itens `- **Data:**`, `- **Status:**`, `- **Fase afetada:**`; depois
-  parágrafos com rótulo em negrito. `Status` é texto livre que começa por `aberta`,
-  `contorno local`, `proposta` ou `absorvida pelo kit`.
-- Os IDs recomeçam em `IP-001` em cada projeto; a identidade da proposta é (projeto, `IP-NNN`).
-- Uma entrada termina no próximo `##` de qualquer tipo (`## Como registrar` e `## Resolvidas` não
-  são entradas); entradas podem estar fora de ordem.
+O nome novo ainda não foi escolhido. Nada abaixo começa antes de o dono decidir (item N-00 do
+TODO). Disponibilidade conferida em 2026-10-28 (HTTP 404 = livre, 200 = ocupado):
 
-## C-01 — `sdd proposals collect [PROJETO...] [--scan RAIZ]`
+| Nome | npm | PyPI | Observação |
+|------|-----|------|------------|
+| `sddkit` | livre | livre | candidato do plano; distintivo, fora do vocabulário do npm |
+| `sdd-cli` | **ocupado** | livre | combina com o nome do pacote, mas `npx sdd-cli` executaria código alheio |
+| `sdd` | **ocupado** | **ocupado** | nome atual do executável |
+| `specdd` | **ocupado** | — | conferido só no npm |
 
-- **Solução:** lê `.sdd/improvement-proposals.md` de cada projeto e grava um arquivo por proposta
-  (`<codigo>-IP-NNN.md`) numa caixa de entrada na pasta de dados do usuário, resolvida só com a
-  biblioteca padrão e sobrescrevível por variável de ambiente. O hash do conteúdo só detecta edição:
-  entrada alterada atualiza o arquivo, entrada igual não faz nada.
-- **Riscos e testes:** colisão de ID entre projetos; entrada que some da origem não é apagada.
-  Fixtures com `## Resolvidas`, ordem trocada e um projeto sem o arquivo; duas execuções seguidas;
-  edição de entrada.
+Só o registro foi consultado; uma busca geral (marcas, repositórios, outros CLIs) ainda não foi
+feita. Reservar o nome (N-05) segue sem decisão e não faz parte desta release.
 
-## C-02 — `sdd proposals list` / `show <ID>`
+## Estado atual do código
 
-- **Solução:** `list` mostra origem, ID, data e status e esconde `absorvida pelo kit` por padrão
-  (`--all` mostra tudo); `show P1-IP-001` imprime o texto completo. Só leitura.
+- `pyproject.toml`: pacote `sdd-cli`, `[project.scripts] sdd = "sdd_cli.cli:main"`, Python >= 3.12.
+- `src/sdd_cli/content/__init__.py`: `CLI_NAME = "sdd"`; `cli.py` o usa em 7 pontos (R3-01).
+- 27 arquivos de `tests/` mencionam o comando `sdd` (invocação ou prosa); a troca precisa separar os dois.
+- `.sdd/`, manifesto, constituição, stages e hooks de caminho **não mudam**; os arquivos gerenciados
+  são reescritos pelo `sdd update`.
 
-## C-03 — `sdd proposals send --via file|url|issue`
+## N-01 — Segundo entry point com o nome novo
 
-- **Solução:** `file` gera um pacote Markdown; `url` abre uma issue pré-preenchida; `issue` usa `gh`
-  e cai para `file` se não houver `gh` autenticado. Sempre mostra o texto exato antes e pede
-  confirmação; nunca apaga a cópia do projeto.
-- **Riscos e testes:** `file` sem rede; `url` e `issue` com processo externo simulado.
+- **Solução:** uma linha em `[project.scripts]` apontando para `sdd_cli.cli:main`; o nome vem de
+  `CLI_NAME`. `sdd` continua instalado.
+- **Testes:** os dois executáveis existem no wheel e respondem a `--version` com o mesmo valor.
 
-## C-04 — Aviso de dado privado antes de enviar
+## N-02 — `sdd` como alias deprecado
 
-- **Solução:** o código do projeto (`P1`…) fica só na caixa de entrada local; ao enviar, avisa sobre
-  e-mails, caminhos absolutos e padrões de segredo e pede confirmação por ocorrência. A varredura é
-  heurística e a documentação diz isso. Roda antes do envio de C-03.
-- **Evidência:** 6 linhas com caminho absoluto ou e-mail nos arquivos reais de P1 e P5.
+- **Solução:** quando chamado como `sdd`, imprime uma linha de aviso em `stderr` e executa
+  normalmente; chamado pelo nome novo, não avisa. Remoção só na v5, junto com `sdd docs`. O aviso
+  vai para `stderr` para não quebrar quem lê a saída nem `--json`.
+- **Riscos e testes:** o nome com que o processo foi chamado (`argv[0]`) varia entre Windows
+  (`sdd.exe`), pipx e `python -m`; cobrir os três. Saída de `--json` idêntica nos dois nomes.
 
-## C-05 — Aviso de projeto sem o arquivo de propostas
+## N-03 — Textos gerenciados com o nome novo
 
-- **Solução:** `--scan` informa, como nota e não como erro, cada projeto com `.sdd/` e sem o
-  arquivo. A grafia `improvements-proposals.md` (plural) conta como ausente; não se adivinha o nome.
+- **Solução:** shims, README e skills passam a dizer que o binário é Python no PATH e que nunca se
+  usa `npx` nem `npm`, com o nome novo. Como R3-01 já usa `CLI_NAME`, é uma troca em um lugar;
+  propaga por `sdd update`.
+- **Riscos e testes:** os testes que checam o texto do manual (`test_help_docs.py`) e os que citam
+  `sdd` em prosa; o manual deve citar `sdd` só como alias deprecado.
+
+## Fora desta release
+
+- **N-04** (`doctor` detecta o nome legado em `CLAUDE.md` e `.claude/settings*.json`; `fix`
+  reescreve): vai na release seguinte, depois de o alias estar em uso, para o `doctor` não acusar
+  todos os projetos antes de o dono poder agir. Reescrever permissões de agente é mudança de política
+  de segurança do projeto.
+- **N-05** (reserva do nome e distribuição por PyPI, npm ou só GitHub): decisão do dono; não migrar
+  sem pedido explícito.
+- Varredura dos projetos com menções (P5, P2, P4); em P4 cabe na migração para a versão vigente.
 
 ## Não faz
 
-- Não escreve, move nem apaga nada nos projetos de origem.
-- Não envia nada sem confirmação explícita.
-- Não adiciona dependência: o kit continua com `dependencies = []`.
+- Não remove o nome `sdd`.
+- Não reescreve nada nos projetos além dos arquivos gerenciados que o `sdd update` já refresca.
+- Não publica pacote em PyPI nem npm.
