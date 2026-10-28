@@ -9,9 +9,9 @@
 
 ## Gate
 
-- [ ] `python -m pytest -q` e `ruff check src tests` verdes; testes novos por item
-- [ ] Wheel instalado em ambiente limpo: os dois executáveis respondem, só `sdd` avisa, `--json` idêntico
-- [ ] Verificado em um projeto real que `sdd update` reescreve só arquivos gerenciados
-- [ ] `CHANGELOG.md` cita N-01 a N-03; versão em `pyproject.toml` e `content/VERSION`
-- [ ] `docs/release/NOTES.md`
+- [x] `python -m pytest -q` e `ruff check src tests` verdes; testes novos por item
+- [x] Wheel instalado em ambiente limpo: os dois executáveis respondem, só `sdd` avisa, `--json` idêntico
+- [x] Verificado em um projeto real que `sdd update` reescreve só arquivos gerenciados
+- [x] `CHANGELOG.md` cita N-01 a N-03; versão em `pyproject.toml` e `content/VERSION`
+- [x] `docs/release/NOTES.md`
 - [ ] tag `v4.5.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
