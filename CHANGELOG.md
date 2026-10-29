@@ -1,5 +1,34 @@
 # Changelog — sdd-cli
 
+## [4.7.0] — In progress
+
+### Added
+
+- W-01: an optional `Weight` column in the stage index (section 5), in the canonical
+  table and in the Provisional queue. Empty or `full` is the default; `light:
+  <one-sentence reason>` marks a trivial stage (a typo, a copy tweak, a
+  configuration flip). `Peso`, `leve` and `completo` are accepted as aliases, and
+  anything unrecognized, including a misspelling, reads as `full`, so a typo never
+  relaxes a rule. A constitution without the column behaves exactly as before.
+  `sdd-roadmap` decides the weight when it enqueues a stage and requires the
+  reason, `sdd-specify` lets a light stage have a short spec (never without
+  acceptance criteria), `sdd-close` carries the column when it promotes a stage,
+  and `sddkit doctor` reports `weight_light_without_reason` for a `light` without
+  its reason.
+- W-02: with Eval Driven Development on, the doctor reads each stage's weight. A
+  closed `light` stage no longer gets `edd_missing_checklist` when its `report.md`
+  already covers every `E-NNN` of `evals.md`; `sdd-specify` and `sdd-close` say the
+  same (one or two criteria, evidence in the report, no separate `checklist.md`).
+  The floor does not move: `evals.md` is still required (`edd_missing_evals`) and
+  every criterion still needs evidence (`edd_eval_uncovered`). A `full` stage is
+  checked exactly as before.
+
+### Fixed
+
+- W-02: a closed stage whose `evals.md` has no `E-NNN` criterion at all passed the
+  EDD checks silently, since there was nothing to find uncovered. The doctor now
+  reports `edd_no_criteria` for it, for any weight.
+
 ## [4.6.0] — In progress
 
 ### Added
