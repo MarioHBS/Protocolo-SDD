@@ -156,3 +156,10 @@ def test_close_and_specify_describe_the_light_evidence_rule():
     specify = _text("skills/sdd-specify/SKILL.md")
     assert "write `evals.md` with one or two criteria and skip `checklist.md`" in specify
     assert "There is always at least one criterion" in specify
+
+
+def test_criteria_numbered_in_a_projects_own_style_are_not_flagged_as_missing(tmp_path):
+    # LSDI numbers its criteria E1..E7, not E-001: they are criteria, so nothing is missing.
+    root = _edd_project(tmp_path)
+    _closed_stage(root, "002-new-table", evals="| E1 | identity |\n| E2 | replay |\n", checklist="# C\n")
+    assert _codes(root, "002-new-table") == []

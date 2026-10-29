@@ -1132,7 +1132,8 @@ def _doctor_payload(root: Path) -> dict:
                 if not (weights.get(stage.name) == _index_checks.WEIGHT_LIGHT and report_covers_all):
                     findings.append({"severity": "warn", "code": "edd_missing_checklist", "stage": stage.name})
             if (stage / "report.md").is_file() and (stage / "evals.md").is_file():
-                if not eval_ids:
+                # Any E1 / E-01 / E-001 style id counts: a project may number criteria its own way.
+                if not re.search(r"\bE-?\d+\b", (stage / "evals.md").read_text(encoding="utf-8", errors="replace")):
                     findings.append({"severity": "warn", "code": "edd_no_criteria", "stage": stage.name})
                 evidence = ""
                 for name in ("checklist.md", "report.md"):

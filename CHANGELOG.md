@@ -25,9 +25,10 @@
 
 ### Fixed
 
-- W-02: a closed stage whose `evals.md` has no `E-NNN` criterion at all passed the
-  EDD checks silently, since there was nothing to find uncovered. The doctor now
-  reports `edd_no_criteria` for it, for any weight.
+- W-02: a closed stage whose `evals.md` has no criterion id at all passed the EDD
+  checks silently, since there was nothing to find uncovered. The doctor now
+  reports `edd_no_criteria` for it, for any weight. Any `E1`, `E-01` or `E-001`
+  style id counts as a criterion, because a real project numbers them `E1`..`E7`.
 
 ## [4.6.0] — In progress
 
