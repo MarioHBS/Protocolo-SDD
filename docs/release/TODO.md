@@ -1,19 +1,15 @@
-# TODO — sdd-cli 4.6.0
+# TODO — sdd-cli 4.7.0
 
 ## Items
 
-- [x] G-01 — design system na lista estrutural de `sdd-decide`; `sdd-discover` (CLI) com a mesma lista; teste de paridade com o standalone
-- [x] G-03 — `sdd-decide` nomeia 2–3 perspectivas em decisão estrutural sem resposta óbvia
-- [x] G-05 — `sdd-discover` (CLI) ramifica interpretações em ponto que bloqueia o portão
-- [x] G-04 — busca externa delimitada em `sdd-decide` e `sdd-discover` (teto de 2 consultas, consulta genérica, fallback)
-- [x] G-02 — `init --discovery` deixa `State: DECIDING` com decisões propostas; resolver as 3 questões do PLAN
+- [ ] W-01 — coluna opcional `Weight` (`light`/`full`, alias `Peso`/`leve`/`completo`) no §5 e na fila; helper de leitura; `sdd-roadmap` e `sdd-specify`; fechar as 3 questões do PLAN
+- [ ] W-02 — `doctor` de EDD e `sdd-close` leem o peso; definir `edd_no_criteria` (evals.md sem nenhum `E-NNN` numa etapa fechada)
 
 ## Gate
 
-- [x] `python -m pytest -q` e `ruff check src tests` verdes (343 testes; linha de base 328); testes novos por item
-- [x] Teste de `init --discovery` (estado final e §3 como proposto) e do fallback sem busca
-- [x] `sddkit update --dry-run` em cópia de projeto real: só arquivos gerenciados mudam
-- [x] Conferido se algum projeto real usou `--discovery` antes de mudar o estado final (G-02)
-- [x] `CHANGELOG.md` cita G-01 a G-05; versão em `pyproject.toml` e `content/VERSION`
-- [x] `docs/release/NOTES.md`
-- [ ] tag `v4.6.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
+- [ ] `python -m pytest -q` e `ruff check src tests` verdes (linha de base: 343 testes); testes novos por item
+- [ ] Fixture com etapa `light` e etapa `full` lado a lado; §5 sem a coluna lê tudo como `full`
+- [ ] `sddkit update --dry-run` em cópia de projeto real: nenhuma etapa fechada nem o §5 mudam
+- [ ] `CHANGELOG.md` cita W-01 e W-02; versão em `pyproject.toml` e `content/VERSION`
+- [ ] `docs/release/NOTES.md`
+- [ ] tag `v4.7.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
