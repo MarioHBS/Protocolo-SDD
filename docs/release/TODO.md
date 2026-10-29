@@ -7,9 +7,9 @@
 
 ## Gate
 
-- [ ] `python -m pytest -q` e `ruff check src tests` verdes (linha de base: 343 testes); testes novos por item
-- [ ] Fixture com etapa `light` e etapa `full` lado a lado; §5 sem a coluna lê tudo como `full`
-- [ ] `sddkit update --dry-run` em cópia de projeto real: nenhuma etapa fechada nem o §5 mudam
-- [ ] `CHANGELOG.md` cita W-01 e W-02; versão em `pyproject.toml` e `content/VERSION`
-- [ ] `docs/release/NOTES.md`
+- [x] `python -m pytest -q` e `ruff check src tests` verdes (365 testes; linha de base 343); testes novos por item
+- [x] Fixture com etapa `light` e etapa `full` lado a lado; §5 sem a coluna lê tudo como `full`
+- [x] `sddkit update --dry-run` em cópia de projeto real: nenhuma etapa fechada nem o §5 mudam
+- [x] `CHANGELOG.md` cita W-01 e W-02; versão em `pyproject.toml` e `content/VERSION`
+- [x] `docs/release/NOTES.md`
 - [ ] tag `v4.7.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
