@@ -1129,6 +1129,7 @@ def _doctor_payload(root: Path) -> dict:
             findings.append({"severity": "note", "code": "edd_missing_performance_doc"})
     findings.extend(_index_checks.backlog_findings(sdd))
     findings.extend(_index_checks.milestone_findings(sdd))
+    findings.extend(_index_checks.weight_findings(sdd))
     findings.extend(_docs_plan.findings(root))
     saved_session = _session.load(root)
     for issue in _session.validate(root, saved_session):

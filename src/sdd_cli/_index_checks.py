@@ -10,6 +10,7 @@ about itself. Three families of findings:
   slice of the queue (Eval Driven Development).
 * ``edd_milestone_without_evaluation`` -- every stage of a milestone is done but
   the milestone has no evaluation file.
+* ``weight_light_without_reason`` -- a stage marked ``light`` carries no one-sentence reason.
 """
 
 from __future__ import annotations
@@ -138,6 +139,58 @@ def backlog_findings(sdd: Path) -> list[dict]:
         if "backlog" in row.get("notes", "").lower() and slug not in sections:
             findings.append({"severity": "warn", "code": "queue_row_without_section", "slug": slug})
     return findings
+
+
+WEIGHT_LIGHT, WEIGHT_FULL = "light", "full"
+# Accepted spellings of the light weight (the Portuguese ones follow the `Stage`/`Etapa` precedent).
+_LIGHT_WORDS = {"light", "leve"}
+_WEIGHT_RE = re.compile(r"([A-Za-zÀ-ÿ]+)[\s:—–-]*(.*)$")
+
+
+def parse_weight(cell: str) -> tuple[str, str]:
+    """(weight, reason) of a `Weight` cell such as ``light: fixes a typo``.
+
+    Anything that is not a light spelling -- an empty cell, ``full``, a typo -- is ``full``:
+    the safe direction, since only ``light`` relaxes anything.
+    """
+    match = _WEIGHT_RE.match(cell.replace("`", "").strip())
+    if not match:
+        return WEIGHT_FULL, ""
+    weight = WEIGHT_LIGHT if match.group(1).lower() in _LIGHT_WORDS else WEIGHT_FULL
+    return weight, match.group(2).strip() if weight == WEIGHT_LIGHT else ""
+
+
+def _row_weight(row: dict[str, str]) -> tuple[str, str]:
+    return parse_weight(row.get("weight") or row.get("peso") or "")
+
+
+def _weighted_rows(text: str) -> list[tuple[str, str, str]]:
+    """(stage name, weight, reason) for every canonical row and every queue row."""
+    rows = [(_stage_name(row), *_row_weight(row)) for row in _canonical_rows(text) if row.get("slug")]
+    rows += [(_first_slug(row["slug"]), *_row_weight(row)) for row in _queue_rows(text) if row.get("slug")]
+    return rows
+
+
+def stage_weights(sdd: Path) -> dict[str, str]:
+    """Weight by stage name (``NNN-slug`` for a canonical row, the bare slug for a queue row).
+
+    A stage the index does not list, or an index without a `Weight` column, is simply absent:
+    callers treat a missing name as ``full``.
+    """
+    constitution = sdd / "constitution.md"
+    if not constitution.is_file():
+        return {}
+    return {name: weight for name, weight, _ in _weighted_rows(_read(constitution))}
+
+
+def weight_findings(sdd: Path) -> list[dict]:
+    """A `light` stage must say why in one sentence; otherwise marking it is a silent shortcut."""
+    constitution = sdd / "constitution.md"
+    if not constitution.is_file():
+        return []
+    return [{"severity": "warn", "code": "weight_light_without_reason", "stage": name}
+            for name, weight, reason in _weighted_rows(_read(constitution))
+            if weight == WEIGHT_LIGHT and not reason]
 
 
 def milestone_findings(sdd: Path) -> list[dict]:

@@ -69,6 +69,13 @@ Write all output in the language set in `constitution.md → Settings → Langua
    does not exist even though it does. If Eval Driven Development is on, add an optional
    `Milestone` column and keep the stages of one milestone contiguous in the
    queue: a milestone is a slice of the queue, not a label scattered across it.
+   **Decide each stage's weight as you enqueue it.** `full` is the default and
+   needs nothing written. Mark a stage `light` only when it is trivial (a typo, a
+   copy tweak, a configuration flip, a rename with no behavior change): add the
+   optional `Weight` column to the table that holds the row if it is missing, and
+   write `light: <one-sentence reason>` in the cell. The reason is mandatory, and
+   a stage that touches data, security, a contract or more than one module is
+   never `light`. When unsure, keep `full`; the owner can lighten a stage later.
    **This is the source of truth.** If a stage must be sequenced after two or
    more parallel tracks — either a **join stage** that waits for their
    result, or a **stability-sensitive stage** that needs the shared

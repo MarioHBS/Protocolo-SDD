@@ -175,7 +175,11 @@
 | 001   | [slug] | pending / in progress / done | —          |
 
 <!-- With Eval Driven Development, add a `Milestone` column and keep each milestone's
-     stages contiguous. There are no Spec/Report columns: the paths are conventional. -->
+     stages contiguous. There are no Spec/Report columns: the paths are conventional.
+     Optional `Weight` column (here and in the Provisional queue): empty or `full` is the
+     default; `light: <one-sentence reason>` marks a trivial stage (a typo, a copy tweak, a
+     config flip) that needs less ceremony. The reason is required; `sddkit doctor` flags a
+     `light` without one. A promoted stage carries its Weight with it. -->
 
 ### Provisional queue (not yet numbered)
 

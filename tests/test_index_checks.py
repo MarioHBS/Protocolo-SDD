@@ -102,3 +102,88 @@ def test_portuguese_stage_and_queue_headings_bound_the_canonical_table(tmp_path)
     span = _tracks._stage_index_span(constitution)
     assert span is not None
     assert constitution[span[0]:span[1]].startswith("| 003 | auth")
+
+
+WEIGHTED = """\
+## 5. Stage index (CANONICAL)
+
+| Stage | Slug | Status | Depends on | Weight |
+|-------|------|--------|------------|--------|
+| 001 | typo-fix | done | — | light: only fixes a typo |
+| 002 | new-table | pending | — | full |
+| 003 | no-column-value | pending | — |  |
+
+### Provisional queue (not yet numbered)
+
+| Slug | Status | Depends on | Weight | Notes |
+|------|--------|------------|--------|-------|
+| copy-tweak | pending | — | light — copy change only | — |
+| big-feature | pending | — | | — |
+
+## 6. Structural change history
+"""
+
+
+def _weighted_project(tmp_path, constitution: str = WEIGHTED):
+    sdd = tmp_path / ".sdd"
+    sdd.mkdir()
+    (sdd / "constitution.md").write_text(constitution, encoding="utf-8")
+    return sdd
+
+
+def test_light_and_full_stages_are_read_side_by_side_from_both_tables(tmp_path):
+    weights = _index_checks.stage_weights(_weighted_project(tmp_path))
+    assert weights == {"001-typo-fix": "light", "002-new-table": "full", "003-no-column-value": "full",
+                       "copy-tweak": "light", "big-feature": "full"}
+
+
+def test_an_index_without_the_weight_column_reads_everything_as_full(tmp_path):
+    # P-old: a constitution written before 4.7.0 has no Weight column at all.
+    weights = _index_checks.stage_weights(_weighted_project(tmp_path, CONSTITUTION))
+    assert weights and set(weights.values()) == {"full"}
+
+
+def test_no_constitution_means_no_weights_and_no_findings(tmp_path):
+    sdd = tmp_path / ".sdd"
+    sdd.mkdir()
+    assert _index_checks.stage_weights(sdd) == {}
+    assert _index_checks.weight_findings(sdd) == []
+
+
+def test_portuguese_spellings_are_accepted_and_anything_unknown_is_full(tmp_path):
+    constitution = WEIGHTED.replace("| Weight |", "| Peso |").replace(
+        "light: only fixes a typo", "leve: so corrige um typo").replace("| full |", "| completo |").replace(
+        "light — copy change only", "ligth: typo in the weight itself")
+    weights = _index_checks.stage_weights(_weighted_project(tmp_path, constitution))
+    assert weights["001-typo-fix"] == "light"
+    assert weights["002-new-table"] == "full"
+    assert weights["copy-tweak"] == "full"  # a misspelled weight never relaxes anything
+
+
+def test_parse_weight_separates_the_word_from_the_reason():
+    assert _index_checks.parse_weight("light: only fixes a typo") == ("light", "only fixes a typo")
+    assert _index_checks.parse_weight("`light` — copy change") == ("light", "copy change")
+    assert _index_checks.parse_weight("Leve - so um typo") == ("light", "so um typo")
+    assert _index_checks.parse_weight("full") == ("full", "")
+    assert _index_checks.parse_weight("") == ("full", "")
+    assert _index_checks.parse_weight("light") == ("light", "")
+    assert _index_checks.parse_weight("full: light work, heavy risk") == ("full", "")
+
+
+def test_a_light_stage_must_give_its_reason(tmp_path):
+    constitution = WEIGHTED.replace("light: only fixes a typo", "light").replace("light — copy change only", "light")
+    findings = _index_checks.weight_findings(_weighted_project(tmp_path, constitution))
+    assert [(f["code"], f["stage"]) for f in findings] == [
+        ("weight_light_without_reason", "001-typo-fix"), ("weight_light_without_reason", "copy-tweak")]
+
+
+def test_a_light_stage_with_its_reason_raises_nothing(tmp_path):
+    assert _index_checks.weight_findings(_weighted_project(tmp_path)) == []
+
+
+def test_the_doctor_reports_a_light_stage_without_a_reason(tmp_path):
+    root = tmp_path / "proj"
+    root.mkdir()
+    _weighted_project(root, WEIGHTED.replace("light: only fixes a typo", "light"))
+    codes = [f["code"] for f in _doctor_payload(root)["findings"]]
+    assert codes.count("weight_light_without_reason") == 1

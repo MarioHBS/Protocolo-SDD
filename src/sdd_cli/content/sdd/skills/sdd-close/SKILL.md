@@ -99,8 +99,8 @@ Write all artifacts in the language set in
    unless the user asks to fast-track a different independent one instead.
    **Promote it:** assign it the next free canonical `NNN` (the same shared
    pool a track incorporation draws from — see §5), append its row to the
-   canonical table (status `pending`, carrying over its slug and `Depends
-   on`), and remove it from the Provisional queue. Leave its section in
+   canonical table (status `pending`, carrying over its slug, `Depends
+   on` and `Weight`), and remove it from the Provisional queue. Leave its section in
    `backlog.md` for `sdd-specify` to consume and remove. A row noted as a track
    candidate is not promoted this way — it is opened as a track instead, via
    `sdd-track`. If stages remain: `State: SPECIFYING`, `Active stage: <NNN

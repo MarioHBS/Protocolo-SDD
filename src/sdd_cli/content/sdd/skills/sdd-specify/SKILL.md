@@ -42,6 +42,13 @@ Write all artifacts in the language set in
 
 4. **Write the spec** from `templates/spec.template.md`. Set `Status: draft`.
 
+   - Read the stage's **weight** in §5 (the `Weight` column; empty or missing
+     means `full`). A `light` stage may have a short spec: one or two sentences
+     per section, no padding. It never drops the acceptance criteria or the
+     ground-truth verification at closing: a light stage is shorter, not
+     unchecked. If the work turns out to be more than the reason written in the
+     `Weight` cell, say so and ask the owner to change it back to `full`.
+
    - Fill **`Origin`** with one value of the closed vocabulary
      (`escopo-original`, `lacuna-de-levantamento`, `mudanca-do-cliente`,
      `bug-ou-regressao`, `divida-tecnica`). It is what later shows how much of a

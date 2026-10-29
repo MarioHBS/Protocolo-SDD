@@ -62,6 +62,8 @@ _TEXT: dict[str, tuple[str, str]] = {
                                          "write milestones/<milestone>/avaliacao.md"),
     "milestone_not_contiguous": ("milestone {milestone} is not a contiguous slice of the queue",
                                  "reorder the queue or redefine the milestone"),
+    "weight_light_without_reason": ("stage {stage} is marked light without a reason",
+                                    "write it in the Weight cell, e.g. `light: only fixes a typo`, or set it to full"),
     "backlog_orphan": ("backlog section '{section}' matches no queue row or pending stage",
                        "delete the section, or add its slug to a `slug` column of the Provisional "
                        "queue TABLE in constitution.md §5 (e.g. `| slug | item | detail |` with a "
