@@ -75,6 +75,10 @@ Write all artifacts in the language set in
    not met `[!]` (pointing to `report.md` §7), or met but to be re-verified at
    closing (`[x]` with the note `reverify`).
 
+   For a **`light`** stage, write `evals.md` with one or two criteria and skip
+   `checklist.md`: the evidence goes in `report.md` at closing. There is always
+   at least one criterion, and each one needs evidence.
+
    If `.sdd/backlog.md` has a section for this stage, read it, embed what still
    applies in the spec, then **remove that section** so it cannot be implemented
    twice.

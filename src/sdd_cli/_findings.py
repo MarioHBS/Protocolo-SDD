@@ -54,6 +54,8 @@ _TEXT: dict[str, tuple[str, str]] = {
     "edd_spec_not_pointer": ("stage {stage} repeats acceptance criteria instead of pointing to evals.md", "sddkit migrate --edd-source-of-truth --dry-run"),
     "edd_todo_not_evals": ("stage {stage} final TODO check does not reference evals.md", "sddkit migrate --edd-source-of-truth --dry-run"),
     "edd_missing_checklist": ("closed stage {stage} has no checklist.md", "add the checklist from its template"),
+    "edd_no_criteria": ("closed stage {stage} has an evals.md with no E-NNN criterion",
+                        "add the criteria the stage was closed against, or mark why none applies"),
     "edd_eval_uncovered": ("{eval} of stage {stage} has no evidence in checklist.md or report.md",
                            "record its evidence, or mark it [-] / [!] in evals.md"),
     "edd_missing_performance_doc": ("milestones exist but avaliacao-desempenho.md does not",

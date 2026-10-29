@@ -3,7 +3,7 @@
 ## Items
 
 - [x] W-01 — coluna opcional `Weight` (`light`/`full`, alias `Peso`/`leve`/`completo`) no §5 e na fila; helper de leitura; `sdd-roadmap` e `sdd-specify`; fechar as 3 questões do PLAN
-- [ ] W-02 — `doctor` de EDD e `sdd-close` leem o peso; definir `edd_no_criteria` (evals.md sem nenhum `E-NNN` numa etapa fechada)
+- [x] W-02 — `doctor` de EDD e `sdd-close` leem o peso; definir `edd_no_criteria` (evals.md sem nenhum `E-NNN` numa etapa fechada)
 
 ## Gate
 

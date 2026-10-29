@@ -995,6 +995,17 @@ def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str 
     return (state.group(1) if state else None, (ticked.group(1) if ticked else raw).strip())
 
 
+def _eval_ids_in(path: Path) -> set[str]:
+    """Every ``E-NNN`` id mentioned in a file; empty when the file does not exist."""
+    if not path.is_file():
+        return set()
+    return set(re.findall(r"\bE-\d{3}\b", path.read_text(encoding="utf-8", errors="replace")))
+
+
+def _stage_eval_ids(stage: Path) -> set[str]:
+    return _eval_ids_in(stage / "evals.md")
+
+
 def _doctor_payload(root: Path) -> dict:
     sdd = root / ".sdd"
     if not sdd.is_dir():
@@ -1099,6 +1110,7 @@ def _doctor_payload(root: Path) -> dict:
             findings.append({"severity": "note", "code": "cold_file_oversized", "path": f".sdd/{name}",
                              "bytes": path.stat().st_size})
     if (manifest_data or {}).get("features", {}).get("edd"):
+        weights = _index_checks.stage_weights(sdd)
         for stage in sorted((sdd / "stages").glob("*")) if (sdd / "stages").is_dir() else []:
             if not stage.is_dir() or not (stage / "spec.md").is_file():
                 continue
@@ -1112,10 +1124,16 @@ def _doctor_payload(root: Path) -> dict:
                 todo = stage / "todo.md"
                 if todo.is_file() and "evals.md" not in todo.read_text(encoding="utf-8", errors="replace"):
                     findings.append({"severity": "warn", "code": "edd_todo_not_evals", "stage": stage.name})
+            eval_ids = _stage_eval_ids(stage)
             if (stage / "report.md").is_file() and not (stage / "checklist.md").is_file():
-                findings.append({"severity": "warn", "code": "edd_missing_checklist", "stage": stage.name})
+                # A light stage may keep its evidence in the report alone, as long as the report
+                # covers every criterion; the evidence itself is never waived.
+                report_covers_all = bool(eval_ids) and eval_ids <= _eval_ids_in(stage / "report.md")
+                if not (weights.get(stage.name) == _index_checks.WEIGHT_LIGHT and report_covers_all):
+                    findings.append({"severity": "warn", "code": "edd_missing_checklist", "stage": stage.name})
             if (stage / "report.md").is_file() and (stage / "evals.md").is_file():
-                eval_ids = set(re.findall(r"\bE-\d{3}\b", (stage / "evals.md").read_text(encoding="utf-8", errors="replace")))
+                if not eval_ids:
+                    findings.append({"severity": "warn", "code": "edd_no_criteria", "stage": stage.name})
                 evidence = ""
                 for name in ("checklist.md", "report.md"):
                     path = stage / name

@@ -26,6 +26,13 @@ Write all artifacts in the language set in
    evaluation that failed stays `[!]` and points to `report.md` §7 — it is
    resolved by being documented, never by being ticked `[x]`.
 
+   For a **`light`** stage (the `Weight` column of §5), the same walk applies
+   with less paper: its `evals.md` may hold only one or two criteria, and the
+   evidence of each `E-NNN` may live in `report.md` alone, with no separate
+   `checklist.md`. Every criterion still needs evidence, and `sddkit doctor`
+   still fails a light stage whose criterion has none. If the work was bigger
+   than the reason in the `Weight` cell, treat the stage as `full`.
+
 2. **Ground-truth verification (mandatory).** For **each** artifact the report
    will claim was created/changed (migrations by number, functions, deploys,
    endpoints, files, jobs), **confirm it actually exists** — on the filesystem
