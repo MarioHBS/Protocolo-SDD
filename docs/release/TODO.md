@@ -12,4 +12,4 @@
 - [x] `sddkit update --dry-run` em cópia de projeto real: nenhuma etapa fechada nem o §5 mudam
 - [x] `CHANGELOG.md` cita W-01 e W-02; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.7.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)
+- [x] tag `v4.7.0`, fast-forward `main`, push de branch, tag e `main` (cada push confirmado pelo dono)

@@ -31,4 +31,4 @@
 - Nenhum projeto real tem a coluna `Weight`; o caminho `light` foi exercitado só pelas fixtures.
   Como o plano já avisava, esta capacidade nasceu de inspiração externa (BMAD), sem episódio real nos
   projetos avaliados: quem decide se compensa é a avaliação depois do uso.
-- Pendente do dono: tag `v4.7.0`, fast-forward de `main` e os pushes (branch, tag e `main`).
+- Publicada em 2026-10-29: tag `v4.7.0`, `main` por fast-forward e push de branch, tag e `main`.
