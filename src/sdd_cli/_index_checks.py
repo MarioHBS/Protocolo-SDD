@@ -193,6 +193,156 @@ def weight_findings(sdd: Path) -> list[dict]:
             if weight == WEIGHT_LIGHT and not reason]
 
 
+_LOCKED_RE = re.compile(r"(?im)^[-*]?\s*\*\*Status:\*\*\s*locked\b")
+_LOCKED_BY_RE = re.compile(r"(?im)^[-*]?\s*\*{0,2}Locked-by-audit:\*{0,2}\s*(.+)$")
+_ROUND_RE = re.compile(r"(?m)^##\s+Round\s+(\d+)\b")
+_VERDICT_RE = re.compile(r"(?im)^[-*]?\s*\*\*Verdict:\*\*\s*(NOT READY TO LOCK|READY TO LOCK)\b")
+_FINDING_RE = re.compile(
+    r"(?m)^\|\s*(F-\d+)\s*\|\s*(BLOCKER|MAJOR|MINOR)\s*\|[^|\n]*\|[^|\n]*\|\s*(open|fixed|dismissed)\s*\|")
+_TOUCHES_PATHS_RE = re.compile(r"(?im)^\s*[-*]\s*paths:\s*(.+)$")
+_BACKTICKED_RE = re.compile(r"`([^`]+)`")
+
+
+def _glob_regex(glob: str) -> re.Pattern[str]:
+    """``**`` crosses folders, ``*`` and ``?`` stay inside one; everything else is literal."""
+    out, i = [], 0
+    while i < len(glob):
+        if glob.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif glob[i] == "*":
+            out.append("[^/]*")
+            i += 1
+        elif glob[i] == "?":
+            out.append("[^/]")
+            i += 1
+        else:
+            out.append(re.escape(glob[i]))
+            i += 1
+    return re.compile("".join(out))
+
+
+def _static_prefix(glob: str) -> str:
+    cut = re.search(r"[*?\[]", glob)
+    return (glob[:cut.start()] if cut else glob).rstrip("/")
+
+
+def _paths_overlap(a: str, b: str) -> bool:
+    """Whether two path globs can name the same file: one matches the other, or one's fixed
+    folder prefix contains the other's. Deliberately conservative: a doubt is not reported."""
+    if _glob_regex(a).fullmatch(b) or _glob_regex(b).fullmatch(a):
+        return True
+    pa, pb = _static_prefix(a), _static_prefix(b)
+    return bool(pa and pb and (pa == pb or pa.startswith(pb + "/") or pb.startswith(pa + "/")))
+
+
+def audit_triggers(sdd: Path) -> list[str]:
+    """Path globs under ``## Triggers`` of ``.sdd/audit-lenses.md`` (backticked, in bullet lines)."""
+    path = sdd / "audit-lenses.md"
+    if not path.is_file():
+        return []
+    text = _read(path)
+    match = re.search(r"(?im)^##\s+triggers?\b[^\n]*$", text)
+    if not match:
+        return []
+    rest = text[match.end():]
+    end = re.search(r"(?m)^##\s", rest)
+    body = rest[:end.start()] if end else rest
+    triggers: list[str] = []
+    for line in body.splitlines():
+        if re.match(r"^\s*[-*]\s", line):
+            triggers += [t.strip() for t in _BACKTICKED_RE.findall(line) if re.search(r"[/*.]", t)]
+    return triggers
+
+
+def _stage_dirs(sdd: Path) -> list[Path]:
+    """Stage folders of the project and of its parallel tracks (never the archived ``_closed``)."""
+    found: list[Path] = []
+    roots = [sdd / "stages"] + sorted((sdd / "tracks").glob("*/stages")) if (sdd / "tracks").is_dir() \
+        else [sdd / "stages"]
+    for root in roots:
+        if root.is_dir():
+            found += [d for d in sorted(root.iterdir())
+                      if d.is_dir() and not d.name.startswith((".", "_"))]
+    return [d for d in found if "_closed" not in d.parts]
+
+
+def _audit_record(audit: Path) -> dict:
+    """What ``audit.md`` says: last round number, last verdict, and each finding's last state."""
+    text = _read(audit)
+    rounds = [int(n) for n in _ROUND_RE.findall(text)]
+    last = list(_ROUND_RE.finditer(text))
+    verdicts = _VERDICT_RE.findall(text[last[-1].start():]) if last else []
+    states: dict[str, tuple[str, str]] = {}
+    for finding_id, severity, state in _FINDING_RE.findall(text):
+        states[finding_id] = (severity, state)
+    return {"round": max(rounds) if rounds else 0, "verdict": verdicts[0].upper() if verdicts else "",
+            "states": states}
+
+
+def _lock_mismatch(header: str, record: dict) -> list[str]:
+    """Why a ``Locked-by-audit:`` line disagrees with ``audit.md`` (empty when it agrees)."""
+    problems: list[str] = []
+    claimed_round = re.search(r"(?i)round\s+(\d+)", header)
+    fixed = re.search(r"(?i)fixed\s+(\d+)\s*/\s*(\d+)", header)
+    dismissed = re.search(r"(?i)dismissed\s+(\d+)", header)
+    states = record["states"]
+    count = {(sev, st): sum(1 for s, t in states.values() if (s, t) == (sev, st))
+             for sev in ("BLOCKER", "MAJOR") for st in ("fixed", "open")}
+    if record["verdict"] != "READY TO LOCK":
+        problems.append("the last round of audit.md is not READY TO LOCK")
+    if claimed_round and int(claimed_round.group(1)) != record["round"]:
+        problems.append(f"the line says round {claimed_round.group(1)}, audit.md has {record['round']}")
+    if fixed and (int(fixed.group(1)), int(fixed.group(2))) != (
+            count[("BLOCKER", "fixed")], count[("MAJOR", "fixed")]):
+        problems.append(f"the line says fixed {fixed.group(1)}/{fixed.group(2)}, audit.md has "
+                        f"{count[('BLOCKER', 'fixed')]}/{count[('MAJOR', 'fixed')]}")
+    if dismissed and int(dismissed.group(1)) != sum(1 for _, t in states.values() if t == "dismissed"):
+        problems.append("the dismissed count differs from audit.md")
+    if count[("BLOCKER", "open")] or count[("MAJOR", "open")]:
+        problems.append("audit.md still has an open BLOCKER or MAJOR")
+    return problems
+
+
+def audit_findings(sdd: Path, weights: dict[str, str]) -> list[dict]:
+    """The spec-lock gate, as far as a file can show it. Only stages still open are looked at (a
+    closed stage has its ``report.md``), so nothing is ever asked of work already finished.
+
+    * ``lock_without_audit`` (note): a locked ``full`` stage with no ``Locked-by-audit:`` line.
+    * ``lock_audit_mismatch`` (warn): that line disagrees with ``audit.md``, or ``audit.md`` is missing.
+    * ``light_hits_audit_trigger`` (warn): a ``light`` stage touches a path the project listed under
+      ``## Triggers`` in ``.sdd/audit-lenses.md``.
+    """
+    findings: list[dict] = []
+    triggers = audit_triggers(sdd)
+    for stage in _stage_dirs(sdd):
+        spec = stage / "spec.md"
+        if not spec.is_file() or (stage / "report.md").is_file():
+            continue
+        text = _read(spec)
+        slug = stage.name.split("-", 1)[-1]
+        weight = weights.get(stage.name) or weights.get(slug) or WEIGHT_FULL
+        header = _LOCKED_BY_RE.search(text)
+        if _LOCKED_RE.search(text) and weight == WEIGHT_FULL and not header:
+            findings.append({"severity": "note", "code": "lock_without_audit", "stage": stage.name})
+        if header:
+            audit = stage / "audit.md"
+            problems = _lock_mismatch(header.group(1), _audit_record(audit)) if audit.is_file() \
+                else ["audit.md is missing"]
+            if problems:
+                findings.append({"severity": "warn", "code": "lock_audit_mismatch", "stage": stage.name,
+                                 "detail": "; ".join(problems)})
+        if weight == WEIGHT_LIGHT and triggers:
+            touched = [p.strip() for line in _TOUCHES_PATHS_RE.findall(text)
+                       for p in (_BACKTICKED_RE.findall(line) or line.split(","))
+                       if re.search(r"[/*.]", p)]
+            hit = next(((p, t) for p in touched for t in triggers if _paths_overlap(p, t)), None)
+            if hit:
+                findings.append({"severity": "warn", "code": "light_hits_audit_trigger",
+                                 "stage": stage.name, "path": hit[0], "trigger": hit[1]})
+    return findings
+
+
 _SEPARATOR_RE = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
 
 

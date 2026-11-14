@@ -1169,6 +1169,7 @@ def _doctor_payload(root: Path) -> dict:
     findings.extend(_index_checks.backlog_findings(sdd))
     findings.extend(_index_checks.milestone_findings(sdd))
     findings.extend(_index_checks.weight_findings(sdd))
+    findings.extend(_index_checks.audit_findings(sdd, _index_checks.stage_weights(sdd)))
     findings.extend(_docs_plan.findings(root))
     saved_session = _session.load(root)
     for issue in _session.validate(root, saved_session):
