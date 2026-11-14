@@ -1,5 +1,56 @@
 # Changelog — sdd-cli
 
+## [4.8.0] — In progress
+
+The release that absorbs the planned 4.7.1 (U-02 to U-05) and the spec-lock gate (S-01 to S-05).
+
+### Added
+
+- U-02: `sddkit update` prints the release notes between the installed kit and the bundled
+  one (`content/RELEASE-NOTES.md`, one short line per change, a `Manual action:` line
+  marked `!` when the project has to do something by hand), also on `--dry-run`.
+  `sddkit update --notes` reads them again without touching the project. Motivated by a
+  real project that learned what 4.5.0 to 4.7.0 brought only by reading the diff of the skills.
+- U-03: `sddkit fix --weight` (opt-in, never part of `--all`) adds an empty `Weight` column
+  to the canonical stage table and the provisional queue of the constitution's section 5.
+  An empty cell reads as `full`, so no stage changes behaviour. It is idempotent, keeps
+  the file's line endings, skips tables inside HTML comments, honours `--dry-run`, and
+  keeps an exact copy in `.sdd/.pre-fix-backup/` that the mojibake scan and the EOL repair
+  never touch.
+- U-05: `sddkit doctor` notes a global Claude Code `sdd` skill that predates the kit
+  (`global_skill_stale`); `sddkit update --global-skill` rewrites it from
+  `content/shims/claude-global-skill.md` with a backup, and nothing outside the project is
+  ever written without that flag. The global skill now says what the project shims say:
+  `sddkit` is a binary on PATH, never `npx`/`npm`.
+- S-01, S-02: the `sdd-audit` skill (gate checks, verification ledger with `path:line`, 14
+  lenses, a two-value verdict, delta rounds after the first, the author's correction rule,
+  premises with proof, a self-audit mode for hosts without subagents), the
+  `audit.template.md` per-stage record, and a read-only Claude Code subagent
+  `.claude/agents/sdd-audit.md`, installed by `init`, `migrate` and `update` only where no
+  file exists (an agent of the owner's own is never overwritten and never recorded in the
+  manifest). Project lenses and the paths that force a full audit live in
+  `.sdd/audit-lenses.md`, a file the project owns.
+- S-03: a `Locked-by-audit:` line in the spec header records the round that locked it;
+  `sdd-close` copies the numbers into the report. For stages still open, `sddkit doctor`
+  notes a locked `full` stage without the line (`lock_without_audit`) and warns when the
+  line disagrees with `audit.md` (`lock_audit_mismatch`).
+- S-04: the stage weight decides the review. `light` keeps the basic review; `full` (or an
+  empty cell) needs the audit; a path under `## Triggers` in `audit-lenses.md` forces
+  `full`, and `sddkit doctor` warns when a `light` stage's `Touches` reaches one
+  (`light_hits_audit_trigger`).
+- S-05: an optional "To measure before implementing" subsection in section 6 of the spec
+  template, for premises about systems the files cannot show.
+
+### Changed
+
+- U-04: `sdd-roadmap` replaces "more than one module" with five conditions that can be
+  checked against files before a stage is `light`; `sdd-specify` sends a stage back to `full`
+  when one stops holding; `sdd-close` re-weighs the rest of the queue before promoting.
+- `sdd-specify` step 6 follows the weight (see S-03/S-04). The kit README counts five
+  cross-cutting utilities and every provider shim names `sdd-audit`.
+- The test suite isolates `Path.home()`, so it never reads or writes a developer's real
+  `~/.claude`.
+
 ## [4.7.0] — In progress
 
 ### Added
