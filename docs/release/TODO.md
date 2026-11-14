@@ -20,4 +20,4 @@
 - [x] `fix --weight` em cópia de P1/P3/P4/P5/P6 (a coluna aparece; P4 já a tinha só na fila); 2ª execução limpa
 - [x] `CHANGELOG.md` cita U-02..U-05 e S-01..S-05; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.8.0`, fast-forward `main`, push de branch, tag e `main`
+- [x] tag `v4.8.0`, fast-forward `main`, push de branch, tag e `main`
