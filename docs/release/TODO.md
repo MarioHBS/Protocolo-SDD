@@ -15,4 +15,4 @@
 - [x] `fix --manifest` em cópia do P1: 2ª execução limpa, e a cópia continua limpa depois de trocar o fim de linha
 - [x] `CHANGELOG.md` e `RELEASE-NOTES.md` citam K-01..K-04; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.8.1`, fast-forward `main`, push (só com confirmação do dono)
+- [x] tag `v4.8.1`, fast-forward `main`, push de branch, tag e `main`
