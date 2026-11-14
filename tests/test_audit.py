@@ -211,7 +211,7 @@ def test_update_adds_the_agent_and_never_touches_one_the_owner_already_has(capsy
 def test_update_dry_run_does_not_write_the_agent(capsys, tmp_path):
     root = _seed_claude(tmp_path, "v4.5.0")
     out = _update(capsys, root, dry_run=True)
-    assert "sdd-audit.md" in out and "(provider agent)" in out
+    assert "would add" in out and "sdd-audit.md" in out and "(provider agent)" in out
     assert not (root / ".claude").exists()
 
 

@@ -3068,6 +3068,7 @@ def cmd_update(args) -> None:
     # A provider's read-only subagent follows the same rule, and is added when the project has none.
     # A file the manifest does not manage (the owner's own agent, even with the same name) is never touched.
     agent_paths: set[str] = set()
+    agent_new: set[str] = set()
     for key in m.get("providers", []):
         prov = providers.get(key)
         if not prov or not prov.agent_path:
@@ -3087,13 +3088,18 @@ def cmd_update(args) -> None:
         elif not dst.exists():
             shim_changed.append((prov.agent_path, src))
             agent_paths.add(prov.agent_path)
+            agent_new.add(prov.agent_path)
             recorded[prov.agent_path] = manifest.hash_file(src)
 
     if args.dry_run:
         print(yellow("  DRY RUN -- nothing written.\n"))
     for rel, _src in shim_changed:
         label = "(provider agent)" if rel in agent_paths else "(provider shim)"
-        print(f"  {green('would update' if args.dry_run else 'updated')}   {rel} {dim(label)}")
+        if rel in agent_new:
+            verb = "would add" if args.dry_run else "added"
+        else:
+            verb = "would update" if args.dry_run else "updated"
+        print(f"  {green(verb)}   {rel} {dim(label)}")
     for rel in changed:
         print(f"  {green('would update' if args.dry_run else 'updated')}   {rel}")
     for rel in restored:
