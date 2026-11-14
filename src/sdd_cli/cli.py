@@ -344,6 +344,21 @@ def _install_shim(root: Path, prov: providers.Provider,
     return f"  {green('ok')}    {prov.shim_path} {dim('-> ' + prov.invoke)}"
 
 
+def _install_agent(root: Path, prov: providers.Provider, recorded: dict) -> str:
+    """Install the provider's read-only subagent, if it has one. Never overwrites a file that exists:
+    an agent of the owner's own, even one with the same name, stays untouched and unmanaged."""
+    if not prov.agent_path:
+        return ""
+    src = CONTENT_DIR / "agents" / prov.agent_source
+    dst = root / prov.agent_path
+    if dst.exists():
+        return f"  {yellow('skip')}  {prov.agent_path} {dim('(already exists, kept as it is)')}"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    recorded[prov.agent_path] = manifest.hash_file(dst)
+    return f"  {green('ok')}    {prov.agent_path} {dim('(read-only audit subagent)')}"
+
+
 def _detect_providers(root: Path) -> list[str]:
     """Scan the project root for existing shim paths; return detected keys.
 
@@ -649,6 +664,8 @@ def cmd_init(args) -> None:
     print(bold("\nProvider shims"))
     for p in chosen:
         print(_install_shim(root, p, recorded, args.force))
+        if p.agent_path:
+            print(_install_agent(root, p, recorded))
 
     initial_manifest = manifest.build(KIT_VERSION, language, [p.key for p in chosen], features, recorded)
     initial_manifest["dashboard_renderer"] = _normalize_dashboard_renderer(
@@ -2793,6 +2810,8 @@ def cmd_migrate(args) -> None:
         p = providers.get(key)
         if p:
             print(_install_shim(root, p, recorded, force=True))
+            if p.agent_path:
+                print(_install_agent(root, p, recorded))
 
     # 5. normalize EOL/encoding of the files the CLI just wrote (idempotent;
     #    it owns them). User-owned files are normalized via the TODO.
@@ -3045,10 +3064,35 @@ def cmd_update(args) -> None:
             shim_changed.append((prov.shim_path, src))
             recorded[prov.shim_path] = manifest.hash_file(src)
 
+    # A provider's read-only subagent follows the same rule, and is added when the project has none.
+    # A file the manifest does not manage (the owner's own agent, even with the same name) is never touched.
+    agent_paths: set[str] = set()
+    for key in m.get("providers", []):
+        prov = providers.get(key)
+        if not prov or not prov.agent_path:
+            continue
+        src, dst = CONTENT_DIR / "agents" / prov.agent_source, root / prov.agent_path
+        if not src.is_file():
+            continue
+        if prov.agent_path in managed_files:
+            if not dst.is_file():
+                continue
+            if not manifest.matches_recorded(dst, managed_files[prov.agent_path]):
+                preserved.append(prov.agent_path)
+            elif not manifest.matches_recorded(src, managed_files[prov.agent_path]):
+                shim_changed.append((prov.agent_path, src))
+                agent_paths.add(prov.agent_path)
+                recorded[prov.agent_path] = manifest.hash_file(src)
+        elif not dst.exists():
+            shim_changed.append((prov.agent_path, src))
+            agent_paths.add(prov.agent_path)
+            recorded[prov.agent_path] = manifest.hash_file(src)
+
     if args.dry_run:
         print(yellow("  DRY RUN -- nothing written.\n"))
     for rel, _src in shim_changed:
-        print(f"  {green('would update' if args.dry_run else 'updated')}   {rel} {dim('(provider shim)')}")
+        label = "(provider agent)" if rel in agent_paths else "(provider shim)"
+        print(f"  {green('would update' if args.dry_run else 'updated')}   {rel} {dim(label)}")
     for rel in changed:
         print(f"  {green('would update' if args.dry_run else 'updated')}   {rel}")
     for rel in restored:
@@ -3084,6 +3128,7 @@ def cmd_update(args) -> None:
         cur.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(new_src, cur)
     for rel, src in shim_changed:
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, root / rel)
 
     managed_files.update(recorded)

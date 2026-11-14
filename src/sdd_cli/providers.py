@@ -18,11 +18,14 @@ class Provider:
     shim_path: str      # destination path, relative to project root
     shim_source: str    # filename inside content/shims/
     invoke: str         # how the user triggers it
+    agent_path: str = ""    # optional read-only subagent file (only some hosts have subagents)
+    agent_source: str = ""  # filename inside content/agents/
 
 
 PROVIDERS: tuple[Provider, ...] = (
     Provider("claude", "Claude Code", "cli",
-             ".claude/commands/sdd.md", "claude.md", "/sdd"),
+             ".claude/commands/sdd.md", "claude.md", "/sdd",
+             ".claude/agents/sdd-audit.md", "claude-sdd-audit.md"),
     Provider("copilot", "GitHub Copilot (VS Code)", "ide",
              ".github/prompts/sdd.prompt.md", "copilot.md", "/sdd"),
     Provider("cursor", "Cursor", "ide",
