@@ -8,7 +8,8 @@ kit never edits the constitution or any other file you own.
 ## 4.8.1
 
 - `sddkit doctor` notes a kit backup folder that Git still sees (`backup_not_ignored`: `.sdd/.pre-fix-backup/` from `fix --weight`, `.sdd/.pre-migrate-backup/` from `migrate`); `sddkit fix --gitignore` adds the missing lines to `.gitignore` without touching the rest of the file.
-- The manifest now records a hash that does not depend on line endings, so `manifest_eol_drift` stops coming back after a Git checkout. Manual action: if `sddkit doctor` still notes `manifest_eol_drift`, run `sddkit fix --manifest` once; manifests written by older kits keep working.
+- The manifest now records a hash that does not depend on line endings, so `manifest_eol_drift` stops coming back after a Git checkout; manifests written by older kits keep working.
+- Manual action: if `sddkit doctor` still notes `manifest_eol_drift`, run `sddkit fix --manifest` once.
 - `lock_without_audit` no longer asks for an audit of a stage that is already in `CLOSING` or whose `todo.md` has no open item: the spec was locked before the gate existed and is already implemented.
 - `mojibake_v1` no longer reads the `?` of a URL query string (`/reports?range=2026-13`) as a lost accent.
 

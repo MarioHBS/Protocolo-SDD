@@ -95,3 +95,16 @@ def test_an_old_manifest_against_an_lf_checkout_is_not_a_hand_edit(capsys, tmp_p
     _set_eol(readme, b"\n")
     out, _ = _run(capsys, root)
     assert "hand-edited" not in out
+
+
+def test_an_old_exact_hash_on_a_crlf_checkout_is_not_drift(tmp_path):
+    # Most Windows projects: recorded by 4.8.0 on CRLF and still CRLF. Nothing has drifted, so the
+    # new hashing must not announce a rehash for every one of them.
+    root = _seed_project(tmp_path, KIT_VERSION)
+    readme = root / README
+    data = manifest.load(root)
+    _set_eol(readme, b"\r\n")
+    data["managed_files"][README] = _raw_hash(readme.read_bytes())
+    manifest.save(root, data)
+    assert "manifest_eol_drift" not in [f["code"] for f in _doctor_payload(root)["findings"]]
+    assert _fix_manifest(root) is None

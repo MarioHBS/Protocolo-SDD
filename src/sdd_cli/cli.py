@@ -1323,7 +1323,10 @@ def _manifest_eol_drift(root: Path, data: dict | None) -> list[str]:
     drifted = []
     for rel, recorded in sorted((data or {}).get("managed_files", {}).items()):
         path = root / rel
-        if path.is_file() and manifest.hash_file(path) != recorded and manifest.matches_recorded(path, recorded):
+        # An exact match (the bytes the kit hashed, or the LF form it records now) is no drift; what
+        # is left is a recorded form the disk no longer has but that says the same thing.
+        if (path.is_file() and recorded not in (manifest.hash_file(path), manifest.hash_raw(path))
+                and manifest.matches_recorded(path, recorded)):
             drifted.append(rel)
     return drifted
 

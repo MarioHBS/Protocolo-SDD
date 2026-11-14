@@ -32,6 +32,11 @@ def hash_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:16]
 
 
+def hash_raw(path: Path) -> str:
+    """The hash of the bytes as they are on disk (what 4.8.0 and earlier recorded)."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+
+
 def hash_variants(path: Path) -> set[str]:
     """Hashes of a file as it is, with every line ending LF, and with every line ending CRLF.
 
