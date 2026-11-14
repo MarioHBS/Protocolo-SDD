@@ -94,6 +94,9 @@ _TEXT: dict[str, tuple[str, str]] = {
                                "continue from the main checkout"),
     "nested_worktree_copies": ("{count} agent worktree copies (with their own .sdd/) under {path}",
                                "sddkit fix --gitignore, and exclude the folder from test/lint globs"),
+    "backup_not_ignored": ("{count} kit backup folder(s) under .sdd/ (e.g. {path}) are visible to Git; "
+                           "`git add -A` would commit a copy of your files",
+                           "sddkit fix --gitignore"),
     "nested_worktree_copies_ignored": (
         "{count} agent worktree copies under {path} are already .gitignore'd, but a test/lint/"
         "type-check tool that reads the filesystem directly still scans them",

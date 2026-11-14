@@ -160,6 +160,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch` | A saved session that no longer fits reality. |
 | Tracks | `track_not_started`, `track_not_incorporated`, `track_closed_in_place` (note; `sddkit track close`), `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
 | Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path) | A stale copy of `.sdd/` (see `sddkit track`). |
+| Backups | `backup_not_ignored` (note; `sddkit fix --gitignore`) | `.sdd/.pre-fix-backup/` or `.sdd/.pre-migrate-backup/` that Git still sees. |
 | Dependencies | `dependency_inconsistent` | `sddkit deps` records that no longer hold. |
 
 ### `sddkit fix [PATH] [--dry-run] [--json]`
@@ -173,7 +174,7 @@ Repairs **deterministic** problems only; run with `--dry-run` first.
 | `--links` | `file:///` links in the constitution become links relative to `.sdd/`. |
 | `--features` | Manifest features follow the constitution's Settings (the file you edit by hand). |
 | `--manifest` | Re-records the hash of managed files that differ from the manifest only by line endings (`manifest_eol_drift`). |
-| `--gitignore` | Opt-in: ignore agent worktree folders (`.kilo/worktrees`, ...) in `.gitignore`. |
+| `--gitignore` | Opt-in: ignore agent worktree folders (`.kilo/worktrees`, ...) and the kit's `.sdd/.pre-*-backup/` folders in `.gitignore`. |
 | `--weight` | Opt-in: add an empty `Weight` column to the stage index (section 5, canonical table and provisional queue) when it has none. A copy of `constitution.md` is kept in `.sdd/.pre-fix-backup/<timestamp>/`; running it twice changes nothing. |
 | `--all` | Everything except `--gitignore` and `--weight` (the default with no flag). |
 
