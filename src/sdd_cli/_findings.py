@@ -97,6 +97,9 @@ _TEXT: dict[str, tuple[str, str]] = {
     "backup_not_ignored": ("{count} kit backup folder(s) under .sdd/ (e.g. {path}) are visible to Git; "
                            "`git add -A` would commit a copy of your files",
                            "sddkit fix --gitignore"),
+    "backup_tracked": ("{count} kit backup folder(s) under .sdd/ (e.g. {path}) are already tracked by Git; "
+                       "a copy of your files is in the repository",
+                       "git rm -r --cached {path}  (then `sddkit doctor` says whether .gitignore still needs a line)"),
     "nested_worktree_copies_ignored": (
         "{count} agent worktree copies under {path} are already .gitignore'd, but a test/lint/"
         "type-check tool that reads the filesystem directly still scans them",

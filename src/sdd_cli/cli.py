@@ -66,19 +66,22 @@ def _cli_executable_path() -> str:
     return found or f"(not found on PATH as {CLI_NAME!r}; invoked as {sys.argv[0]!r})"
 
 
-def _git_already_ignores(root: Path, rel_path: str) -> bool | None:
+def _git_already_ignores(root: Path, rel_path: str, *, no_index: bool = False) -> bool | None:
     """Whether Git already ignores ``rel_path`` (R3-03).
 
     `True`/`False` is a real answer; `None` means "could not tell" -- no git
     on PATH, not a repository, or any other failure -- and callers must then
     fall back to the pre-existing behavior (as if nothing is known about
     .gitignore), never treat "could not tell" as "not ignored".
+
+    A path Git already tracks is never reported as ignored, whatever .gitignore says;
+    ``no_index`` asks about the rules alone (K-05).
     """
     if shutil.which("git") is None:
         return None
+    cmd = ["git", "check-ignore", "-q"] + (["--no-index"] if no_index else []) + ["--", rel_path]
     try:
-        result = subprocess.run(["git", "check-ignore", "-q", "--", rel_path], cwd=root,
-                                 capture_output=True, timeout=5)
+        result = subprocess.run(cmd, cwd=root, capture_output=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
         return None
     if result.returncode in (0, 1):
@@ -1245,6 +1248,10 @@ def _doctor_payload(root: Path) -> dict:
     if backups:
         findings.append({"severity": "note", "code": "backup_not_ignored",
                          "count": len(backups), "path": backups[0]})
+    tracked = _tracked_backups(root)
+    if tracked:
+        findings.append({"severity": "note", "code": "backup_tracked",
+                         "count": len(tracked), "path": tracked[0]})
     return {"version": 1, "command": "doctor", "project": str(root),
             "cli_path": _cli_executable_path(),
             "sdd": (manifest_data or {}).get("kit_version", "v1 (no manifest)"),
@@ -1298,16 +1305,46 @@ def _missing_worktree_ignores(root: Path) -> list[str]:
 _BACKUP_DIRS = (".sdd/.pre-fix-backup", ".sdd/.pre-migrate-backup")
 
 
-def _unignored_backups(root: Path) -> list[str]:
-    """Backup folders the kit wrote under ``.sdd/`` that Git still sees (K-01).
+def _git_tracks(root: Path, rel_path: str) -> bool | None:
+    """Whether Git already tracks any file under ``rel_path``; `None` means "could not tell"."""
+    if shutil.which("git") is None:
+        return None
+    try:
+        result = subprocess.run(["git", "ls-files", "--", rel_path], cwd=root,
+                                 capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return bool(result.stdout.strip())
 
-    Only a definite answer counts: with no repository, no git on PATH or any failure the list is
-    empty, so a project outside Git is never nagged.
+
+def _present_backups(root: Path) -> list[str]:
+    """Backup folders the kit wrote under ``.sdd/`` in a Git repository (K-01).
+
+    Only a definite answer counts downstream: with no repository, no git on PATH or any failure
+    the checks below return nothing, so a project outside Git is never nagged.
     """
     if not (root / ".git").exists():
         return []
-    return [name for name in _BACKUP_DIRS
-            if (root / name).is_dir() and _git_already_ignores(root, name) is False]
+    return [name for name in _BACKUP_DIRS if (root / name).is_dir()]
+
+
+def _unignored_backups(root: Path) -> list[str]:
+    """Backup folders Git still sees but does not track (K-01): `.gitignore` can fix these."""
+    return [name for name in _present_backups(root)
+            if _git_tracks(root, name) is False and _git_already_ignores(root, name) is False]
+
+
+def _tracked_backups(root: Path) -> list[str]:
+    """Backup folders Git already tracks (K-05): `.gitignore` does not help until `git rm --cached`."""
+    return [name for name in _present_backups(root) if _git_tracks(root, name) is True]
+
+
+def _backups_missing_ignore(root: Path) -> list[str]:
+    """Backup folders no `.gitignore` rule covers yet, tracked or not (what `fix --gitignore` writes)."""
+    return [name for name in _present_backups(root)
+            if _git_already_ignores(root, name, no_index=True) is False]
 
 
 def _append_gitignore(root: Path, comment: str, entries: list[str]) -> None:
@@ -1477,11 +1514,14 @@ def cmd_fix(args) -> None:
                 repairs.append({"kind": "gitignore_worktrees", "path": ".gitignore", "entries": missing})
                 if not dry_run:
                     _append_gitignore(root, "# Agent worktrees are full copies of the repo (and of .sdd/)", missing)
-            backups = [f"/{name}/" for name in _unignored_backups(root)]
+            backups = [f"/{name}/" for name in _backups_missing_ignore(root)]
             if backups:
                 repairs.append({"kind": "gitignore_backups", "path": ".gitignore", "entries": backups})
                 if not dry_run:
                     _append_gitignore(root, "# Backups generated by sddkit update/migrate/fix", backups)
+            # The kit never edits the owner's Git index: a tracked backup needs `git rm -r --cached`.
+            for name in _tracked_backups(root):
+                unresolved.append({"kind": "backup_tracked", "path": name})
     status = 2 if unresolved else (1 if repairs else 0)
     result = {"version": 1, "command": "fix", "project": str(root), "dry_run": dry_run,
               "status": status, "repairs": repairs, "unresolved": unresolved}
