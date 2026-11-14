@@ -1,59 +1,52 @@
-# Plan — sdd-cli 4.8.0
+# Plan — sdd-cli 4.8.1
 
-**Branch:** `4.8.0` (from `main` = 4.7.0) · **Language:** Portuguese
+**Branch:** `4.8.1` (de `main` = 4.8.0) · **Idioma:** português
 
-Tema: o que o kit muda chega ao projeto de forma visível (`update` explica, `fix` ajuda, `doctor`
-avisa) e a spec só trava depois de uma auditoria fria registrada, proporcional ao peso da etapa.
+Tema: arestas que a 4.8.0 deixou ao ser aplicada de verdade no primeiro projeto (P1, KNN Warehouse):
+um backup que o git enxerga, um aviso de fim de linha que volta, uma cobrança de auditoria sobre
+etapa já travada e um falso positivo antigo de acento.
 
-Origem: estágios 17 (4.7.1) e 18 (4.8.0) do plano privado, priorizados pelo dono em 2026-11-13 a
-partir da avaliação dos 9 projetos monitorados. **A 4.7.1 foi absorvida: não haverá tag 4.7.1.**
-A automação por hook passa a ser a 4.9.0.
+Origem: estágio 19 do plano privado (K-01 a K-04), da avaliação do P1 em 2026-11-14, pedida pelo
+dono depois de atualizar o projeto. Patch: nenhum comportamento de etapa muda; só o `doctor`, o
+`fix` e o hash do manifesto.
 
-## Estado atual do código (conferido em 4.7.0)
+## Estado atual do código (conferido em 4.8.0)
 
-- `update` imprime só `updated <arquivo>`; o `CHANGELOG.md` não vai no pacote (`pyproject.toml`
-  empacota `src/sdd_cli`), então não há de onde ler notas de versão.
-- `fix` não tem backup e nenhuma função reescreve o §5; `_index_checks.py` é só leitura.
-- Nenhum código referencia `~/.claude`; a skill global `sdd` do usuário continua em "(v3)".
-- Nenhum provedor escreve arquivo de subagente; `_install_shim` já preserva arquivo existente.
-- O passo 6 de `sdd-specify` só diz "se houver subagentes, delegue"; o `doctor` não olha `Status: locked`.
-- `MANAGED_DIRS = ("skills", "templates")`: skill e template novos entram no `update` sem mudar código.
+- `fix --weight` grava `.sdd/.pre-fix-backup/`; `fix --gitignore` só conhece pastas de worktree de
+  agente e o `doctor` não avisa de backup visível ao git.
+- `manifest.hash_file` hasheia os bytes como estão; o `update` grava CRLF no Windows e o git
+  normaliza para LF depois, então `manifest_eol_drift` volta mesmo após `fix --manifest`.
+- `audit_findings` pula só etapa com `report.md`; etapa em `CLOSING` travada antes da 4.8.0 recebe
+  `lock_without_audit`.
+- O detector v1 de `_mojibake.py` trata o `?` de `?range=` como acento perdido.
 
-## Itens (U = update, S = portão de travamento)
+## Itens (K = ajuste do uso real)
 
-- **U-02** notas de versão em `content/RELEASE-NOTES.md`; `update` imprime as da faixa
-  instalada → nova (também no `--dry-run`); `update --notes` relê sem atualizar.
-- **U-03** `fix --weight` (opt-in): acrescenta a coluna `Weight` vazia ao §5 canônico e à fila,
-  idempotente, com `--dry-run` e backup em `.sdd/.pre-fix-backup/`.
-- **U-04** texto: critério de `light` verificável (arquivos tocados, sem teste novo, sem
-  contrato/dado/segurança) e reavaliação do peso da fila ao fechar etapa.
-- **U-05** `doctor` nota `global_skill_stale`; `update --global-skill` regrava a skill global a
-  partir de `content/shims/claude-global-skill.md`, com backup.
-- **S-01** skill `sdd-audit` (contrato: somente leitura, livro de verificação, lentes genéricas,
-  veredito de dois valores) e agente `.claude/agents/sdd-audit.md` (nome diferente do agente local
-  do P2, `sdd-spec-lock`, para não colidir); lentes do projeto em `.sdd/audit-lenses.md`.
-- **S-02** `templates/audit.template.md` + protocolo de rodadas (delta), regra de correção do autor,
-  registro de premissas com prova.
-- **S-03** linha `Locked-by-audit:` no cabeçalho da spec; `doctor`: `lock_without_audit` (note) e
-  `lock_audit_mismatch` (warn), só em etapa não fechada; `sdd-close` copia as contagens ao `report.md`.
-- **S-04** o peso decide a revisão: `light` = revisão básica; `full` ou vazio = auditoria;
-  gatilhos em `audit-lenses.md`; `light_hits_audit_trigger` (warn) no `doctor`.
-- **S-05** seção opcional "To measure before implementing" no §6 do modelo da spec.
+- **K-01** `doctor` nota `backup_not_ignored`; `fix --gitignore` acrescenta `/.sdd/.pre-fix-backup/` e
+  `/.sdd/.pre-migrate-backup/` quando existem e o git os vê.
+- **K-02** o manifesto grava o hash do conteúdo em LF (`hash_file`); `matches_recorded` continua
+  aceitando bruto, LF e CRLF, então manifestos antigos seguem válidos.
+- **K-03** `lock_without_audit` não cobra etapa em `CLOSING` (constituição ou trilha) nem etapa com o
+  `todo.md` todo marcado; divergência de `Locked-by-audit:` continua avisada.
+- **K-04** o detector `mojibake_v1` ignora `?` seguido de `nome=` (query string).
 
 ## Decisões
 
-1. Um vocabulário de peso só: `Weight` da 4.7.0 (não há `Peso: comum | pesada`).
-2. Sem retroatividade: o `doctor` nunca cobra etapa fechada; etapa em curso sem a linha é só `note`.
-3. O agente fino só existe para o Claude Code; os demais provedores seguem a skill em modo frio
-   (o relato diz que a auditoria foi própria, mais fraca).
-4. Arquivos de fora do projeto (skill global) só mudam com `--global-skill`, nunca por padrão.
+1. K-02 muda o que o manifesto grava, não o tamanho do hash (a regra de `06-ADIADOS.md` sobre não
+   truncar continua valendo); a leitura de hashes antigos não muda.
+2. K-03 usa o que o projeto diz (estado e `todo.md`), porque o kit não sabe quando a spec foi
+   travada. A alternativa de uma linha `Locked-by-audit: none` fica fora.
+3. O marcador da skill global continua `v4.8.0`: o texto dela não mudou, e o `doctor` compara com o
+   marcador do texto empacotado, não com a versão do kit.
 
 ## Riscos e testes
 
-- `fix --weight` reescreve tabela do dono: só com backup, idempotente, fixture com e sem a coluna.
-- O `doctor` lê `~/.claude`: somente leitura, silencioso se ausente; a suíte isola `Path.home()`.
-- Colisão de agente: `update` em cópia do P2 não toca `.claude/agents/sdd-spec-lock.md` nem `CLAUDE.md`.
+- K-02: arquivo intacto não pode parecer editado; fixtures com manifesto antigo (bruto CRLF) contra
+  disco em LF e CRLF, e `update` seguinte sem backup novo.
+- K-03: esconder etapa que precisaria de auditoria; a nota é só `note` e o `IMPLEMENTING` continua cobrado.
+- K-04: não esconder perda real de acento (`m?s` continua acusando).
 
 ## Propaga por
 
-`sdd update` (skills, templates, shims, agente) e código (`cli.py`, `_index_checks.py`, `providers.py`).
+Código (`cli.py`, `_index_checks.py`, `_mojibake.py`, `manifest.py`) e `sdd update` (texto da skill
+`sdd-audit` e `USAGE.md`).
