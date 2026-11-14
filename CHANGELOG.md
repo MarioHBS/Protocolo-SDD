@@ -1,5 +1,30 @@
 # Changelog — sdd-cli
 
+## [4.8.1] — In progress
+
+Adjustments found by applying 4.8.0 to the first real project (P1, KNN Warehouse).
+
+### Added
+
+- K-01: `sddkit doctor` notes `backup_not_ignored` when `.sdd/.pre-fix-backup/` or
+  `.sdd/.pre-migrate-backup/` exists in a Git repository that does not ignore it, and
+  `sddkit fix --gitignore` appends the missing entries (never rewriting the owner's lines).
+  4.8.0 introduced the `fix --weight` backup without telling Git to leave it alone.
+
+### Fixed
+
+- K-02: the manifest records the hash of a file's content with every line ending as LF
+  (`manifest.hash_file`). The raw bytes were hashed before, so a file the kit wrote in CRLF and
+  Git then normalised to LF drifted from the manifest, and `manifest_eol_drift` came back after
+  `fix --manifest`. `matches_recorded` still accepts the raw and CRLF forms, so manifests written
+  by older kits keep working; `fix --manifest` rewrites them once.
+- K-03: `lock_without_audit` skips a stage the constitution or a track has moved to `CLOSING`
+  and a stage whose `todo.md` has no open item. The kit cannot tell when a spec was locked, and
+  asking for an audit of an implemented spec guards nothing. A `Locked-by-audit:` line that
+  disagrees with `audit.md` is still a warning.
+- K-04: the accent-loss (v1) detector ignores a `?` followed by `name=` (a URL query string such
+  as `/reports?range=2026-13`); `m?s` and `Decis?es` are still reported (P1/IP-013).
+
 ## [4.8.0] — In progress
 
 The release that absorbs the planned 4.7.1 (U-02 to U-05) and the spec-lock gate (S-01 to S-05).
