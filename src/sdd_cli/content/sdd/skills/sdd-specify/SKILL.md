@@ -47,7 +47,9 @@ Write all artifacts in the language set in
      per section, no padding. It never drops the acceptance criteria or the
      ground-truth verification at closing: a light stage is shorter, not
      unchecked. If the work turns out to be more than the reason written in the
-     `Weight` cell, say so and ask the owner to change it back to `full`.
+     `Weight` cell, or any of the conditions `sdd-roadmap` lists for `light` stops
+     holding (data or schema, a security surface, a shared contract, a new test, more
+     than about five files), say so and ask the owner to change it back to `full`.
 
    - Fill **`Origin`** with one value of the closed vocabulary
      (`escopo-original`, `lacuna-de-levantamento`, `mudanca-do-cliente`,

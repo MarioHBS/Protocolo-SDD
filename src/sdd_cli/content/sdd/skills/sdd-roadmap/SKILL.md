@@ -73,9 +73,15 @@ Write all output in the language set in `constitution.md → Settings → Langua
    needs nothing written. Mark a stage `light` only when it is trivial (a typo, a
    copy tweak, a configuration flip, a rename with no behavior change): add the
    optional `Weight` column to the table that holds the row if it is missing, and
-   write `light: <one-sentence reason>` in the cell. The reason is mandatory, and
-   a stage that touches data, security, a contract or more than one module is
-   never `light`. When unsure, keep `full`; the owner can lighten a stage later.
+   write `light: <one-sentence reason>` in the cell. The reason is mandatory.
+   A stage is `light` only when **all** of these hold, each one checkable against
+   the files: it changes no data or schema; it touches no authentication,
+   authorization or other security surface; it changes no contract another stage
+   or a client depends on (an API, an event, a file format, a decision of §3); it
+   needs no new test to show it works; and it edits about five files or fewer.
+   One "no" makes it `full`. "Module" is not a criterion: in a monorepo nearly
+   everything crosses one. When unsure, keep `full`; the owner can lighten a
+   stage later.
    **This is the source of truth.** If a stage must be sequenced after two or
    more parallel tracks — either a **join stage** that waits for their
    result, or a **stability-sensitive stage** that needs the shared

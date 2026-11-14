@@ -20,7 +20,15 @@ def test_roadmap_asks_for_the_weight_and_requires_a_reason_for_light():
     assert "`full` is the default and needs nothing written" in text
     assert "`light: <one-sentence reason>`" in text
     assert "The reason is mandatory" in text
-    assert "never `light`" in text
+    assert "A stage is `light` only when **all** of these hold" in text
+    assert "One \"no\" makes it `full`" in text
+    assert "\"Module\" is not a criterion" in text
+
+
+def test_close_reweighs_the_queue_before_promoting_the_next_stage():
+    text = _text("skills/sdd-close/SKILL.md")
+    assert "**re-weigh the queue**" in text
+    assert "Never lighten a stage just to go faster" in text
 
 
 def test_specify_shortens_a_light_spec_without_dropping_the_acceptance_criteria():

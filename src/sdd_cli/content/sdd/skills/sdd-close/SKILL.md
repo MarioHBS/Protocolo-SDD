@@ -101,7 +101,11 @@ Write all artifacts in the language set in
    constitution so it keeps pointing at `CHANGELOG.md` (§6 is the index, never
    the long history). Never rewrite the changelog's English skeleton.
 
-9. **Point to the next stage.** Pick the next stage with satisfied
+9. **Point to the next stage.** First **re-weigh the queue**: read the `Weight` of the
+   stages still waiting against what this stage taught (a refactor that just landed may
+   make a pending stage trivial; a contract discovered along the way may make a `light`
+   one `full`) and change the cell, with its reason, when the answer changed. Never
+   lighten a stage just to go faster. Then pick the next stage with satisfied
    dependencies — normally the next row in the Provisional queue, in order,
    unless the user asks to fast-track a different independent one instead.
    **Promote it:** assign it the next free canonical `NNN` (the same shared
