@@ -1,52 +1,45 @@
-# Plan — sdd-cli 4.8.1
+# Plan — sdd-cli 4.8.2
 
-**Branch:** `4.8.1` (de `main` = 4.8.0) · **Idioma:** português
+**Branch:** `4.8.2` (de `main` = 4.8.1) · **Idioma:** português
 
-Tema: arestas que a 4.8.0 deixou ao ser aplicada de verdade no primeiro projeto (P1, KNN Warehouse):
-um backup que o git enxerga, um aviso de fim de linha que volta, uma cobrança de auditoria sobre
-etapa já travada e um falso positivo antigo de acento.
+Tema: o `backup_not_ignored` da 4.8.1 não resolve o projeto cujo backup já foi commitado: o `fix
+--gitignore` grava a linha, o arquivo continua rastreado e a nota volta igual, mandando rodar o mesmo
+comando.
 
-Origem: estágio 19 do plano privado (K-01 a K-04), da avaliação do P1 em 2026-11-14, pedida pelo
-dono depois de atualizar o projeto. Patch: nenhum comportamento de etapa muda; só o `doctor`, o
-`fix` e o hash do manifesto.
+Origem: estágio 20 do plano privado (K-05), achado em 2026-11-14 ao comparar os quatro projetos que o
+dono atualizou para a 4.8.1 (P2, P3, P4 e P7). No P4, `.sdd/.pre-migrate-backup/` tinha um arquivo
+commitado em 2026-08-31. Patch: só o `doctor` e o `fix --gitignore`.
 
-## Estado atual do código (conferido em 4.8.0)
+## Estado atual do código (conferido em 4.8.1)
 
-- `fix --weight` grava `.sdd/.pre-fix-backup/`; `fix --gitignore` só conhece pastas de worktree de
-  agente e o `doctor` não avisa de backup visível ao git.
-- `manifest.hash_file` hasheia os bytes como estão; o `update` grava CRLF no Windows e o git
-  normaliza para LF depois, então `manifest_eol_drift` volta mesmo após `fix --manifest`.
-- `audit_findings` pula só etapa com `report.md`; etapa em `CLOSING` travada antes da 4.8.0 recebe
-  `lock_without_audit`.
-- O detector v1 de `_mojibake.py` trata o `?` de `?range=` como acento perdido.
+- `_unignored_backups` pergunta ao `git check-ignore` se a pasta é ignorada; para arquivo já
+  rastreado a resposta é sempre "não ignorado", mesmo com a linha no `.gitignore`.
+- Efeito 1: o `doctor` nota `backup_not_ignored` e indica `fix --gitignore`, que não ajuda.
+- Efeito 2: com a pasta rastreada **e** listada no `.gitignore`, o `fix --gitignore` acrescenta a
+  mesma linha de novo a cada execução (a checagem de "falta" usa o mesmo `check-ignore`).
 
-## Itens (K = ajuste do uso real)
+## Item
 
-- **K-01** `doctor` nota `backup_not_ignored`; `fix --gitignore` acrescenta `/.sdd/.pre-fix-backup/` e
-  `/.sdd/.pre-migrate-backup/` quando existem e o git os vê.
-- **K-02** o manifesto grava o hash do conteúdo em LF (`hash_file`); `matches_recorded` continua
-  aceitando bruto, LF e CRLF, então manifestos antigos seguem válidos.
-- **K-03** `lock_without_audit` não cobra etapa em `CLOSING` (constituição ou trilha) nem etapa com o
-  `todo.md` todo marcado; divergência de `Locked-by-audit:` continua avisada.
-- **K-04** o detector `mojibake_v1` ignora `?` seguido de `nome=` (query string).
+- **K-05** `doctor` separa os dois casos: pasta de backup que o git só enxerga
+  (`backup_not_ignored`, `fix --gitignore`) e pasta já rastreada (`backup_tracked`, nota com
+  `git rm -r --cached <pasta>`). `fix --gitignore` decide o que falta com `check-ignore --no-index`
+  (ignora o índice), nunca duplica uma linha, e lista a pasta rastreada como `unfixable`
+  `backup_tracked`, porque o kit não mexe no índice do git do dono.
 
 ## Decisões
 
-1. K-02 muda o que o manifesto grava, não o tamanho do hash (a regra de `06-ADIADOS.md` sobre não
-   truncar continua valendo); a leitura de hashes antigos não muda.
-2. K-03 usa o que o projeto diz (estado e `todo.md`), porque o kit não sabe quando a spec foi
-   travada. A alternativa de uma linha `Locked-by-audit: none` fica fora.
-3. O marcador da skill global continua `v4.8.0`: o texto dela não mudou, e o `doctor` compara com o
-   marcador do texto empacotado, não com a versão do kit.
+1. O kit não roda `git rm --cached` sozinho: o índice é do dono e a ação tem efeito em quem puxar o commit.
+2. `backup_tracked` é `note`, como o `backup_not_ignored`; a gravidade não sobe por rastreado.
+3. `fix --gitignore` com pasta rastreada termina com status 2 (`unresolved`), igual aos demais casos que
+   o `fix` não consegue resolver sozinho.
 
 ## Riscos e testes
 
-- K-02: arquivo intacto não pode parecer editado; fixtures com manifesto antigo (bruto CRLF) contra
-  disco em LF e CRLF, e `update` seguinte sem backup novo.
-- K-03: esconder etapa que precisaria de auditoria; a nota é só `note` e o `IMPLEMENTING` continua cobrado.
-- K-04: não esconder perda real de acento (`m?s` continua acusando).
+- Repositório com a pasta rastreada e sem linha: `doctor` acusa `backup_tracked`; `fix --gitignore`
+  grava a linha uma vez e lista `unfixable`; depois do `git rm --cached` a nota some.
+- Rastreada e já listada: `fix --gitignore` não grava nada (sem linha duplicada), só `unfixable`.
+- Sem `.git`, ou pasta de backup inexistente: nenhum aviso (como na 4.8.1).
 
 ## Propaga por
 
-Código (`cli.py`, `_index_checks.py`, `_mojibake.py`, `manifest.py`) e `sdd update` (texto da skill
-`sdd-audit` e `USAGE.md`).
+Só código (`cli.py`, `_findings.py`) e o texto do `USAGE.md`.
