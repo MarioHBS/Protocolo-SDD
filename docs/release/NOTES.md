@@ -1,60 +1,47 @@
-# Notes — sdd-cli 4.8.0
+# Notes — sdd-cli 4.8.1
 
-**Branch:** `4.8.0` (de `main` = 4.7.0) · **Idioma:** português
+**Branch:** `4.8.1` (de `main` = 4.8.0) · **Idioma:** português
 
-A 4.8.0 absorve o estágio 17 do plano (4.7.1: U-02 a U-05) e o estágio 18 (S-01 a S-05). Não haverá
-tag 4.7.1. A automação por hook passa a ser a 4.9.0.
+A 4.8.1 reúne os itens K-01 a K-04 do estágio 19 do plano privado, achados quando o dono aplicou a
+4.8.0 no primeiro projeto (P1, KNN Warehouse). Sem mudança de comportamento de etapa.
 
 ## Testes
 
-428 passam (linha de base 365; 63 novos em `test_update_notes.py`, `test_fix_weight.py`,
-`test_audit.py` e `test_stage_weight.py`). `ruff check src tests` limpo. O `conftest.py` agora isola
-`Path.home()`: sem isso a suíte leria a skill global real do desenvolvedor.
+458 passam (linha de base 428 na 4.8.0). Novos: `test_backup_ignore.py` (K-01, usa `git init` e
+pula sem git), `test_manifest_hash.py` (K-02), `test_audit_closing.py` (K-03) e
+`test_mojibake_query.py` (K-04). `ruff check src tests` limpo. Um teste de concorrência de trilhas
+(`test_concurrent_incorporations_never_share_a_number`) falhou uma vez sob carga na suíte inteira e
+passou em seguida, na 4.8.0 e na 4.8.1; é anterior a esta versão e não foi tocado.
 
 ## Decisões
 
-1. **Um vocabulário de peso só.** O gate usa o `Weight` da 4.7.0 (`light` = revisão básica; `full` ou
-   vazio = auditoria), não um `Peso: comum | pesada` novo, como a IP-013 do P2 sugeria.
-2. **Sem retroatividade.** O `doctor` só olha etapas ainda abertas (sem `report.md`); etapa fechada
-   nunca é cobrada. Etapa travada antes do `update` e ainda aberta recebe só uma `note`.
-3. **Nome do agente: `sdd-audit`, não `sdd-spec-lock`.** O P2 tem um agente local `sdd-spec-lock`; o
-   kit não o sobrescreve nem o duplica. Um arquivo que já exista no caminho do agente nunca é
-   tocado nem entra no manifesto.
-4. **Notas de versão em arquivo próprio** (`content/RELEASE-NOTES.md`), curto, e não o `CHANGELOG.md`
-   (que não vai no pacote e tem parágrafos longos). O teste `test_the_release_notes_announce_the_gate`
-   exige uma seção da versão atual.
-5. **`fix --weight` é opt-in** (fora do `--all`) porque reescreve tabela do dono; mantém os fins de
-   linha, pula tabela dentro de comentário HTML e deixa cópia exata em `.sdd/.pre-fix-backup/`, que o
-   scan de mojibake e o `fix --eol` ignoram (senão a cópia deixaria de ser exata).
-6. **A skill global só é escrita com `--global-skill`.** O `doctor` apenas lê, e é silencioso se o
-   arquivo não existe.
-7. A seção "To measure before implementing" ficou no §6 da spec, não no §5, para não mexer na regex
-   do `scaffold` (que lê o §5 até o `## 6.`).
+1. **K-02 muda o que o manifesto grava, não o que ele aceita.** O hash passa a ser o do conteúdo em
+   LF; `matches_recorded` segue aceitando o bruto, o LF e o CRLF, então manifesto antigo funciona.
+2. **Hash bruto exato não é desvio.** A primeira versão do K-02 acusou `manifest_eol_drift` em 8 dos 9
+   projetos (hash bruto CRLF gravado pela 4.8.0, disco ainda em CRLF). Agora só é desvio uma forma
+   gravada que o disco não tem mais; depois de um `fix --manifest` o valor serve em LF e em CRLF.
+3. **K-03 lê o que o projeto diz.** O kit não sabe quando a spec foi travada; pula a etapa que a
+   constituição ou uma trilha puseram em `CLOSING` e a que tem o `todo.md` todo marcado. A divergência
+   de `Locked-by-audit:` continua avisada. A alternativa `Locked-by-audit: none` ficou de fora.
+4. **O marcador da skill global continua `v4.8.0`.** O texto dela não mudou e o `doctor` compara com o
+   marcador do texto empacotado, não com a versão do kit.
 
-## Verificação com os 9 projetos reais (cópias de `.sdd/`, `CLAUDE.md`, `AGENTS.md`, `.claude/`)
+## Verificação
 
-- `update --dry-run` nos 9: nenhum arquivo muda (hash da árvore igual antes e depois); `constitution.md`
-  e `roadmap.md` nunca aparecem na lista.
-- `doctor --json` 4.7.0 × 4.8.0: o único código novo é `lock_without_audit` (note), em P1 (009), P3 (011,
-  014), P5 (010, 021) e P6 (015-B), todas etapas travadas e ainda abertas. P4, P7, P8 e P9: nada muda.
-  Nenhum erro novo; status 0 em todos.
-- Cópia do P2, `update --global-skill` real: o agente local `sdd-spec-lock.md` e o `CLAUDE.md` ficam
-  idênticos (hash), `sdd-audit.md` é acrescentado, a skill global (em um HOME falso) é regravada, e um
-  segundo `update` diz que está em dia.
-- `fix --weight`: acrescenta a coluna em P1, P3, P4, P5 e P6 (P4 já a tinha só na fila). Na cópia do P1
-  o backup é criado, a segunda execução diz "clean" e o `doctor` não ganha nenhum código de peso.
+- **Cópia do KNN (clone do repositório real, trabalho em andamento intocado):** com a 4.8.0, `doctor`
+  acusava `mojibake_v1` (a query string do checklist da 009) e `manifest_eol_drift`; com a 4.8.1 o
+  primeiro some. `update` 4.8.0→4.8.1 muda só `sdd-audit/SKILL.md` e o manifesto; `fix --manifest`
+  deixa o `doctor` limpo, e converter os `.md` de `.sdd/` para CRLF não traz o desvio de volta.
+  K-01: revertendo o commit de `.gitignore` do projeto, o `doctor` nota `backup_not_ignored` e
+  `fix --gitignore` acrescenta a linha (sem tocar nas demais); a nota some.
+- **Cópia dos 9 projetos, `doctor` 4.8.0 × 4.8.1:** nenhum código novo; saíram `lock_without_audit` (P1,
+  etapa já em `CLOSING`) e `mojibake_v1` (P1 1, P2 251, P3 6, P4 20, P6 16, P7 7). Dos 301 acertos
+  que o filtro de query string deixou de acusar, todos têm `/`, crase ou `http` nos 25 caracteres
+  anteriores (nenhum é palavra com acento perdido). `update --dry-run` não alterou nenhum arquivo.
+- **Não feito:** `update` real nos outros 8 projetos (só no KNN, em cópia).
 
-## Achados fora do escopo
+## Pendências fora desta versão
 
-- **P2/`.sdd/README.md`:** o `update` o preserva como "editado à mão" e o `doctor` novo passa a avisar
-  `managed_file_edited`. O arquivo é idêntico ao README do kit 4.7.0; o que difere é o hash gravado no
-  manifesto. É o mesmo problema da IP-018 do P1 (hash antigo no manifesto, backup a cada `update`) e
-  fica para um estágio próprio.
-- A branch pública `roadmap` está parada desde a 4.4.0 e os READMEs do kit ainda mostram a tabela de
-  versões de 4.2.1.
-- P2/IP-003 ainda consta como `aberta` no registro do próprio projeto; o kit já o absorveu (R3-01/N-01).
-
-## O que ficou de fora de propósito
-
-Reservar o nome `sddkit` no npm (A-15, decisão do dono) e um comando que liste candidatas a `light`
-(A-16, só se o texto de U-04 não bastar).
+IP-018 (arquivo idêntico tratado como "editado à mão" por hash antigo; K-02 reduz a causa e não a
+cobre), branch pública `roadmap` parada desde a 4.4.0, tabela de versões dos READMEs em 4.2.1 e
+A-15 (nome `sddkit` no npm).
