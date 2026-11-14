@@ -5,6 +5,11 @@ kit and the bundled one; `sddkit update --notes` prints them again without chang
 A line starting with `Manual action:` is something the project has to do by hand, because the
 kit never edits the constitution or any other file you own.
 
+## 4.8.2
+
+- `sddkit doctor` tells a kit backup folder Git already tracks (`backup_tracked`) from one Git merely sees (`backup_not_ignored`), because `.gitignore` does not stop a folder that is already committed. `sddkit fix --gitignore` no longer appends the same line again, and lists a tracked folder as unfixable.
+- Manual action: if `sddkit doctor` notes `backup_tracked`, run `git rm -r --cached .sdd/.pre-migrate-backup` (or the folder it names) and commit; the kit does not edit your Git index.
+
 ## 4.8.1
 
 - `sddkit doctor` notes a kit backup folder that Git still sees (`backup_not_ignored`: `.sdd/.pre-fix-backup/` from `fix --weight`, `.sdd/.pre-migrate-backup/` from `migrate`); `sddkit fix --gitignore` adds the missing lines to `.gitignore` without touching the rest of the file.

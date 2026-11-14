@@ -1,5 +1,19 @@
 # Changelog — sdd-cli
 
+## [4.8.2] — In progress
+
+One adjustment found when four projects took 4.8.1 (P2, P3, P4, P7).
+
+### Fixed
+
+- K-05: a kit backup folder that Git already tracks (`.sdd/.pre-migrate-backup/` committed before
+  the project ignored it) is no longer reported as `backup_not_ignored`, whose fix
+  (`fix --gitignore`) wrote the line but left the folder tracked, so the note came back unchanged.
+  `sddkit doctor` now notes `backup_tracked` and names `git rm -r --cached <folder>`. `fix --gitignore`
+  asks Git about the rules alone (`check-ignore --no-index`), so it no longer appends the same
+  line on every run when the folder is tracked and already listed, and it reports a tracked folder
+  as unfixable: the kit never edits your Git index.
+
 ## [4.8.1] — In progress
 
 Adjustments found by applying 4.8.0 to the first real project (P1, KNN Warehouse).
