@@ -85,7 +85,7 @@ an import then requires `--yes` after successful validation.
 Lists supported agents. Available: {{PROVIDERS}}. `--plain` prints bare keys, one
 per line — for an agent that must discover a valid `--provider` value itself.
 
-### `sddkit update [PATH] [--dry-run] [--major]`
+### `sddkit update [PATH] [--dry-run] [--major] [--notes] [--global-skill]`
 
 Syncs managed files (`README.md`, `skills/`, `templates/`, shims) when the bundled
 kit is a **minor or patch** step over what is installed. It diffs old-bundled
@@ -97,6 +97,13 @@ files (a new template, for example) are added. It never touches `constitution.md
 `roadmap.md`, `stages/`, `backlog.md`, `documentation.json` or any other file of
 yours. It refuses to cross a major version — use `migrate` for that (`--major`
 routes through the same planner).
+
+After the sync it prints the **release notes** between the installed and the new kit; a line
+marked `!` (`Manual action:`) is something the project has to do by hand. `--notes` prints them
+without changing anything (the notes of the current version when the project is already
+up to date). `--global-skill` also rewrites `~/.claude/skills/sdd/SKILL.md` when it predates the
+kit (`global_skill_stale`), keeping a `SKILL.md.bak-<timestamp>` next to it; nothing outside the
+project is ever written without that flag.
 
 ### `sddkit migrate --to v4 [PATH] [--dry-run] [--provider KEY]`
 
@@ -144,7 +151,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sddkit fix --links`). |
 | Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sddkit fix --features`). |
 | Settings | `tracks_setting_missing` | Real track activity but no explicit `Parallel tracks:` line in Settings — add `on` or `off` by hand. |
-| Kit | `manifest_eol_drift` (note; `sddkit fix --manifest`), `managed_file_edited`, `readme_anchor_missing`, `migration_todo_pending` (note), `provider_shim_unmanaged`, `cli_older_than_project` | A managed file edited by hand that `sddkit update` kept (it stays listed after the version bump); a skill or template citing a README section the project's `.sdd/README.md` lacks; a shim on disk the manifest does not manage; a `.migration-todo.md` left behind by `sddkit migrate`; the CLI is older than the project's kit. |
+| Kit | `manifest_eol_drift` (note; `sddkit fix --manifest`), `managed_file_edited`, `readme_anchor_missing`, `migration_todo_pending` (note), `provider_shim_unmanaged`, `cli_older_than_project`, `global_skill_stale` (note; `sddkit update --global-skill`) | A managed file edited by hand that `sddkit update` kept (it stays listed after the version bump); a skill or template citing a README section the project's `.sdd/README.md` lacks; a shim on disk the manifest does not manage; a `.migration-todo.md` left behind by `sddkit migrate`; the CLI is older than the project's kit; the global Claude Code `sdd` skill predates the kit (it is read, never written). |
 | EDD | `edd_missing_evals`, `edd_missing_checklist`, `edd_no_criteria`, `edd_eval_uncovered`, `edd_spec_not_pointer`, `edd_todo_not_evals`, `edd_missing_performance_doc`, `edd_milestone_without_evaluation`, `milestone_not_contiguous` | Evals without evidence, duplicate criteria, or milestone problems. A closed `light` stage (section 5 `Weight`) may keep its evidence in `report.md` alone when the report covers every `E-NNN`; the evidence itself is never waived. |
 | Backlog | `backlog_orphan`, `queue_row_without_section` | Backlog and provisional queue disagree. |
 | Weight | `weight_light_without_reason` | A stage marked `light` in the optional `Weight` column of section 5 has no one-sentence reason (`light: only fixes a typo`). |

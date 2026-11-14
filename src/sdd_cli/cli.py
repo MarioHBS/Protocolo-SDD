@@ -1104,6 +1104,9 @@ def _doctor_payload(root: Path) -> dict:
                 findings.append({"severity": "warn", "code": "cli_older_than_project"})
         except ValueError:
             pass
+    if _global_skill_stale():
+        findings.append({"severity": "note", "code": "global_skill_stale",
+                         "path": str(_global_skill_path())})
     for name in ("roadmap.md", "estimates.md", "CHANGELOG.md"):
         path = sdd / name
         if path.is_file() and path.stat().st_size > 48 * 1024:
@@ -2803,6 +2806,96 @@ def cmd_migrate(args) -> None:
           "change, then invoke `sdd-reconcile`.")
 
 
+_SHIM_MARKER = re.compile(r"<!--\s*sddkit-shim:\s*v?(\d+\.\d+\.\d+)\s*-->")
+_GLOBAL_SKILL_SOURCE = "claude-global-skill.md"
+
+
+def _global_skill_path() -> Path:
+    """The Claude Code skill the user keeps outside any project (never touched by `update`)."""
+    return Path.home() / ".claude" / "skills" / "sdd" / "SKILL.md"
+
+
+def _shim_marker(text: str) -> tuple[int, ...] | None:
+    found = _SHIM_MARKER.search(text)
+    return manifest.parse_version(found.group(1)) if found else None
+
+
+def _global_skill_stale() -> bool:
+    """True when a global `sdd` skill exists and predates the bundled one.
+
+    Read-only and silent: no file, an unreadable file or a missing bundled source all mean
+    "nothing to report". A file without the ``sddkit-shim`` marker predates the marker.
+    """
+    path = _global_skill_path()
+    try:
+        installed = path.read_text(encoding="utf-8", errors="replace")
+        bundled = (CONTENT_DIR / "shims" / _GLOBAL_SKILL_SOURCE).read_text(encoding="utf-8")
+    except OSError:
+        return False
+    have, want = _shim_marker(installed), _shim_marker(bundled)
+    return want is not None and (have is None or have < want)
+
+
+def _install_global_skill(dry_run: bool) -> None:
+    """`update --global-skill`: rewrite ~/.claude/skills/sdd/SKILL.md, keeping a backup."""
+    path = _global_skill_path()
+    src = CONTENT_DIR / "shims" / _GLOBAL_SKILL_SOURCE
+    if path.is_file() and not _global_skill_stale():
+        print(dim(f"  global skill {path} is already current."))
+        return
+    verb = "would write" if dry_run else "wrote"
+    if path.is_file():
+        backup = path.with_name(f"SKILL.md.bak-{datetime.now(UTC):%Y%m%d-%H%M%S}")
+        print(f"  {yellow('backup')} {backup}" if not dry_run else
+              f"  {yellow('would back up')} {path} -> {backup.name}")
+        if not dry_run:
+            shutil.copy2(path, backup)
+    if not dry_run:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, path)
+    print(f"  {green(verb)} global skill {path}")
+
+
+def _release_notes(lo: tuple[int, ...] | None,
+                   hi: tuple[int, ...]) -> list[tuple[tuple[int, ...], list[str]]]:
+    """Sections of the bundled ``RELEASE-NOTES.md`` with ``lo < version <= hi``.
+
+    ``lo=None`` keeps only the section of ``hi`` itself (what ``update --notes`` shows
+    when the project is already current). A missing or unreadable file yields nothing.
+    """
+    path = CONTENT_DIR / "RELEASE-NOTES.md"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    sections: list[tuple[tuple[int, ...], list[str]]] = []
+    for line in text.splitlines():
+        heading = re.match(r"^##\s+v?(\d+\.\d+\.\d+)\s*$", line)
+        if heading:
+            sections.append((manifest.parse_version(heading.group(1)), []))
+        elif sections and line.startswith("- "):
+            sections[-1][1].append(line[2:].strip())
+    if lo is None:
+        return [s for s in sections if s[0] == hi]
+    return [s for s in sections if lo < s[0] <= hi]
+
+
+def _print_release_notes(lo: tuple[int, ...] | None, hi: tuple[int, ...]) -> bool:
+    """Print the notes for a version range; return False when there is nothing to say."""
+    notes = _release_notes(lo, hi)
+    if not notes:
+        return False
+    print(bold("\nWhat changed"))
+    for version, lines in notes:
+        print(f"  v{'.'.join(map(str, version))}")
+        for line in lines:
+            if line.startswith("Manual action:"):
+                print(f"    {yellow('!')} {line}")
+            else:
+                print(f"    - {line}")
+    return True
+
+
 def cmd_update(args) -> None:
     """Selectively sync managed files for a minor/patch bump within the same
     major kit generation. Unlike `migrate`, this never wipes skills/templates
@@ -2828,6 +2921,17 @@ def cmd_update(args) -> None:
             f"parseable semver -- run 'sddkit migrate --to v4' instead.")
 
     bundled = manifest.parse_version(KIT_VERSION)
+
+    if getattr(args, "notes", False):
+        # Read-only: the notes since the installed kit, or this version's own when current.
+        shown = _print_release_notes(installed if installed < bundled else None, bundled)
+        if not shown:
+            print(dim("No release notes for this range."))
+        return
+
+    if getattr(args, "global_skill", False):
+        # Opt-in: the only thing `update` ever writes outside the project.
+        _install_global_skill(args.dry_run)
 
     print(bold(f"Updating {root}"))
     print(f"  installed: v{'.'.join(map(str, installed))}\n"
@@ -2939,6 +3043,7 @@ def cmd_update(args) -> None:
 
     if args.dry_run:
         print(dim(f"\nWould bump kit_version -> {KIT_VERSION}"))
+        _print_release_notes(installed, bundled)
         return
 
     if not (changed or restored or added or preserved or removed_flagged or shim_changed):
@@ -2969,6 +3074,7 @@ def cmd_update(args) -> None:
           f"added={len(added)} shims={len(shim_changed)} preserved(hand-edited)={len(preserved)} "
           f"flagged-removed={len(removed_flagged)}")
     print(dim(f"  kit_version -> {KIT_VERSION}"))
+    _print_release_notes(installed, bundled)
 
 
 # ------------------------------------------------------------------ parser
@@ -3237,6 +3343,11 @@ examples:
   sddkit update              # sync this project to the bundled kit's minor/patch
   sddkit update PATH         # sync another project
   sddkit update --dry-run    # preview what would change; write nothing
+  sddkit update --notes      # read the release notes since the installed kit; write nothing
+  sddkit update --global-skill  # also refresh the global Claude Code skill (backup kept)
+
+After an update the release notes between the two versions are printed; a line
+starting with '!' is something this project has to do by hand.
 
 Unlike 'sddkit migrate', this never does a full skills/templates wipe: it diffs
 old-bundled vs new-bundled content per managed file and only touches files
@@ -3254,6 +3365,10 @@ run 'sddkit migrate --to vN' for that instead.
                    help="show what would change, write nothing")
     u.add_argument("--major", action="store_true",
                    help="allow a major update through the migration planner")
+    u.add_argument("--notes", action="store_true",
+                   help="print the release notes since the installed kit and exit; write nothing")
+    u.add_argument("--global-skill", action="store_true", dest="global_skill",
+                   help="also rewrite ~/.claude/skills/sdd/SKILL.md when it is stale (backup kept)")
     u.set_defaults(func=cmd_update)
 
     dr = sub.add_parser(

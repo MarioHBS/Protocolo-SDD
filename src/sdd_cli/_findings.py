@@ -49,6 +49,8 @@ _TEXT: dict[str, tuple[str, str]] = {
                                "have the agent finish its tasks, then delete the file (or delete it if you no longer need it)"),
     "cli_older_than_project": ("the installed sddkit is older than this project's kit",
                                "reinstall the CLI from the current checkout"),
+    "global_skill_stale": ("the global sdd skill {path} predates this kit",
+                           "sddkit update --global-skill (keeps a backup)"),
     "cold_file_oversized": ("{path} is {bytes} bytes", "keep it cold; trim its log rows"),
     "edd_missing_evals": ("stage {stage} has no evals.md", "sddkit scaffold {stage}"),
     "edd_spec_not_pointer": ("stage {stage} repeats acceptance criteria instead of pointing to evals.md", "sddkit migrate --edd-source-of-truth --dry-run"),
