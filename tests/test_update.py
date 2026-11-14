@@ -21,6 +21,7 @@ while the real bundled content plays "new".
 """
 from __future__ import annotations
 
+import hashlib
 import shutil
 import tomllib
 import types
@@ -308,7 +309,8 @@ def test_doctor_reports_eol_drift_and_fix_manifest_rerecords_it(tmp_path):
     readme = root / ".sdd" / "README.md"
     data = manifest.load(root)
     readme.write_bytes(readme.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
-    data["managed_files"][".sdd/README.md"] = manifest.hash_file(readme)   # recorded as CRLF
+    # recorded as CRLF, the way kits before 4.8.1 hashed the raw bytes
+    data["managed_files"][".sdd/README.md"] = hashlib.sha256(readme.read_bytes()).hexdigest()[:16]
     manifest.save(root, data)
     readme.write_bytes(readme.read_bytes().replace(b"\r\n", b"\n"))         # Git rewrote it to LF
     codes = [f["code"] for f in _doctor_payload(root)["findings"]]

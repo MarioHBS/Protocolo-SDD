@@ -22,7 +22,14 @@ MANIFEST_NAME = ".sdd-manifest.json"
 
 
 def hash_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    """The hash the manifest records: of the content with every line ending taken as LF (K-02).
+
+    Git and editors rewrite line endings after the kit wrote a file, so a hash of the raw bytes
+    drifts from the disk on the next checkout. Hashing the LF form makes the recorded value the
+    same whatever the checkout does; manifests written before keep working through
+    ``matches_recorded``, which still accepts the raw and CRLF forms.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()[:16]
 
 
 def hash_variants(path: Path) -> set[str]:
