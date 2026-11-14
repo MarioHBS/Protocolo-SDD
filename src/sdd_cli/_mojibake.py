@@ -109,13 +109,17 @@ def scan_file(path: Path) -> FileReport:
     return FileReport(path=path, v2=v2, v1=v1, is_utf8=is_utf8)
 
 
+# Exact copies kept by `sddkit fix --weight`: never audited or rewritten, or they stop being exact.
+BACKUP_DIR = ".pre-fix-backup"
+
+
 def scan_tree(root: Path, *, suffixes: tuple[str, ...] = (".md",)) -> list[FileReport]:
     """Scan every file under `root` whose suffix matches. Returns one FileReport
     per file that has at least one hit OR is not valid UTF-8 (clean files are
     omitted so the caller isn't flooded with no-ops)."""
     out: list[FileReport] = []
     for p in sorted(root.rglob("*")):
-        if not p.is_file() or p.suffix not in suffixes:
+        if not p.is_file() or p.suffix not in suffixes or BACKUP_DIR in p.parts:
             continue
         rep = scan_file(p)
         if rep.v2 or rep.v1 or not rep.is_utf8:

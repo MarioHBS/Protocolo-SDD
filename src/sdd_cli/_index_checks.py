@@ -193,6 +193,73 @@ def weight_findings(sdd: Path) -> list[dict]:
             if weight == WEIGHT_LIGHT and not reason]
 
 
+_SEPARATOR_RE = re.compile(r"^\s*\|[\s:|-]+\|\s*$")
+
+
+def _stage_index_span(text: str) -> tuple[int, int] | None:
+    """Offsets of section 5's body (canonical table and provisional queue) in the raw text."""
+    match = _headings.find_heading(text, "stage_index", 2) or re.search(r"(?m)^##\s+5\.[^\n]*$", text)
+    if not match:
+        return None
+    rest = text[match.end():]
+    end = re.search(r"(?m)^#{1,2}\s", rest)
+    return match.end(), match.end() + (end.start() if end else len(rest))
+
+
+def _with_cell(raw: str, cell: str, pad_to: int) -> str:
+    """``raw`` (a table line) with one more cell appended, padded to ``pad_to`` cells first."""
+    body = raw.rstrip("\r\n")
+    ending = raw[len(body):]
+    body = body.rstrip()
+    if not body.endswith("|"):
+        body += " |"
+    body += " |" * max(0, pad_to - len(_cells(body)))
+    return f"{body} {cell} |{ending}" if cell else f"{body} |{ending}"
+
+
+def add_weight_column(text: str) -> tuple[str, int]:
+    """Append an empty ``Weight`` column to every stage table of section 5 that has none.
+
+    Returns ``(new_text, tables_changed)``. Only tables with a ``Slug`` column are touched
+    (the canonical index and the provisional queue); a table that already has ``Weight`` or
+    ``Peso`` is left alone, so a second run changes nothing. Table-looking lines inside an HTML
+    comment are skipped, rows keep their own line ending, and a short row is padded so the new
+    cell lands in the new column. An empty cell reads as ``full``: no stage changes behaviour.
+    """
+    span = _stage_index_span(text)
+    if not span:
+        return text, 0
+    start, end = span
+    lines = text[start:end].splitlines(keepends=True)
+    out: list[str] = []
+    changed = 0
+    in_comment = False
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        was_in_comment = in_comment
+        for token in re.findall(r"<!--|-->", line):
+            in_comment = token == "<!--"
+        is_header = (not was_in_comment and not in_comment and line.lstrip().startswith("|")
+                     and i + 1 < len(lines) and _SEPARATOR_RE.match(lines[i + 1]))
+        header = [h.lower() for h in _cells(line)] if is_header else []
+        if not (is_header and "slug" in header and "weight" not in header and "peso" not in header):
+            out.append(line)
+            i += 1
+            continue
+
+        out.append(_with_cell(line, "Weight", len(header)))
+        sep = lines[i + 1]
+        sep_body = sep.rstrip("\r\n")
+        out.append(sep_body.rstrip() + "--------|" + sep[len(sep_body):])
+        i += 2
+        while i < len(lines) and lines[i].lstrip().startswith("|"):
+            out.append(_with_cell(lines[i], "", len(header)))
+            i += 1
+        changed += 1
+    return text[:start] + "".join(out) + text[end:], changed
+
+
 def milestone_findings(sdd: Path) -> list[dict]:
     constitution = sdd / "constitution.md"
     if not constitution.is_file():

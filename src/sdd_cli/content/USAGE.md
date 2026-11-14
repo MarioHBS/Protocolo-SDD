@@ -173,7 +173,8 @@ Repairs **deterministic** problems only; run with `--dry-run` first.
 | `--features` | Manifest features follow the constitution's Settings (the file you edit by hand). |
 | `--manifest` | Re-records the hash of managed files that differ from the manifest only by line endings (`manifest_eol_drift`). |
 | `--gitignore` | Opt-in: ignore agent worktree folders (`.kilo/worktrees`, ...) in `.gitignore`. |
-| `--all` | Everything except `--gitignore` (the default with no flag). |
+| `--weight` | Opt-in: add an empty `Weight` column to the stage index (section 5, canonical table and provisional queue) when it has none. A copy of `constitution.md` is kept in `.sdd/.pre-fix-backup/<timestamp>/`; running it twice changes nothing. |
+| `--all` | Everything except `--gitignore` and `--weight` (the default with no flag). |
 
 Exit status: `0` nothing to repair, `1` repairs applied (or, with `--dry-run`,
 would be), `2` something needs a human.

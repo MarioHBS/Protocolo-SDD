@@ -1319,7 +1319,9 @@ def cmd_fix(args) -> None:
     use_features = bool(getattr(args, "features", False) or getattr(args, "all", False))
     use_gitignore = bool(getattr(args, "gitignore", False))  # opt-in: never part of --all
     use_manifest = bool(getattr(args, "manifest", False) or getattr(args, "all", False))
-    if not (use_mojibake or use_eol or use_links or use_features or use_gitignore or use_manifest):
+    use_weight = bool(getattr(args, "weight", False))  # opt-in: rewrites the owner's stage index
+    if not (use_mojibake or use_eol or use_links or use_features or use_gitignore or use_manifest
+            or use_weight):
         use_mojibake = use_eol = use_links = use_features = use_manifest = True
     repairs: list[dict] = []
     unresolved: list[dict] = []
@@ -1334,7 +1336,8 @@ def cmd_fix(args) -> None:
             unresolved.append({"kind": "invalid_utf8", "path": rel})
     if use_eol:
         for path in sorted(sdd.rglob("*")):
-            if not path.is_file() or path.suffix not in {".md", ".json"}:
+            if (not path.is_file() or path.suffix not in {".md", ".json"}
+                    or _mojibake.BACKUP_DIR in path.parts):
                 continue
             try:
                 raw = path.read_bytes()
@@ -1382,6 +1385,25 @@ def cmd_fix(args) -> None:
                 for rel in drifted:
                     data["managed_files"][rel] = manifest.hash_file(root / rel)
                 manifest.save(root, data)
+    if use_weight:
+        if not constitution.is_file():
+            unresolved.append({"kind": "weight_without_constitution", "path": ".sdd/constitution.md"})
+        else:
+            # Raw bytes in, raw bytes out: the owner's line endings and encoding stay as they are.
+            original = constitution.read_bytes()
+            try:
+                new_text, tables = _index_checks.add_weight_column(original.decode("utf-8"))
+            except UnicodeDecodeError:
+                unresolved.append({"kind": "invalid_utf8", "path": ".sdd/constitution.md"})
+                tables = 0
+            if tables:
+                repairs.append({"kind": "weight_column", "path": ".sdd/constitution.md", "tables": tables})
+                if not dry_run:
+                    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+                    backup = sdd / ".pre-fix-backup" / stamp
+                    backup.mkdir(parents=True, exist_ok=True)
+                    (backup / "constitution.md").write_bytes(original)
+                    constitution.write_bytes(new_text.encode("utf-8"))
     if use_gitignore:
         if not (root / ".git").exists():
             unresolved.append({"kind": "gitignore_without_git", "path": ".gitignore"})
@@ -3409,6 +3431,8 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
                     help="re-record hashes of managed files that differ from the manifest only by line endings")
     fx.add_argument("--gitignore", action="store_true",
                     help="opt-in: ignore agent worktree folders (.kilo/worktrees, ...) in .gitignore")
+    fx.add_argument("--weight", action="store_true",
+                    help="opt-in: add an empty Weight column to the stage index (backup kept)")
     fx.add_argument("--dry-run", action="store_true", help="report repairs without writing")
     fx.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     fx.set_defaults(func=cmd_fix)
