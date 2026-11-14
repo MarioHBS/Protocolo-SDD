@@ -93,10 +93,29 @@ Write all artifacts in the language set in
      rather than recalled from memory?** (database behavior, migration numbers,
      API contracts, what is actually deployed). Actually verify — do not assume.
    - Does anything here contradict or undo an earlier stage? (see anti-regression)
-   - If subagents exist, delegate the audit to one reading the spec cold. If a
-     high-risk operation is involved, isolate it in a dedicated subagent.
+   - If a high-risk operation is involved, isolate it in a dedicated subagent.
 
-   Fix until it passes, then set `Status: locked`.
+   **How much review follows the stage's weight** (the `Weight` column of §5; empty
+   or missing means `full`):
+
+   - **`light`:** the basic review above, plus `sddkit doctor` (and `sddkit track
+     check` inside a track), is enough. Fix until it passes, then set `Status: locked`.
+     If the basic review finds a BLOCKER, raise the stage to `full`.
+   - **`full`:** also run the **`sdd-audit`** skill — with a subagent when the host has
+     one (Claude Code installs `.claude/agents/sdd-audit.md`), so the reader is not the
+     author; otherwise follow the skill yourself and mark the round `Mode: self-audit`.
+     Record each round in `stages/NNN-<slug>/audit.md` (from
+     `templates/audit.template.md`), fix what it found, and ask for another round until
+     the verdict is `READY TO LOCK`. Then set `Status: locked` and add the header line
+     `- **Locked-by-audit:** round N · YYYY-MM-DD · fixed B/M · dismissed D`.
+   - **A trigger forces `full`.** If `.sdd/audit-lenses.md` (a file the project owns) lists a
+     path under `## Triggers` that this stage's `Touches` reaches, the stage is `full`.
+     Lowering it to `light` needs a written reason in the `Weight` cell and the owner's
+     agreement. `sddkit doctor` reports a `light` stage that hits a trigger.
+
+   Fix until it passes, then set `Status: locked`. `sddkit doctor` notes a locked, still-open
+   `full` stage that has no `Locked-by-audit:` line, and warns when the line disagrees
+   with `audit.md`.
 
 7. **Release implementation.** Only with the spec `locked`: `State: IMPLEMENTING`,
    `Next action: implement the active stage following stages/NNN-<slug>/spec.md`,

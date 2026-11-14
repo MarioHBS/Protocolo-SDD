@@ -126,7 +126,7 @@ INITIALIZING -> DECIDING -> ROADMAP -> +- SPECIFYING -> IMPLEMENTING -> CLOSING 
      IMPLEMENTING -- (structural decision mid-flight) --> DECIDING -> IMPLEMENTING
 ```
 
-Four skills are **cross-cutting utilities**, not phases, and may be invoked in
+Five skills are **cross-cutting utilities**, not phases, and may be invoked in
 any state:
 
 - `sdd-reconcile` — realign the indexes with disk.
@@ -137,6 +137,9 @@ any state:
   outside a project, in any AI chat; `sddkit discover` explains the flow and prints the
   skill's path, and `sddkit discover --check FILE --against .` compares the planned
   stages with this project's.
+- `sdd-audit` — the cold audit of a spec before it is locked (step 6 of `sdd-specify`):
+  required for a `full` stage, recorded in `audit.md` and in a `Locked-by-audit:` line of
+  the spec, read-only, with a subagent when the host has one. A `light` stage skips it.
 - `sdd-track` — open, govern and merge **parallel tracks**: two or more
   stages worked at the same time by separate agent sessions, without git
   worktrees. See "Parallel tracks" below.
@@ -339,4 +342,6 @@ recommended.
   loose action in the main conversation and keeps the main context clean. IDEs
   without subagents replicate the same checklist manually.
 - **Cold-read self-audit via subagent.** Delegating spec/constitution audits to
-  a subagent that reads cold catches assumptions the author cannot see.
+  a subagent that reads cold catches assumptions the author cannot see. For a spec this is
+  the `sdd-audit` skill; Claude Code gets its read-only subagent installed. A project's own
+  lenses and the paths that force a full audit go in `.sdd/audit-lenses.md`.

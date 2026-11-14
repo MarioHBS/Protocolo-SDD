@@ -21,6 +21,7 @@ Do this, in order:
 Cross-cutting utilities, valid in any state: `sdd-reconcile` (realign the
 indexes with disk) and `sdd-document` (only when the Documentation feature is
 on).
+Before locking a spec, a `full` stage is audited cold with `sdd-audit` (step 6 of `sdd-specify`); a `light` stage needs only the basic review.
 Load `sdd-track` only when `Parallel tracks: on`; cold files stay unread unless needed.
 Use `sdd-discover` (`sddkit discover` explains it) to re-check the project's scope: it interviews the owner and writes `discovery.md`/`discovery.json`; compare with `sddkit discover --check FILE --against .`.
 If the working directory is a linked git worktree (`.git` is a file, not a folder), `.sdd/` here is a stale copy: stop and continue from the main checkout.

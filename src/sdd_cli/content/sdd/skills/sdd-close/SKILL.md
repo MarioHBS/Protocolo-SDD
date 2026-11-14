@@ -44,7 +44,10 @@ Write all artifacts in the language set in
 3. **Write `report.md`** from `templates/report.template.md`, including the
    **Ground-truth verification** section (each claim → how it was confirmed).
    Record divergences from the spec (§7 of the report) and deliberately deferred
-   debt (§8).
+   debt (§8). If the spec carries a `Locked-by-audit:` line, copy it into the report
+   (rounds, `fixed B/M`, dismissed) next to what the stage actually delivered, and note any
+   gap the audit missed that surfaced during implementation: that is what shows whether
+   the audit paid for itself.
 
 4. **Verify `todo.md` is fully checked off.** Walk the stage's `todo.md` and
    confirm every task is resolved: `- [x]` done, `- [-]` not applicable (with

@@ -15,6 +15,9 @@
   - stability-sensitive: no   <!-- yes = accepted by running the app; cannot overlap a mutating track -->
 <!-- Use the line below only if this stage alters something already delivered: -->
 <!-- - **Supersedes (partially):** [stage/decision] — what changes, what remains -->
+<!-- Add this line when locking a `full` stage, after the sdd-audit verdict READY TO LOCK
+     (the rounds live in audit.md): -->
+<!-- - **Locked-by-audit:** round N · YYYY-MM-DD · fixed B/M · dismissed D -->
 
 ---
 
@@ -91,3 +94,11 @@ with its own `Origin` — never a silent expansion.
 ## 6. Risks / watch points
 
 - [what could go wrong and how to mitigate; anything touching other stages]
+
+<!-- Optional. Use it when the design stands on a premise about a system you cannot read from
+     the files (a database, a deployment, a third-party service): -->
+### To measure before implementing
+
+<!-- | Measurement | Owner | When | Outcome |
+     |-------------|-------|------|---------|
+     | [what to measure, and what result would change the design] | [who] | [before task N] | [filled in] | -->
