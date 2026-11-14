@@ -172,7 +172,8 @@ locked, add to the spec's header:
 
 `fixed B/M` counts the BLOCKER and MAJOR findings whose last state is `fixed`; `dismissed` counts the
 findings the owner dispensed with, each with its reason in the table. `sddkit doctor` reports a
-locked, still-open `full` stage with no such line (`lock_without_audit`, a note) and a line that
+locked, still-open `full` stage with no such line (`lock_without_audit`, a note; not one already in
+`CLOSING` or with every `todo.md` item done) and a line that
 disagrees with `audit.md` (`lock_audit_mismatch`, a warning). `sdd-close` copies the numbers into the
 stage `report.md`.
 

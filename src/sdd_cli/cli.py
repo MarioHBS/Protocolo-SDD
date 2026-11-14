@@ -1012,6 +1012,21 @@ def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str 
     return (state.group(1) if state else None, (ticked.group(1) if ticked else raw).strip())
 
 
+def _closing_stages(root: Path) -> frozenset[str]:
+    """Stages the project (or one of its tracks) already moved to ``CLOSING``."""
+    scopes: list[str | None] = [None]
+    tracks = root / ".sdd" / "tracks"
+    if tracks.is_dir():
+        scopes += [p.name for p in sorted(tracks.iterdir()) if (p / "state.md").is_file()]
+    found = set()
+    for scope in scopes:
+        state, stage = _scope_state(root, scope)
+        if state == "CLOSING" and stage:
+            found.add(stage)
+            found.add(re.sub(r"^\d+[A-Za-z]?-", "", stage))
+    return frozenset(found)
+
+
 def _eval_ids_in(path: Path) -> set[str]:
     """Every ``E-NNN`` id mentioned in a file; empty when the file does not exist."""
     if not path.is_file():
@@ -1169,7 +1184,8 @@ def _doctor_payload(root: Path) -> dict:
     findings.extend(_index_checks.backlog_findings(sdd))
     findings.extend(_index_checks.milestone_findings(sdd))
     findings.extend(_index_checks.weight_findings(sdd))
-    findings.extend(_index_checks.audit_findings(sdd, _index_checks.stage_weights(sdd)))
+    findings.extend(_index_checks.audit_findings(sdd, _index_checks.stage_weights(sdd),
+                                                 _closing_stages(root)))
     findings.extend(_docs_plan.findings(root))
     saved_session = _session.load(root)
     for issue in _session.validate(root, saved_session):

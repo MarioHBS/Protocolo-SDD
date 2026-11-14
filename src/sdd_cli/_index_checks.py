@@ -304,9 +304,26 @@ def _lock_mismatch(header: str, record: dict) -> list[str]:
     return problems
 
 
-def audit_findings(sdd: Path, weights: dict[str, str]) -> list[dict]:
+_OPEN_BOX_RE = re.compile(r"(?m)^\s*[-*]\s*\[ \]")
+_ANY_BOX_RE = re.compile(r"(?m)^\s*[-*]\s*\[[^\]]\]")
+
+
+def _all_done(stage: Path) -> bool:
+    """A ``todo.md`` with items and none of them still open: the work is finished, only not closed."""
+    todo = stage / "todo.md"
+    if not todo.is_file():
+        return False
+    text = _read(todo)
+    return bool(_ANY_BOX_RE.search(text)) and not _OPEN_BOX_RE.search(text)
+
+
+def audit_findings(sdd: Path, weights: dict[str, str], closing: frozenset[str] = frozenset()) -> list[dict]:
     """The spec-lock gate, as far as a file can show it. Only stages still open are looked at (a
     closed stage has its ``report.md``), so nothing is ever asked of work already finished.
+
+    ``closing`` names the stages the project already moved to ``CLOSING``. The kit never saw those
+    specs being locked, and an audit of a spec that is already implemented guards nothing, so
+    ``lock_without_audit`` skips them, and any stage whose ``todo.md`` has no open item (K-03).
 
     * ``lock_without_audit`` (note): a locked ``full`` stage with no ``Locked-by-audit:`` line.
     * ``lock_audit_mismatch`` (warn): that line disagrees with ``audit.md``, or ``audit.md`` is missing.
@@ -323,7 +340,8 @@ def audit_findings(sdd: Path, weights: dict[str, str]) -> list[dict]:
         slug = stage.name.split("-", 1)[-1]
         weight = weights.get(stage.name) or weights.get(slug) or WEIGHT_FULL
         header = _LOCKED_BY_RE.search(text)
-        if _LOCKED_RE.search(text) and weight == WEIGHT_FULL and not header:
+        finished = stage.name in closing or slug in closing or _all_done(stage)
+        if _LOCKED_RE.search(text) and weight == WEIGHT_FULL and not header and not finished:
             findings.append({"severity": "note", "code": "lock_without_audit", "stage": stage.name})
         if header:
             audit = stage / "audit.md"
