@@ -59,6 +59,11 @@ _V2_BYTE_RE = re.compile(rb"\xc3\x83\xc2[\x80-\xbf]")
 # `ca??o`, `pr?pri`. Deliberately a *suspect* detector, never auto-fixed.
 _V1_BYTE_RE = re.compile(rb"[A-Za-z]\?[A-Za-z?]")
 
+# The `?` that opens a URL query string -- `/reports?range=2026-13`, `x?a=1&b=2` -- also sits
+# between two letters, but a lost accent is never followed by `name=`. A hit whose right-hand side
+# reads like a query parameter is a URL, not corruption (K-04, P1/IP-013). `m?s` still counts.
+_QUERY_PARAM_RE = re.compile(rb"[A-Za-z_][A-Za-z0-9_.\-\[\]]*=")
+
 
 @dataclass
 class Hit:
@@ -100,7 +105,8 @@ def scan_file(path: Path) -> FileReport:
     first, because a non-UTF-8 file would raise before we could classify it."""
     raw = path.read_bytes()
     v2 = [_make_hit("v2", m, raw) for m in _V2_BYTE_RE.finditer(raw)]
-    v1 = [_make_hit("v1", m, raw) for m in _V1_BYTE_RE.finditer(raw)]
+    v1 = [_make_hit("v1", m, raw) for m in _V1_BYTE_RE.finditer(raw)
+          if not _QUERY_PARAM_RE.match(raw, m.start() + 2)]
     try:
         raw.decode("utf-8")
         is_utf8 = True
