@@ -251,7 +251,8 @@ def test_install_registers_both_hooks_once(tmp_path):
     assert len(data["hooks"]["PreToolUse"]) == 1 and len(data["hooks"]["PostToolUse"]) == 1
     group = data["hooks"]["PreToolUse"][0]
     assert group["matcher"] == "Edit|Write|MultiEdit"
-    assert group["hooks"][0]["command"] == "sddkit hooks run pre-edit"
+    assert group["hooks"][0]["command"] == "sddkit hooks run pre-edit || true"
+    assert group["hooks"][0]["shell"] == "bash"
 
 
 def test_install_keeps_the_owners_settings_and_hooks(tmp_path):
@@ -278,7 +279,7 @@ def test_uninstall_removes_only_the_kits_entries(tmp_path):
     path.write_text(json.dumps({"model": "x", "hooks": {"PreToolUse": [own_group]}}), encoding="utf-8")
     _hooks.install(root, CLI)
     result = _hooks.uninstall(root, CLI)
-    assert sorted(result["removed"]) == ["sddkit hooks run post-edit", "sddkit hooks run pre-edit"]
+    assert sorted(result["removed"]) == ["sddkit hooks run post-edit || true", "sddkit hooks run pre-edit || true"]
     assert _settings(root) == {"model": "x", "hooks": {"PreToolUse": [own_group]}}
 
 

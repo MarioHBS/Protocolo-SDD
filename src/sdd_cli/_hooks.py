@@ -127,6 +127,12 @@ def settings_path(root: Path, local: bool = False) -> Path:
     return root / ".claude" / ("settings.local.json" if local else "settings.json")
 
 
+def command(event: str, cli_name: str) -> str:
+    """The shell line the provider runs. ``|| true`` is not decoration: an older kit that lacks
+    ``hooks`` exits 2 on the argparse error, and for Claude Code exit 2 blocks the edit."""
+    return f"{cli_name} hooks run {event} || true"
+
+
 def _is_ours(command: object, cli_name: str) -> bool:
     return isinstance(command, str) and command.startswith(f"{cli_name} hooks run ")
 
@@ -169,12 +175,14 @@ def install(root: Path, cli_name: str, local: bool = False) -> dict:
     hooks = data.setdefault("hooks", {})
     added = []
     for name, event in EVENTS.items():
-        command = f"{cli_name} hooks run {name}"
+        line = command(name, cli_name)
         groups = hooks.setdefault(event, [])
-        if command in _commands(groups, cli_name):
+        if line in _commands(groups, cli_name):
             continue
-        groups.append({"matcher": EDIT_MATCHER,
-                       "hooks": [{"type": "command", "command": command, "timeout": _TIMEOUTS[name]}]})
+        # shell=bash: the `|| true` above is not valid in Windows PowerShell 5.1, which is what
+        # Claude Code falls back to when Git Bash is missing; without bash the hook just does not run.
+        groups.append({"matcher": EDIT_MATCHER, "hooks": [
+            {"type": "command", "command": line, "shell": "bash", "timeout": _TIMEOUTS[name]}]})
         added.append(name)
     if added:
         _write(path, data)
@@ -219,6 +227,6 @@ def status(root: Path, cli_name: str) -> dict:
         except ValueError:
             continue
         for name, event in EVENTS.items():
-            if f"{cli_name} hooks run {name}" in _commands(hooks.get(event, []), cli_name):
+            if command(name, cli_name) in _commands(hooks.get(event, []), cli_name):
                 registered[name].append(path.name)
     return {"hooks": registered, "installed": all(registered.values())}
