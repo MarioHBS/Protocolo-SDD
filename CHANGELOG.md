@@ -1,5 +1,23 @@
 # Changelog — sdd-cli
 
+## [4.9.0] — In progress
+
+Checks that depended on someone remembering to run a command now run by themselves, through
+Claude Code hooks, where the provider has them. The commands stay as they are.
+
+### Added
+
+- H-01: `sddkit track guard FILE` reports which active tracks claim a file (exit 1 when two do), and
+  the `pre-edit` hook turns that into an `ask`, so the owner confirms an edit that can collide. It
+  never denies.
+- H-02: the `post-edit` hook runs `doctor` when a stage `report.md` is written and hands the counts
+  to the agent in the same session. Other `.md` files do not trigger it.
+- H-03: with the session's track known (`--track`, `SDD_TRACK`, or the branch recorded by
+  `track claim --branch`), the same hook warns when the edited file is outside that track's footprint.
+- H-04: `sddkit hooks install|uninstall|status` registers and removes the hooks in
+  `.claude/settings.json` (or `settings.local.json`) by merging, never overwriting; invalid
+  settings are refused and left untouched. Opt-in: `init` and `update` do not register hooks.
+
 ## [4.8.2] — In progress
 
 One adjustment found when four projects took 4.8.1 (P2, P3, P4, P7).

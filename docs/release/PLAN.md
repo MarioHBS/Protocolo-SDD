@@ -21,7 +21,7 @@ Origem: estágio 09 do plano privado (H-01..H-03), promovido do `A-07` por decis
 
 ## Itens
 
-- **H-01** `sddkit track guard --path <arquivo>`: diz quais trilhas ativas reivindicam o caminho.
+- **H-01** `sddkit track guard <arquivo>`: diz quais trilhas ativas reivindicam o caminho.
   Caminho reivindicado por duas ou mais trilhas = colisão. No hook, vira `permissionDecision: ask`
   (o dono confirma); nunca `deny`.
 - **H-02** hook `PostToolUse` em `Write|Edit|MultiEdit` cujo caminho case `.sdd/**/report.md` roda o

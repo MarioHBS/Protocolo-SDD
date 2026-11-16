@@ -5,6 +5,13 @@ kit and the bundled one; `sddkit update --notes` prints them again without chang
 A line starting with `Manual action:` is something the project has to do by hand, because the
 kit never edits the constitution or any other file you own.
 
+## 4.9.0
+
+- New `sddkit hooks install` registers two Claude Code hooks in `.claude/settings.json` (`--local`: `.claude/settings.local.json`), next to yours. It is opt-in: `init` and `update` never register a hook, and `sddkit hooks uninstall` removes only what the kit wrote.
+- Before an edit, the `pre-edit` hook asks you to confirm when two active tracks claim the file, and warns when the session's track does not claim it. It never denies. After a stage `report.md` is written, the `post-edit` hook runs `doctor` and reports the count to the agent.
+- New `sddkit track guard FILE` gives the same answer by hand, so a project without hooks (or on another provider: only Claude Code has a tool hook) loses nothing.
+- Manual action: to let the hooks tell which track a session works for, run `sddkit track claim <slug> ... --branch <name>` for a track on its own branch, or set `SDD_TRACK=<slug>` in that session; without either, only a collision is reported.
+
 ## 4.8.2
 
 - `sddkit doctor` tells a kit backup folder Git already tracks (`backup_tracked`) from one Git merely sees (`backup_not_ignored`), because `.gitignore` does not stop a folder that is already committed. `sddkit fix --gitignore` no longer appends the same line again, and lists a tracked folder as unfixable.
