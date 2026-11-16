@@ -1,15 +1,19 @@
-# TODO — sdd-cli 4.8.2
+# TODO — sdd-cli 4.9.0
 
 ## Items
 
-- [x] K-05 — `backup_tracked` no `doctor`; `fix --gitignore` sem linha duplicada e com `unfixable` para pasta rastreada
+- [ ] H-01 — `sddkit track guard --path` (colisão de footprint) e o hook `pre-edit` com `ask`
+- [ ] H-03 — aviso de caminho fora do footprint da trilha da sessão (`additionalContext`)
+- [ ] H-02 — hook `post-edit` roda o `doctor` quando `report.md` muda
+- [ ] H-04 — `sddkit hooks install|uninstall|status` com merge no `.claude/settings.json`
+- [ ] Skill `sdd-track`, `USAGE.md` e `RELEASE-NOTES.md` citam os hooks e o fallback manual
 
 ## Gate
 
-- [x] `python -m pytest -q` e `ruff check src tests` verdes; testes novos do K-05
-- [x] Repositório de teste com backup commitado: nota `backup_tracked`, `fix --gitignore`, `git rm -r --cached`, nota some
-- [x] Cópia do P4 antes do commit `d2579c0`: não foi possível clonar (nome longo no Windows); caso reproduzido em repositório de teste
-- [x] `update --dry-run` na cópia dos 9 projetos: nada gravado
-- [x] `CHANGELOG.md` e `RELEASE-NOTES.md` citam K-05; versão em `pyproject.toml` e `content/VERSION`
-- [x] `docs/release/NOTES.md`
-- [x] tag `v4.8.2`, fast-forward `main`, push de branch, tag e `main`
+- [ ] `python -m pytest -q` e `ruff check src tests` verdes; testes novos de H-01..H-04
+- [ ] Projeto de teste com e sem hook: `track check`, `track guard` e `doctor` à mão iguais nos dois
+- [ ] Hook real do Claude Code disparado numa edição (ask na colisão, aviso fora do footprint)
+- [ ] `update --dry-run` na cópia dos projetos reais: nada gravado, `settings.json` intocado
+- [ ] `CHANGELOG.md` e `RELEASE-NOTES.md` citam H-01..H-04; versão em `pyproject.toml` e `content/VERSION`
+- [ ] `docs/release/NOTES.md`
+- [ ] tag `v4.9.0`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
