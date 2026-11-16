@@ -15,7 +15,7 @@ Commands by purpose:
 |---------|----------|
 | Set up | `sddkit init`, `sddkit providers`, `sddkit update`, `sddkit migrate` |
 | Diagnose | `sddkit doctor`, `sddkit fix`, `sddkit health`, `sddkit context`, `sddkit evaluate` |
-| Work | `sddkit session`, `sddkit scaffold`, `sddkit track`, `sddkit seq`, `sddkit deps`, `sddkit impact` |
+| Work | `sddkit session`, `sddkit scaffold`, `sddkit track`, `sddkit hooks`, `sddkit seq`, `sddkit deps`, `sddkit impact` |
 | Document | `sddkit document`, `sddkit manual` |
 | Observe | `sddkit dashboard` |
 | Feedback | `sddkit proposals` |
@@ -229,7 +229,7 @@ For a stage with a **locked** `spec.md`, creates the missing `todo.md` (from the
 spec's acceptance criteria) and, with Eval Driven Development on, `evals.md` and
 `checklist.md`. Never overwrites.
 
-### `sddkit track <claim|check|verify|incorporate|close>`
+### `sddkit track <claim|check|verify|guard|incorporate|close>`
 
 Parallel tracks share **one working tree**, so nothing physical keeps two agent
 sessions apart. The CLI makes the separation checkable: two stages may live in
@@ -244,6 +244,10 @@ they need exclusively.
 - `sddkit track verify SLUG [--since REV]` fails when real Git changes (untracked
   files included) fall outside every claim, or inside two. A file that only a
   sibling track claims is that track's work and is ignored.
+- `sddkit track guard FILE [PATH] [--track SLUG] [--json]` says which active tracks claim one file, before it is
+  edited: exit 1 when two tracks claim it (`track_shared_touch`) or when the session's track does not
+  (`track_outside_footprint`). The session's track is `--track`, then `SDD_TRACK`, then the branch a track
+  recorded with `track claim --branch`; with none of them only a collision is reported. `.sdd/` is never flagged.
 - `sddkit track incorporate SLUG STAGE [--dry-run]` moves a **closed** track stage into
   the canonical queue: under a lock it takes the next free number (disk, section 5
   and the ledger), renames the folder, appends the index row and releases the
@@ -257,6 +261,30 @@ they need exclusively.
 Agents such as Kilo Code create git **worktrees** on their own: each is a full
 copy including a stale `.sdd/`. `sddkit doctor` reports them; `sddkit fix --gitignore`
 ignores them; exclude them from your test, lint and type-check globs too.
+
+### `sddkit hooks <install|uninstall|status>`
+
+Claude Code can run the track and doctor checks by itself, so they do not depend on someone remembering
+them. It is **opt-in**: `init` and `update` never register a hook, because a hook runs a command on your
+machine at every edit. Only the `claude` provider has a tool hook; for the others, `track check`,
+`track guard` and `doctor` by hand are the same checks.
+
+- `sddkit hooks install [PATH] [--local]` adds two hooks to `.claude/settings.json` (`--local`: to
+  `.claude/settings.local.json`, which is not committed), next to yours. Running it twice adds nothing; a
+  settings file that is not valid JSON is refused and left untouched.
+- `sddkit hooks uninstall [PATH] [--local]` removes only the entries the kit wrote.
+- `sddkit hooks status [PATH] [--json]` shows which hooks are on, and which installed providers have none.
+
+What the two hooks do (both match `Edit|Write|MultiEdit`):
+
+| Hook | When | What |
+|------|------|------|
+| `pre-edit` | before a file is edited | `ask` (you confirm) when two active tracks claim the file; a plain warning when the session's track does not claim it. Never `deny`. |
+| `post-edit` | after a stage `report.md` is written | runs `doctor` and tells the agent how many errors and warnings it found. Other `.md` files do not trigger it. |
+
+A hook never fails the edit it watches: bad input or an internal error answers nothing, and if `sddkit` is
+not on the PATH Claude Code shows a non-blocking error and the edit goes ahead. `sddkit hooks run EVENT` is
+what the provider calls; it is not meant to be typed.
 
 ### `sddkit seq next NAME [PATH] [--track SLUG] [--json]`
 

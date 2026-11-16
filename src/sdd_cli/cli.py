@@ -21,6 +21,7 @@ from . import (
     _deps,
     _docs_plan,
     _findings,
+    _hooks,
     _index_checks,
     _mojibake,
     _proposals,
@@ -1683,6 +1684,32 @@ def cmd_track(args) -> None:
                 moved = "would move" if args.dry_run else "moved"
                 print(f"  {moved} to {result['archived_to']}")
         return
+    if args.track_command == "guard":
+        try:
+            rel = _hooks.relative_path(root, args.file)
+            if rel is None:
+                die(f"{args.file} is outside the project {root}")
+            result = {"command": "track guard", "project": str(root),
+                      **_tracks.guard(root, rel, args.track)}
+        except ValueError as exc:
+            die(str(exc))
+        result["status"] = 1 if result["findings"] else 0
+        if args.json:
+            _emit_json(result)
+        elif result["findings"]:
+            for finding in result["findings"]:
+                if finding["kind"] == "track_shared_touch":
+                    print(f"{finding['kind']}: {finding['path']} ({', '.join(finding['tracks'])})")
+                else:
+                    owner = f"; owned by {', '.join(finding['owned_by'])}" if finding["owned_by"] else ""
+                    print(f"{finding['kind']}: {finding['path']} (track {finding['track']}{owner})")
+            print(dim("Declare the path with 'track claim' if the track owns it, or sequence the later stage."))
+        else:
+            who = f" for track {result['track']}" if result["track"] else ""
+            print(f"{result['path']}: no track conflict{who}")
+        if result["findings"]:
+            raise SystemExit(1)
+        return
     try:
         conflicts = _tracks.check(root)
     except ValueError as exc:
@@ -1700,6 +1727,53 @@ def cmd_track(args) -> None:
         print("track claims clean")
     if conflicts:
         raise SystemExit(1)
+
+
+def cmd_hooks(args) -> None:
+    if args.hooks_command == "run":
+        # Called by the provider on every edit: read stdin, answer in JSON, never fail the edit.
+        raw = sys.stdin.buffer.read().decode("utf-8", errors="replace") if not sys.stdin.isatty() else ""
+        answer = _hooks.run(args.event, raw, _doctor_payload)
+        if answer:
+            sys.stdout.write(answer + "\n")
+        return
+    root = Path(args.path).resolve()
+    if not (root / ".sdd").is_dir():
+        die(f"no .sdd/ found in {root}")
+    if args.hooks_command == "status":
+        found = _hooks.status(root, CLI_NAME)
+        unsupported = [p for p in (manifest.load(root) or {}).get("providers", []) if p != "claude"]
+        found["unsupported_providers"] = unsupported
+        if args.json:
+            _emit_json({"command": "hooks status", "project": str(root), **found})
+            return
+        for name, files in found["hooks"].items():
+            print(f"  {name:<10} {green('on')} {dim('(' + ', '.join(files) + ')')}" if files
+                  else f"  {name:<10} {yellow('off')}")
+        if unsupported:
+            print(dim("  no tool hook in: " + ", ".join(unsupported)
+                      + f" -- use '{CLI_NAME} track check' and '{CLI_NAME} doctor' by hand there"))
+        if not found["installed"]:
+            print(dim(f"Next: {CLI_NAME} hooks install"))
+        return
+    try:
+        if args.hooks_command == "install":
+            result = _hooks.install(root, CLI_NAME, args.local)
+        else:
+            result = _hooks.uninstall(root, CLI_NAME, args.local)
+    except ValueError as exc:
+        die(str(exc))
+    changed = result.get("added") or result.get("removed")
+    if args.json:
+        _emit_json({"command": f"hooks {args.hooks_command}", "project": str(root),
+                    "file": str(result["file"]), **{k: v for k, v in result.items() if k != "file"}})
+        return
+    verb = "installed" if args.hooks_command == "install" else "removed"
+    if changed:
+        print(f"{verb} {len(changed)} hook(s) in {result['file']}")
+    else:
+        print(f"nothing to do: {result['file']} already "
+              + ("has the hooks" if args.hooks_command == "install" else "has none of the kit's hooks"))
 
 
 def cmd_seq(args) -> None:
@@ -3301,6 +3375,26 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                     "remain, marks state.md CLOSED, drops its Active tracks row, optionally archives the "
                     "folder under .sdd/tracks/_closed/.",
                     "sddkit track close billing --dry-run\nsddkit track close billing --archive"),
+    "track guard": ("Say which active tracks claim one file before it is edited: exit 1 when two tracks claim it "
+                    "(a collision) or when the session's track does not claim it. The session's track is "
+                    "--track, then SDD_TRACK, then the branch a track recorded with 'track claim --branch'. "
+                    "This is what the pre-edit hook runs; by hand it needs no hook.",
+                    "sddkit track guard src/app.py\nsddkit track guard src/app.py --track billing --json"),
+    "hooks": ("Let Claude Code run the track and doctor checks by itself: a pre-edit hook asks before a file "
+              "two tracks claim is edited and warns outside the session track's footprint; a post-edit hook "
+              "runs doctor when a stage report.md is written. Opt-in; no other provider has a tool hook, "
+              "and the same checks stay available by hand.",
+              "sddkit hooks install\nsddkit hooks status\nsddkit hooks uninstall"),
+    "hooks install": ("Register the hooks in .claude/settings.json, next to yours; running it twice adds "
+                      "nothing. --local writes .claude/settings.local.json (not committed) instead.",
+                      "sddkit hooks install\nsddkit hooks install --local"),
+    "hooks uninstall": ("Remove only the hooks the kit registered; your own hooks and settings stay.",
+                        "sddkit hooks uninstall"),
+    "hooks status": ("Show which hooks are registered, and which installed providers have no tool hook.",
+                     "sddkit hooks status --json"),
+    "hooks run": ("Answer one hook call: reads the provider's JSON on stdin, prints JSON, never fails the "
+                  "edit it watches. The provider runs this; you do not.",
+                  "echo '{}' | sddkit hooks run pre-edit"),
     "seq": ("Hand out numbers of a shared sequence (for example database migrations) exactly once.",
             "sddkit seq next migration --track billing"),
     "seq next": ("Reserve the next number in .sdd/.reservations.json. Sequences are declared in the "
@@ -3636,6 +3730,29 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     close.add_argument("--dry-run", action="store_true", help="show what would change, write nothing")
     close.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     close.set_defaults(func=cmd_track)
+    guard = track_sub.add_parser(
+        "guard", help="say which tracks claim a file before it is edited (what the pre-edit hook runs)")
+    guard.add_argument("file", help="file to check (project-relative or absolute)")
+    guard.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    guard.add_argument("--track", help="the session's track (default: SDD_TRACK, then the branch)")
+    guard.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    guard.set_defaults(func=cmd_track)
+
+    hooks = sub.add_parser("hooks", help="let Claude Code run the track and doctor checks by itself")
+    hooks_sub = hooks.add_subparsers(dest="hooks_command", required=True)
+    for name, text in (("install", "register the hooks in .claude/settings.json (opt-in)"),
+                       ("uninstall", "remove only the hooks the kit registered"),
+                       ("status", "show which hooks are registered")):
+        item = hooks_sub.add_parser(name, help=text)
+        item.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+        if name != "status":
+            item.add_argument("--local", action="store_true",
+                              help="use .claude/settings.local.json (not committed) instead of settings.json")
+        item.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+        item.set_defaults(func=cmd_hooks)
+    hook_run = hooks_sub.add_parser("run", help="answer one hook call (the provider runs this; reads JSON on stdin)")
+    hook_run.add_argument("event", choices=sorted(_hooks.EVENTS), help="hook event")
+    hook_run.set_defaults(func=cmd_hooks)
 
     seq = sub.add_parser("seq", help="reserve a shared numeric sequence")
     seq_sub = seq.add_subparsers(dest="seq_command", required=True)
