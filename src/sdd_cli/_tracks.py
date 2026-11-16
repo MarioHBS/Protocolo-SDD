@@ -233,6 +233,64 @@ def changed_files(root: Path, since: str | None = None) -> list[str]:
     return sorted(set(names))
 
 
+def owners_of(claims: dict[str, list[str]], name: str) -> list[str]:
+    """Tracks whose path claims cover ``name`` (a claim is a literal path, a folder or a glob)."""
+    return sorted(t for t, patterns in claims.items()
+                  if any(_matches(name, p) or name.startswith(p + "/") for p in patterns))
+
+
+def session_track(root: Path, explicit: str | None = None) -> str | None:
+    """The track the running session works for, or ``None`` when that cannot be told.
+
+    Tracks share the working tree and, by default, the branch, so nothing in the tree says which
+    one a session belongs to. In order: an explicit slug, ``SDD_TRACK``, then the current Git
+    branch when exactly one active track recorded that branch in its claims (``track claim
+    --branch``). A slug that is not an active track is ignored rather than trusted.
+    """
+    active = active_tracks(root)
+    for candidate in (explicit, os.environ.get("SDD_TRACK")):
+        if candidate and candidate in active:
+            return candidate
+    branch = current_branch(root)
+    if not branch:
+        return None
+    matches = []
+    for slug in active:
+        try:
+            recorded = load(root, slug).get("branch")
+        except ValueError:
+            continue
+        if recorded == branch:
+            matches.append(slug)
+    return matches[0] if len(matches) == 1 else None
+
+
+def guard(root: Path, path: str, track: str | None = None) -> dict:
+    """What the tracks say about touching one file, before it is edited.
+
+    * claimed by two or more active tracks: ``track_shared_touch`` (a collision, the
+      case ``track check`` reports as a path conflict, found per file);
+    * the session's track is known and does not claim the file: ``track_outside_footprint``,
+      naming the track that does when there is one.
+    SDD bookkeeping under ``.sdd/`` is always allowed, as in ``verify``.
+    """
+    name = _normal(path)
+    result: dict = {"path": name, "track": None, "owners": [], "findings": []}
+    if not name or name == ".sdd" or name.startswith(".sdd/"):
+        return result
+    claims = {slug: claimed_paths(root, slug) for slug in active_tracks(root)}
+    result["owners"] = owners_of(claims, name)
+    result["track"] = session_track(root, track)
+    if len(result["owners"]) > 1:
+        result["findings"].append({"kind": "track_shared_touch", "path": name,
+                                   "tracks": result["owners"]})
+    if result["track"] and result["track"] not in result["owners"]:
+        others = [owner for owner in result["owners"] if owner != result["track"]]
+        result["findings"].append({"kind": "track_outside_footprint", "path": name,
+                                   "track": result["track"], "owned_by": others})
+    return result
+
+
 def verify(root: Path, slug: str, since: str | None = None) -> list[dict]:
     """Compare real changes with every active track's claims.
 
@@ -246,8 +304,7 @@ def verify(root: Path, slug: str, since: str | None = None) -> list[dict]:
     for name in changed_files(root, since):
         if name == ".sdd" or name.startswith(".sdd/"):
             continue
-        owners = sorted(t for t, patterns in claims.items()
-                        if any(_matches(name, p) or name.startswith(p + "/") for p in patterns))
+        owners = owners_of(claims, name)
         if not owners:
             findings.append({"kind": "track_unclaimed_touch", "path": name, "track": slug,
                              "detail": f"declare a path claim for {name} if this track owns it"})
