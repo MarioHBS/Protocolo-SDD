@@ -27,10 +27,17 @@ apart; the separation has to be **declared and checked**:
 | `sddkit track claim` | records a track's footprint in `tracks/<slug>/claims.json` |
 | `sddkit track check` | fails when two active tracks' footprints overlap |
 | `sddkit track verify <slug>` | fails when real Git changes fall outside every claim (or inside two) |
+| `sddkit track guard <file>` | says which active tracks claim one file before you edit it: fails on a collision (two tracks claim it) or when your track does not claim it |
 | `sddkit seq next <name>` | hands out the next number of a shared sequence, once |
 | `sddkit track incorporate` | moves a closed stage into the canonical queue under a lock |
 | `sddkit track close <slug>` | once every local stage is incorporated and no claim remains: marks `state.md` CLOSED, drops the `### Active tracks` row (`--archive` also moves the folder to `tracks/_closed/`) |
 | `sddkit doctor` | reports `track_overlap`, `sequence_duplicate`, `session_branch_mismatch`, `track_closed_in_place` (a closed track not yet archived) |
+
+Claude Code can run `track guard` (and `doctor` after a stage `report.md`) on its own: if the project ran
+`sddkit hooks install`, an edit to a file two tracks claim asks the user first, and an edit outside your track's
+footprint is warned about. That is a reinforcement, not a replacement: **with no hook, run `track guard <file>`
+yourself before editing a file you did not claim.** Your track is `--track`, then `SDD_TRACK`, then the branch
+recorded with `track claim --branch`; without one of them only a collision is detected.
 
 If a candidate stage collides with a sibling, **do not open it in parallel**:
 sequence it after the colliding stage (fill its §5 `Depends on`) or put both in
