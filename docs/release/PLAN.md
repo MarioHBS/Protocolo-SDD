@@ -44,7 +44,9 @@ Origem: estágio 09 do plano privado (H-01..H-03), promovido do `A-07` por decis
    só as dele. JSON inválido = erro, nada gravado.
 4. **O hook nunca derruba a edição.** Em modo hook, qualquer exceção interna vira saída vazia com
    exit 0. `sddkit` fora do PATH dá erro não bloqueante do próprio Claude Code (exit 127), a edição
-   segue.
+   segue. `sddkit` **antigo** (sem `hooks`) sai com 2 no argparse, e exit 2 **bloqueia** no Claude Code
+   (achado no teste real): por isso a linha registrada é `sddkit hooks run <evento> || true` com
+   `"shell": "bash"` (o `||` não existe no PowerShell 5.1, que é o fallback sem Git Bash).
 5. **Trilha da sessão** = `--track`, depois `SDD_TRACK`, depois a branch atual casada com o `branch`
    de um `claims.json`. Sem trilha resolvida, o H-03 fica calado (não dá para saber o que é "fora");
    o H-01 continua, porque colisão entre duas trilhas não depende da sessão.

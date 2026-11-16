@@ -12,8 +12,8 @@
 
 - [x] `python -m pytest -q` e `ruff check src tests` verdes; testes novos de H-01..H-04
 - [x] Projeto de teste com e sem hook: `track check`, `track guard` e `doctor` à mão iguais nos dois
-- [ ] Hook real do Claude Code disparado numa edição (ask na colisão, aviso fora do footprint)
+- [x] Hook real do Claude Code disparado numa edição (ask na colisão, aviso fora do footprint, doctor no report.md, kit antigo não bloqueia)
 - [ ] `update --dry-run` na cópia dos projetos reais: nada gravado, `settings.json` intocado
 - [x] `CHANGELOG.md` e `RELEASE-NOTES.md` citam H-01..H-04; versão em `pyproject.toml` e `content/VERSION`
-- [ ] `docs/release/NOTES.md`
+- [x] `docs/release/NOTES.md`
 - [ ] tag `v4.9.0`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)

@@ -9,6 +9,7 @@ kit never edits the constitution or any other file you own.
 
 - New `sddkit hooks install` registers two Claude Code hooks in `.claude/settings.json` (`--local`: `.claude/settings.local.json`), next to yours. It is opt-in: `init` and `update` never register a hook, and `sddkit hooks uninstall` removes only what the kit wrote.
 - Before an edit, the `pre-edit` hook asks you to confirm when two active tracks claim the file, and warns when the session's track does not claim it. It never denies. After a stage `report.md` is written, the `post-edit` hook runs `doctor` and reports the count to the agent.
+- The registered hook line ends in `|| true` and runs under bash, so a teammate whose `sddkit` is older than 4.9.0 (it exits 2 on an unknown command, which Claude Code treats as a block) can still edit; without bash installed the hook does not run.
 - New `sddkit track guard FILE` gives the same answer by hand, so a project without hooks (or on another provider: only Claude Code has a tool hook) loses nothing.
 - Manual action: to let the hooks tell which track a session works for, run `sddkit track claim <slug> ... --branch <name>` for a track on its own branch, or set `SDD_TRACK=<slug>` in that session; without either, only a collision is reported.
 

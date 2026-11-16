@@ -283,7 +283,10 @@ What the two hooks do (both match `Edit|Write|MultiEdit`):
 | `post-edit` | after a stage `report.md` is written | runs `doctor` and tells the agent how many errors and warnings it found. Other `.md` files do not trigger it. |
 
 A hook never fails the edit it watches: bad input or an internal error answers nothing, and if `sddkit` is
-not on the PATH Claude Code shows a non-blocking error and the edit goes ahead. `sddkit hooks run EVENT` is
+not on the PATH Claude Code shows a non-blocking error and the edit goes ahead. The registered line ends in
+`|| true` and runs under bash (`"shell": "bash"`): a kit older than 4.9.0 does not know `hooks` and exits 2,
+which Claude Code treats as a block, so a teammate who pulled your `settings.json` before updating the kit
+would otherwise be unable to edit anything. Without bash installed the hook simply does not run. `sddkit hooks run EVENT` is
 what the provider calls; it is not meant to be typed.
 
 ### `sddkit seq next NAME [PATH] [--track SLUG] [--json]`
