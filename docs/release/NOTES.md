@@ -2,7 +2,7 @@
 
 ## Verificação
 
-- `python -m pytest -q` e `ruff check src tests`: verdes (503 testes).
+- `python -m pytest -q` e `ruff check src tests`: verdes (502 testes).
 - **Claude Code 2.1.325 real** (`claude -p`, projeto de teste com duas trilhas, `sddkit` da branch no PATH):
   - Edit em `src/app.py`, reivindicado por `left` e `right`: o hook devolveu `ask`; em modo
     não interativo o agente recebeu o motivo e a edição não foi feita.
@@ -23,4 +23,4 @@
   `file_path`).
 - `update --dry-run` nos projetos reais: não feito; o `update` não toca em `.claude/settings.json`
   (teste `test_update_never_registers_a_hook`).
-- Os 5 outros testes do gate de publicação (tag, `main`, push) esperam confirmação do dono.
+- Tag `v4.9.0`, fast-forward de `main` e pushes esperam confirmação do dono.
