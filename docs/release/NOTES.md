@@ -29,4 +29,4 @@
 
 - O hook `post-edit` (4.9.0) passa a contar as notas novas no resumo; não disparado no Claude Code
   real nesta versão (o cálculo é o mesmo do `doctor --json`).
-- Tag `v4.9.1`, fast-forward de `main` e pushes esperam confirmação do dono.
+- Publicada em 2026-11-17: tag `v4.9.1` em `14df2d4`, `main` e branch no GitHub.

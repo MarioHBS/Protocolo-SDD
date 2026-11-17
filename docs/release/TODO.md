@@ -13,4 +13,4 @@
 - [x] `update --dry-run` nos 10 projetos: nada gravado
 - [x] `CHANGELOG.md` e `RELEASE-NOTES.md` citam K-06 e K-07; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.9.1`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
+- [x] tag `v4.9.1` (em `14df2d4`), fast-forward `main`, push de branch, tag e `main` (confirmado pelo dono em 2026-11-17)
