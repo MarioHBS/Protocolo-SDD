@@ -61,6 +61,8 @@ _TEXT: dict[str, tuple[str, str]] = {
                            "sddkit update --global-skill (keeps a backup)"),
     "cold_file_oversized": ("{path} is {bytes} bytes", "keep it cold; trim its log rows"),
     "edd_missing_evals": ("stage {stage} has no evals.md", "sddkit scaffold {stage}"),
+    "edd_closed_without_evals": ("closed stage {stage} has no evals.md (closed before EDD was turned on?)",
+                                 "nothing to do if it predates EDD; otherwise add its evals.md and checklist.md"),
     "edd_spec_not_pointer": ("stage {stage} repeats acceptance criteria instead of pointing to evals.md", "sddkit migrate --edd-source-of-truth --dry-run"),
     "edd_todo_not_evals": ("stage {stage} final TODO check does not reference evals.md", "sddkit migrate --edd-source-of-truth --dry-run"),
     "edd_missing_checklist": ("closed stage {stage} has no checklist.md", "add the checklist from its template"),

@@ -183,6 +183,18 @@ def stage_weights(sdd: Path) -> dict[str, str]:
     return {name: weight for name, weight, _ in _weighted_rows(_read(constitution))}
 
 
+_DONE_RE = re.compile(r"(?i)\bdone\b|\bconclu")
+
+
+def done_stages(sdd: Path) -> frozenset[str]:
+    """Names (``NNN-slug``) of the canonical rows whose `Status` says the stage is done."""
+    constitution = sdd / "constitution.md"
+    if not constitution.is_file():
+        return frozenset()
+    return frozenset(_stage_name(row) for row in _canonical_rows(_read(constitution))
+                     if row.get("slug") and _DONE_RE.search(row.get("status") or row.get("estado") or ""))
+
+
 def weight_findings(sdd: Path) -> list[dict]:
     """A `light` stage must say why in one sentence; otherwise marking it is a silent shortcut."""
     constitution = sdd / "constitution.md"

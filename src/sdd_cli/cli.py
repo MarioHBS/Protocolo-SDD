@@ -1156,8 +1156,17 @@ def _doctor_payload(root: Path) -> dict:
                              "bytes": path.stat().st_size})
     if (manifest_data or {}).get("features", {}).get("edd"):
         weights = _index_checks.stage_weights(sdd)
+        done = _index_checks.done_stages(sdd)
         for stage in sorted((sdd / "stages").glob("*")) if (sdd / "stages").is_dir() else []:
             if not stage.is_dir() or not (stage / "spec.md").is_file():
+                continue
+            if not (stage / "evals.md").is_file() and (stage / "report.md").is_file() \
+                    and stage.name in done:
+                # K-07: a stage closed before the project turned EDD on. Two signals, the
+                # report and a done row in section 5, so neither alone hides the warnings;
+                # and a note, not silence: the stage really has no evals.
+                findings.append({"severity": "note", "code": "edd_closed_without_evals",
+                                 "stage": stage.name})
                 continue
             if not (stage / "evals.md").is_file():
                 findings.append({"severity": "warn", "code": "edd_missing_evals", "stage": stage.name})
