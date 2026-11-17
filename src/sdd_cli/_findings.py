@@ -49,6 +49,8 @@ _TEXT: dict[str, tuple[str, str]] = {
                                "have the agent finish its tasks, then delete the file (or delete it if you no longer need it)"),
     "cli_older_than_project": ("the installed sddkit is older than this project's kit",
                                "reinstall the CLI from the current checkout"),
+    "kit_behind": ("this project's kit is {kit}, older than the installed sddkit {cli}",
+                   "sddkit update --notes to read what changed, then sddkit update --dry-run"),
     "lock_without_audit": ("locked stage {stage} has no Locked-by-audit line in its spec",
                            "run the sdd-audit skill until READY TO LOCK, record it in audit.md, add the line"),
     "lock_audit_mismatch": ("stage {stage}: Locked-by-audit disagrees with audit.md ({detail})",

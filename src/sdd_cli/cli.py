@@ -1136,8 +1136,14 @@ def _doctor_payload(root: Path) -> dict:
                              "path": p.shim_path, "actionable": True})
     if manifest_data:
         try:
-            if manifest.parse_version(manifest_data.get("kit_version", "0.0.0")) > manifest.parse_version(KIT_VERSION):
+            project_kit = manifest.parse_version(manifest_data.get("kit_version", "0.0.0"))
+            if project_kit > manifest.parse_version(KIT_VERSION):
                 findings.append({"severity": "warn", "code": "cli_older_than_project"})
+            elif project_kit < manifest.parse_version(KIT_VERSION):
+                # K-06: the common case -- a project nobody updated -- used to say nothing.
+                # Always a note: updating is the owner's call, never a doctor failure.
+                findings.append({"severity": "note", "code": "kit_behind",
+                                 "kit": manifest_data.get("kit_version"), "cli": KIT_VERSION})
         except ValueError:
             pass
     if _global_skill_stale():
