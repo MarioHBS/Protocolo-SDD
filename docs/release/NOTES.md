@@ -1,26 +1,32 @@
-# Notes — sdd-cli 4.9.0
+# Notes — sdd-cli 4.9.1
 
 ## Verificação
 
-- `python -m pytest -q` e `ruff check src tests`: verdes (502 testes).
-- **Claude Code 2.1.325 real** (`claude -p`, projeto de teste com duas trilhas, `sddkit` da branch no PATH):
-  - Edit em `src/app.py`, reivindicado por `left` e `right`: o hook devolveu `ask`; em modo
-    não interativo o agente recebeu o motivo e a edição não foi feita.
-  - `SDD_TRACK=left`, Edit em `docs/x.md` (fora do footprint): a edição passou e o agente recebeu
-    `PreToolUse:Edit hook additional context: track left: docs/x.md is outside ...`.
-  - Edit em `.sdd/stages/001-x/report.md`: `PostToolUse:Edit hook additional context: sddkit doctor
-    after report.md: 1 error(s), 2 warning(s) (...)`.
-  - O caminho do Windows (absoluto, com barra invertida) casa com o claim relativo.
-- **Achado do teste real, corrigido antes de publicar:** com um `sddkit` 4.8.2 (sem `hooks`) no
-  PATH, `sddkit hooks run` sai com 2 (erro do argparse) e o Claude Code **bloqueou a edição**
-  (`PreToolUse:Edit hook error`). A linha registrada agora é `sddkit hooks run <evento> || true`
-  com `"shell": "bash"`; repetido com o 4.8.2 a edição passa, e com o 4.9.0 o `ask` continua.
+- `python -m pytest -q` e `ruff check src tests`: verdes (515 testes; 13 novos em
+  `test_kit_behind.py` e `test_edd_closed_without_evals.py`).
+- **`doctor` 4.9.0 × 4.9.1 sobre o MESMO estado real dos 10 projetos** (2026-11-17; 4.9.0 = `sddkit`
+  instalado, 4.9.1 = código da branch, antes do bump de versão): status de saída igual (0) nos 10; as
+  únicas diferenças são as previstas.
+  - P3 (EDD ligado em 2026-10-01, etapas 001–004 fechadas antes): saem 4 `edd_missing_evals` e
+    4 `edd_missing_checklist`; entram 4 `edd_closed_without_evals` (note). Os avisos de formato das
+    etapas com `evals.md` (`edd_spec_not_pointer` x3, `edd_todo_not_evals` x1) continuam iguais.
+  - P3 a P9 ganham `kit_behind` (note), com o kit de cada um: 4.8.2, 4.8.2, 4.7.0, 4.3.1, 4.8.2,
+    4.3.0, 4.0.0. P1, P2 e P10 (já em 4.9.0) não mudam.
+  - Com o bump para 4.9.1, P1, P2 e P10 também passam a ter `kit_behind` até rodarem `update`: é o
+    comportamento esperado.
+- **`update --dry-run` nos 10 projetos**, com sha1 de `.sdd/`, `.claude/`, `.github/`, `.kilo/` e
+  shims da raiz antes e depois: nenhum arquivo mudou, nos dois momentos (antes e depois do bump).
+  Depois do bump os 10 mostram "Would bump kit_version -> v4.9.1" e a seção `v4.9.1` das notas.
+
+## Decisões tomadas ao implementar
+
+- `kit_behind` é sempre `note`; não vira `warn` por número de versões (o plano deixava em aberto).
+- "Etapa fechada" pede dois sinais: `report.md` e linha `done`/`concluída` no §5. Etapa fora do §5
+  continua com os avisos.
+- Nenhum campo novo ("EDD desde a etapa N"): o estado da etapa basta para o caso real.
 
 ## Não verificado
 
-- Sem Git Bash instalado o hook não roda (`shell: bash`); não há máquina assim para testar.
-- `MultiEdit` está no matcher, mas o formato do `tool_input` dele não foi confirmado (usa-se só
-  `file_path`).
-- `update --dry-run` nos projetos reais: não feito; o `update` não toca em `.claude/settings.json`
-  (teste `test_update_never_registers_a_hook`).
-- Tag `v4.9.0`, fast-forward de `main` e pushes esperam confirmação do dono.
+- O hook `post-edit` (4.9.0) passa a contar as notas novas no resumo; não disparado no Claude Code
+  real nesta versão (o cálculo é o mesmo do `doctor --json`).
+- Tag `v4.9.1`, fast-forward de `main` e pushes esperam confirmação do dono.
