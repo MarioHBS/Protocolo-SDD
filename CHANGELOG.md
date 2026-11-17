@@ -1,5 +1,23 @@
 # Changelog — sdd-cli
 
+## [4.9.1] — In progress
+
+Two blind spots of `sddkit doctor` found by running it on ten real projects.
+
+### Added
+
+- K-06: `sddkit doctor` notes a project whose kit is older than the installed CLI (`kit_behind`),
+  naming both versions and pointing to `sddkit update --notes` and `sddkit update --dry-run`. Until
+  now only the opposite direction (`cli_older_than_project`) was checked, so a project left on 4.0.0
+  under a 4.9.0 CLI came out clean. Always a note: the exit status never changes.
+
+### Fixed
+
+- K-07: with EDD on, a stage closed before the project turned EDD on (a `report.md`, no `evals.md`
+  and a `done` row in section 5) gets one note, `edd_closed_without_evals`, instead of
+  `edd_missing_evals` and `edd_missing_checklist`, which no weight or fix could silence. An open
+  stage, a `done` row without a report, or a stage missing from the index keep the warnings.
+
 ## [4.9.0] — In progress
 
 Checks that depended on someone remembering to run a command now run by themselves, through

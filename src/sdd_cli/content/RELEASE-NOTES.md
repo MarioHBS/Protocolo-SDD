@@ -5,6 +5,11 @@ kit and the bundled one; `sddkit update --notes` prints them again without chang
 A line starting with `Manual action:` is something the project has to do by hand, because the
 kit never edits the constitution or any other file you own.
 
+## 4.9.1
+
+- `sddkit doctor` notes when this project's kit is older than the installed `sddkit` (`kit_behind`). It is only a note; read `sddkit update --notes` and try `sddkit update --dry-run` before updating.
+- With EDD on, a stage closed before EDD was turned on (it has a `report.md`, no `evals.md`, and its section 5 row says `done`) is now one note, `edd_closed_without_evals`, instead of two warnings. Nothing to do if the stage predates EDD.
+
 ## 4.9.0
 
 - New `sddkit hooks install` registers two Claude Code hooks in `.claude/settings.json` (`--local`: `.claude/settings.local.json`), next to yours. It is opt-in: `init` and `update` never register a hook, and `sddkit hooks uninstall` removes only what the kit wrote.
