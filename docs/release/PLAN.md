@@ -1,77 +1,45 @@
-# Plan — sdd-cli 4.9.0
+# Plan — sdd-cli 4.9.1
 
-**Branch:** `4.9.0` (de `main` = 4.8.2) · **Idioma:** português
+**Branch:** `4.9.1` (de `main` = 4.9.0) · **Idioma:** português
 
-Tema: três verificações que hoje dependem de alguém lembrar de rodar um comando passam a disparar
-sozinhas, por hook do provedor, onde o provedor tiver hook. Onde não tiver, o comando manual de hoje
-continua igual: o hook é reforço, nunca pré-requisito.
+Tema: dois pontos cegos do `doctor` achados numa vistoria de dez projetos reais em 2026-11-17. Ele
+não diz quando o kit do projeto está atrás do CLI instalado, e cobra `evals.md` e `checklist.md` de
+etapas fechadas antes de o projeto ligar o EDD.
 
-Origem: estágio 09 do plano privado (H-01..H-03), promovido do `A-07` por decisão do dono em
-2026-10-01. Os três itens são ideia, sem episódio real nos projetos avaliados.
+Origem: estágio 21 do plano privado (K-06, K-07).
 
-## Estado atual do código (conferido em 4.8.2)
+## Estado atual do código (conferido em 4.9.0)
 
-- `sddkit track check` (colisão entre trilhas) e `track verify` (mudanças do Git fora do footprint)
-  só rodam quando chamados à mão. Não existe `track guard`.
-- Nenhum código do kit escreve `.claude/settings.json` nem registra hook. Só o provedor `claude`
-  tem hook de ferramenta (`PreToolUse`/`PostToolUse`); os outros dez provedores não.
-- Uma trilha não sabe qual é "a sessão atual": por padrão as trilhas dividem a árvore **e a branch**.
-  Só `claims.json` com `branch` (via `track claim --branch`) liga uma sessão a uma trilha.
-- O `doctor` já devolve tudo em `_doctor_payload` (JSON), então o H-02 não precisa de checagem nova.
+- `cli.py:1137-1142` compara a versão do manifesto com `KIT_VERSION` só num sentido:
+  `cli_older_than_project` (`warn`) quando o CLI é mais velho. Projeto mais velho que o CLI não gera
+  nada; `global_skill_stale` cobre só a skill global.
+- `cli.py:1151-1172`: com `features.edd`, toda pasta de `stages/` com `spec.md` e sem `evals.md` dá
+  `edd_missing_evals`; com `report.md` e sem `checklist.md` dá `edd_missing_checklist`. Nenhum dos
+  dois olha o estado da etapa no §5. O peso `light` não ajuda: não cala `edd_missing_evals`, e só
+  isenta o checklist quando o `report.md` cobre todos os `E-NNN`, que não existem sem `evals.md`.
+- `sddkit update --notes` já imprime as notas de versão desde o kit instalado, sem gravar (U-02).
 
 ## Itens
 
-- **H-01** `sddkit track guard <arquivo>`: diz quais trilhas ativas reivindicam o caminho.
-  Caminho reivindicado por duas ou mais trilhas = colisão. No hook, vira `permissionDecision: ask`
-  (o dono confirma); nunca `deny`.
-- **H-02** hook `PostToolUse` em `Write|Edit|MultiEdit` cujo caminho case `.sdd/**/report.md` roda o
-  mesmo cálculo de `doctor --json` e devolve o resultado como `additionalContext`, na mesma sessão.
-  Outro `.md` não dispara.
-- **H-03** o mesmo `guard`, com a trilha da sessão resolvida, avisa quando o caminho tocado está fora
-  do footprint dela. Só aviso (`additionalContext`), nunca `ask`, nunca `deny`.
-- **H-04** `sddkit hooks install|uninstall|status`: registra e remove os hooks de H-01..H-03 em
-  `.claude/settings.json` (ou `--local` em `settings.local.json`). Item novo, necessário: sem ele o
-  dono teria de escrever o JSON à mão.
+- **K-06** nota `kit_behind` quando a versão do manifesto é menor que a do CLI; diz as duas versões
+  e manda ler `sddkit update --notes` e rodar `sddkit update --dry-run`.
+- **K-07** etapa com `report.md`, sem `evals.md` e marcada `done` no §5: os dois avisos viram uma
+  nota única, `edd_closed_without_evals`. Etapa aberta, ou fechada sem `report.md`, ou ausente do §5,
+  continua com os avisos de hoje.
 
 ## Decisões
 
-1. **Só o provedor `claude`.** É o único com hook de ferramenta entre os onze do registro. Os outros
-   seguem com `track check`/`verify`/`doctor` manuais; `hooks status` diz isso.
-2. **Opt-in explícito.** `init` e `update` não instalam hook: ele roda um comando na máquina do dono
-   a cada edição. Só `sddkit hooks install` registra.
-3. **Merge, não sobrescrita.** O kit lê o `settings.json`, acrescenta só as suas entradas (reconhecidas
-   pelo comando `sddkit hooks run ...`) e preserva o resto byte a byte na leitura. `uninstall` remove
-   só as dele. JSON inválido = erro, nada gravado.
-4. **O hook nunca derruba a edição.** Em modo hook, qualquer exceção interna vira saída vazia com
-   exit 0. `sddkit` fora do PATH dá erro não bloqueante do próprio Claude Code (exit 127), a edição
-   segue. `sddkit` **antigo** (sem `hooks`) sai com 2 no argparse, e exit 2 **bloqueia** no Claude Code
-   (achado no teste real): por isso a linha registrada é `sddkit hooks run <evento> || true` com
-   `"shell": "bash"` (o `||` não existe no PowerShell 5.1, que é o fallback sem Git Bash).
-5. **Trilha da sessão** = `--track`, depois `SDD_TRACK`, depois a branch atual casada com o `branch`
-   de um `claims.json`. Sem trilha resolvida, o H-03 fica calado (não dá para saber o que é "fora");
-   o H-01 continua, porque colisão entre duas trilhas não depende da sessão.
-6. **Escopo do hook:** `PreToolUse` com `Edit|Write|MultiEdit` (H-01/H-03) e `PostToolUse` com o
-   mesmo matcher (H-02). Caminhos dentro de `.sdd/` nunca geram aviso de trilha (mesma regra do
-   `track verify`).
-7. **Sem `track guard` ligado a dado novo.** Usa os `claims.json` que já existem; nenhum arquivo
-   novo no projeto além do `settings.json` que o dono pediu para tocar.
+1. **`kit_behind` é sempre `note`.** Não bloqueia nem muda o status de saída. Não vira `warn` por
+   número de versões: a régua seria arbitrária e o `update` é decisão do dono.
+2. **"Fechada" exige dois sinais:** `report.md` na pasta (o mesmo sinal que o `doctor` já usa para
+   "closed stage") **e** `Status` `done`/`concluída` na linha do §5. Um só não basta: relatório
+   escrito antes da hora ou linha marcada à mão não escondem o aviso.
+3. **Nota, não silêncio.** A evidência continua não sendo dispensada; a nota diz que a etapa não tem
+   evals e o que fazer se ela não for anterior ao EDD.
+4. **Sem campo novo.** Nada de "EDD desde a etapa N" na constituição ou no manifesto: o estado da
+   etapa já basta para o caso real.
 
-## Riscos e testes
+## Fora
 
-- Windows: o `file_path` chega com barra invertida e absoluto; normalizar para relativo à raiz do
-  projeto antes de casar com o glob. O comando do hook é `sddkit`, sem caminho absoluto (o `.exe` do
-  pipx fica no PATH). Teste com caminho `C:\...` simulado.
-- Ruído do H-02: só `report.md` dentro de `.sdd/`. Teste: `README.md` e `notes.md` não disparam.
-- Sem hook configurado, `track check`, `track guard --path` e `doctor` à mão funcionam como antes.
-- `hooks install` duas vezes não duplica entrada; `uninstall` preserva hooks do dono; `settings.json`
-  com JSON inválido ou com `hooks` de tipo errado aborta sem gravar.
-- Entrada JSON do hook malformada (stdin vazio, sem `file_path`) = saída vazia, exit 0.
-
-## Propaga por
-
-Código (`_hooks.py` novo, `cli.py`), `.claude/settings.json` do projeto (só por `hooks install`),
-texto da skill `sdd-track`, `USAGE.md` e `RELEASE-NOTES.md`.
-
-## Fora do escopo
-
-Hook para os outros provedores; hook de `sdd-close` que roda `fix`; qualquer bloqueio (`deny`).
+- `edd_spec_not_pointer` e `edd_todo_not_evals` em etapas que têm `evals.md`: defeito de formato
+  real, sem mudança.
