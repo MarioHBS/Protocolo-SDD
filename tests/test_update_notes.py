@@ -121,7 +121,7 @@ def test_global_skill_flag_rewrites_with_a_backup(capsys, tmp_path, _isolated_ho
     skill.write_text("# SDD (v3)\n", encoding="utf-8")
     out = _run(capsys, root, global_skill=True)
     assert "global skill" in out
-    assert skill.read_bytes() == (CONTENT_DIR / "shims" / "claude-global-skill.md").read_bytes()
+    assert skill.read_bytes() == (CONTENT_DIR / "shims" / "claude-global-skill.md").read_bytes().replace(b"\r\n", b"\n")
     backups = list(skill.parent.glob("SKILL.md.bak-*"))
     assert len(backups) == 1 and backups[0].read_text(encoding="utf-8") == "# SDD (v3)\n"
     assert not cli._global_skill_stale()

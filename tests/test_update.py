@@ -129,7 +129,7 @@ def test_patch_bump_updates_a_genuinely_changed_file(capsys, tmp_path):
     assert ".sdd/README.md" in out
     after = readme.read_bytes()
     assert after != before
-    assert after == (CONTENT_DIR / "sdd" / "README.md").read_bytes()
+    assert after == (CONTENT_DIR / "sdd" / "README.md").read_bytes().replace(b"\r\n", b"\n")
     m = manifest.load(root)
     assert m["managed_files"][".sdd/README.md"] == \
         manifest.hash_file(CONTENT_DIR / "sdd" / "README.md")
@@ -170,7 +170,7 @@ def test_minor_bump_adds_new_template_file(capsys, tmp_path):
     assert "added" in out
     assert target.exists()
     assert target.read_bytes() == \
-        (CONTENT_DIR / "sdd" / "templates" / "estimates.template.md").read_bytes()
+        (CONTENT_DIR / "sdd" / "templates" / "estimates.template.md").read_bytes().replace(b"\r\n", b"\n")
     m2 = manifest.load(root)
     assert ".sdd/templates/estimates.template.md" in m2["managed_files"]
 
