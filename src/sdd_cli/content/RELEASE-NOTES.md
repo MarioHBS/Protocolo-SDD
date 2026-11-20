@@ -5,6 +5,12 @@ kit and the bundled one; `sddkit update --notes` prints them again without chang
 A line starting with `Manual action:` is something the project has to do by hand, because the
 kit never edits the constitution or any other file you own.
 
+## 4.9.6
+
+- New `sddkit doctor --slim` (read-only) says where the bytes of `constitution.md` are, lists every line over 600 bytes with the file it belongs in (`CHANGELOG.md` for sections 3 and 6, `backlog.md` for section 5) and gives the agent an instruction. The kit never edits those lines.
+- New `sddkit fix --slim` removes only the comments that are still exactly the template's (opt-in, `--dry-run`, backup). It frees little: the real gain comes from `doctor --slim`.
+- `constitution_oversized` now shows the limit, the biggest sections and what `fix --slim` recovers.
+
 ## 4.9.1
 
 - `sddkit doctor` notes when this project's kit is older than the installed `sddkit` (`kit_behind`). It is only a note; read `sddkit update --notes` and try `sddkit update --dry-run` before updating.

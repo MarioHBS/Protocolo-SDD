@@ -1,5 +1,27 @@
 # Changelog — sdd-cli
 
+## [4.9.6] — In progress
+
+Slimming the constitution with the kit's help. The versions 4.9.2 to 4.9.5 were skipped on
+purpose; their planned content moves to later numbers.
+
+### Added
+
+- E-01: `sddkit fix --slim` removes from `constitution.md` the HTML comments that are still
+  byte-for-byte the bundled template's, and nothing else. Opt-in (not part of the default `fix`),
+  with `--dry-run`, a backup under `.sdd/.pre-fix-backup/` and the file's own line endings. On the
+  ten real projects it recovers 0 to 1.7 KB, so it does not clear the warning by itself.
+- E-02: `sddkit doctor --slim` (read-only) prints the bytes each section costs, every line over
+  600 bytes with the file it belongs in (section 3 and 6 to `CHANGELOG.md`, section 5 to
+  `backlog.md`, other sections: decide with the owner) and an instruction for the agent. The kit
+  edits none of those lines.
+
+### Changed
+
+- `constitution_oversized` now names the limit (24576 bytes), the three biggest sections with their
+  bytes and how many bytes `fix --slim` would recover, and points to `doctor --slim`. Severity and
+  threshold are unchanged.
+
 ## [4.9.1] — In progress
 
 Two blind spots of `sddkit doctor` found by running it on ten real projects.
