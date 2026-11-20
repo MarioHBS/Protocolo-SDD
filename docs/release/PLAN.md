@@ -2,40 +2,64 @@
 
 **Branch:** `4.9.6` (de `main` = 4.9.1) · **Idioma:** português
 
-Tema: enxugar a constituição com ajuda do kit. O `doctor` aponta `constitution_oversized` e manda
-"mover a narrativa para o CHANGELOG", mas nada ajuda a fazer isso; cada dono gasta um commit à mão.
-
-Origem: estágio 22 do plano privado (E-01, E-02; promove o A-03). A versão pulou de 4.9.1 para 4.9.6
-por decisão do dono em 2026-11-20: as versões 4.9.2 a 4.9.5 ficam sem uso e o que estava planejado
-para elas será renumerado depois de 4.9.6.
-
-## Estado atual do código (conferido em 4.9.1)
-
-- `cli.py` (bloco da constituição no `doctor`): `constitution_oversized` quando o arquivo passa de
-  `24 * 1024` bytes; o JSON traz as 3 maiores seções, o texto não mostra nem o limite nem os bytes de
-  cada seção.
-- `long_table_cell` aponta só a primeira linha de uma tabela com linha acima de 600 bytes.
-- `fix` já tem o padrão opt-in com `--dry-run` e backup (`--weight`): `.sdd/.pre-fix-backup/<ts>/`.
-- O template da constituição empacotado tem 12 comentários HTML (2.981 bytes).
+Tema: uma release só com tudo o que a vistoria de 2026-11-20 (dez projetos reais) planejou para as
+versões 4.9.2 a 4.9.6. Por decisão do dono, os números 4.9.2 a 4.9.5 ficam sem uso e o conteúdo dos
+estágios 22, 24, 25, 26 e 27 do plano privado entra aqui. Isso foge da regra de "um tema por
+release" (`00-METODO.md`); o risco é de regressão maior, e por isso o gate roda o `doctor` 4.9.1 ×
+4.9.6 sobre o mesmo estado real dos 10 projetos.
 
 ## Itens
 
-- **E-01** `sddkit fix --slim`: remove da constituição só o comentário HTML que é, byte a byte, um dos
-  do template empacotado. Opt-in, `--dry-run`, backup, mantém o fim de linha do arquivo. O achado
-  `constitution_oversized` passa a mostrar o limite, as 3 maiores seções com bytes e quanto o
-  `--slim` recuperaria.
-- **E-02** `sddkit doctor --slim` (só leitura): bytes por seção, cada linha acima de 600 bytes com o
-  arquivo a que pertence (§3 e §6 → `CHANGELOG.md`, §5 → `backlog.md`, outras seções → decidir com o
-  dono) e um texto de instrução para o agente. O kit **não edita** nada disso (decisão do dono de
-  2026-11-17); a §3 entra no escopo.
+### Fim de linha (estágio 24)
+
+- **F-01** o instalador grava LF (`_install_file`) e o repositório fixa `eol=lf` (`.gitattributes`).
+  Causa medida: pacote construído de checkout Windows com `core.autocrlf`, 44 de 46 arquivos de
+  `content/` em CRLF; `update` copiava bytes.
+- **F-02** nota `eol_crlf` no `doctor`; `fix --eol` cobre shims gerenciados e ignora os dois backups.
+- **F-03** testes com um pacote em CRLF (fixture), arquivo intacto continua intacto.
+
+### Escrita segura em trilhas e hooks (estágio 25)
+
+- **TK-01** `track close` preserva o texto de `State:` e `Last updated:` (linha `Previous ...`),
+  mantém estado já fechado em prosa, `--dry-run` mostra o diff.
+- **TK-02** `CLOSED (data) — texto` conta como fechada.
+- **TK-03** `--archive` lista os links que ficaram; nota `track_link_stale` nos índices vivos.
+- **TK-04** `evaluate` não conta `_closed/` como trilha.
+- **H-05** `hooks install`/`uninstall` com `--dry-run`; avisa arquivo versionado e sugere `--local`.
+
+### `doctor` sem ponto cego (estágio 26)
+
+- **D-01** nota `weight_column_missing`, só em projeto que audita (algum `audit.md`).
+- **D-02** `doctor --all`: toda ocorrência de achado repetido; `mojibake_v1` com linha:coluna e trecho.
+- **D-03** `doctor` e `context` sobem até o `.sdd/` mais próximo.
+- **D-04** conselho de `nested_worktree_copies_ignored` por pilha; some quando a config já exclui.
+- **D-05** sessão com branch já mesclada vira nota `session_branch_merged`.
+
+### Orçamento da constituição (estágio 27)
+
+- **B-01** `constitution_oversized` mede o que a sessão lê (Settings + Current state, 8 KiB); o resto
+  é nota `cold_file_oversized` (24 KiB) com os dois tamanhos.
+- **B-02** tetos por projeto nas Settings (`Constitution max size`, `Cold file max size`).
+- **B-03** `long_table_cell` aconselha por seção (§3 e §6 → CHANGELOG, §5 → backlog).
+
+### Enxugar a constituição (estágio 22)
+
+- **E-01** `fix --slim` (só comentário idêntico ao do template; recupera 0 a 1,7 KB).
+- **E-02** `doctor --slim` (só leitura): bytes por seção, linhas acima de 600 B com destino, instrução.
 
 ## Decisões
 
-1. **Só comentário idêntico ao do template.** Comentário editado, dentro de bloco de código ou que
-   não existe no template fica. É o único descartável que o kit consegue provar.
-2. **`doctor --slim` e `fix --slim`, mesmo nome, papéis diferentes:** o `doctor` lista, o `fix`
-   aplica a parte determinística. O `doctor --slim` substitui a auditoria, não a acompanha.
-3. **Severidade e texto de `constitution_oversized` não mudam** (continua `warn`; continua dizendo
-   que é lido a cada sessão). Medir só a parte lida no início é decisão do estágio 27 (B-01), que
-   depende do dono.
-4. **Seções sem regra não recebem destino:** §1, §2, §4 e §7 saem como "decidir com o dono".
+1. **B-01 sem esperar o dono:** o dono pediu "todas as melhorias" e o B-01 estava pendente; seguiu-se
+   a opção recomendada no plano (medir só o que a sessão lê). Severidade do aviso quente continua
+   `warn`; o tamanho total vira nota.
+2. **Limite quente de 8 KiB** (escolhido aqui; o plano não fixava o número): os 10 projetos têm de 0,8
+   a 3,7 KB nessa parte.
+3. **D-01 só para quem audita:** o template novo não traz a coluna `Weight` (ela é opcional); avisar
+   todo projeto sem a coluna seria ruído (medido: 8 de 10 não têm). A nota fica para os que têm
+   `audit.md` (P2, P3, P4, P10).
+4. **Template `track-state.template.md` não foi alterado** (o plano mandava corrigir o cabeçalho): mudar
+   um arquivo gerenciado faz o `doctor` acusar `managed_file_edited` em projeto cuja cópia é igual à
+   do kit antigo mas tem hash antigo no manifesto (P2, família do IP-018). Documentado no `USAGE.md`.
+5. **TK-03 só lista**, não reescreve links (texto histórico não se reescreve); **TK-04 só corrige o
+   contador**, sem mudar o formato da saída do `evaluate`.
+6. **Idioma das linhas novas:** `Previous state:` / `Previous update:` (o kit é em inglês).
