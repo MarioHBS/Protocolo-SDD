@@ -136,14 +136,17 @@ writes and is listed for a human decision. Re-running after success is idempoten
 
 ## Diagnose
 
-### `sddkit doctor [PATH] [--json] [--slim]`
+### `sddkit doctor [PATH] [--json] [--all] [--slim]`
 
 Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 `error`. With `--slim` it prints, instead of the audit, the plan to slim `constitution.md`: the
 bytes each section costs, every line over 600 bytes with the file it belongs in (section 3 and 6
 to `CHANGELOG.md`, section 5 to `backlog.md`, any other section: decide with the owner), what
 `sddkit fix --slim` removes by itself, and an instruction for the agent. The kit edits none of
-those lines. Findings (`code`, severity):
+those lines. Run from a subfolder of a project, it audits the nearest `.sdd/` above (and says which
+root it used); with none above it still says "not an SDD project". A repeated finding is printed once
+with its count; `--all` lists every occurrence (file and line, stage, track) and, for `mojibake_v1`,
+every hit with `line:column` and a snippet. Findings (`code`, severity):
 
 | Area | Code | Meaning |
 |------|------|---------|
@@ -159,11 +162,11 @@ those lines. Findings (`code`, severity):
 | EDD | `edd_missing_evals`, `edd_closed_without_evals` (note), `edd_missing_checklist`, `edd_no_criteria`, `edd_eval_uncovered`, `edd_spec_not_pointer`, `edd_todo_not_evals`, `edd_missing_performance_doc`, `edd_milestone_without_evaluation`, `milestone_not_contiguous` | Evals without evidence, duplicate criteria, or milestone problems. A closed `light` stage (section 5 `Weight`) may keep its evidence in `report.md` alone when the report covers every `E-NNN`; the evidence itself is never waived. A stage with a `report.md`, no `evals.md` and a `done` row in section 5 was closed before EDD was turned on: it gets one note, `edd_closed_without_evals`, instead of `edd_missing_evals` and `edd_missing_checklist`. |
 | Backlog | `backlog_orphan`, `queue_row_without_section` | Backlog and provisional queue disagree. |
 | Audit | `lock_without_audit` (note), `lock_audit_mismatch`, `light_hits_audit_trigger` | The spec-lock gate, read from files, for stages still open only (never a closed one). A locked `full` stage whose spec has no `Locked-by-audit:` line, unless it is in `CLOSING` or its `todo.md` has no open item (run the `sdd-audit` skill, record the rounds in `audit.md`); a `Locked-by-audit:` line that disagrees with `audit.md` (round, `fixed B/M`, `dismissed`, or a last round that is not `READY TO LOCK`); a `light` stage whose `Touches` paths match a glob listed under `## Triggers` in `.sdd/audit-lenses.md`, a file you own. |
-| Weight | `weight_light_without_reason` | A stage marked `light` in the optional `Weight` column of section 5 has no one-sentence reason (`light: only fixes a typo`). |
+| Weight | `weight_column_missing` (note; `sddkit fix --weight --dry-run`), `weight_light_without_reason` | The stage index has no `Weight` column, which `sdd-audit` reads to tell `light` from `full`. A stage marked `light` in the optional `Weight` column of section 5 has no one-sentence reason (`light: only fixes a typo`). |
 | Documentation | `docs_missing_file`, `docs_missing_header`, `docs_path_outside_project` | The documentation plan versus disk. |
-| Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch` | A saved session that no longer fits reality. |
+| Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch`, `session_branch_merged` (note) | A saved session that no longer fits reality; `session_branch_merged` when the session's branch is already merged into the current one (run `sddkit session sync`). |
 | Tracks | `track_not_started`, `track_not_incorporated`, `track_closed_in_place` (note; `sddkit track close`), `track_link_stale` (note; a link in `constitution.md`, `roadmap.md`, `backlog.md` or `README.md` still points at `tracks/<slug>/` of a track now under `tracks/_closed/`), `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
-| Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path) | A stale copy of `.sdd/` (see `sddkit track`). |
+| Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path; the advice follows the stack: `analyzer.exclude` for Dart/Flutter, vitest/eslint/tsconfig for JavaScript, a generic line otherwise, and the note goes away once that config names the folder) | A stale copy of `.sdd/` (see `sddkit track`). |
 | Backups | `backup_not_ignored` (note; `sddkit fix --gitignore`), `backup_tracked` (note; `git rm -r --cached <folder>`) | `.sdd/.pre-fix-backup/` or `.sdd/.pre-migrate-backup/` that Git sees, or already tracks: `.gitignore` alone does not stop a tracked folder, and the kit never edits your Git index. |
 | Dependencies | `dependency_inconsistent` | `sddkit deps` records that no longer hold. |
 
