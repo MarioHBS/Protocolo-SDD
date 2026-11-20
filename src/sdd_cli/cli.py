@@ -27,6 +27,7 @@ from . import (
     _proposals,
     _proposals_send,
     _session,
+    _slim,
     _tracks,
     _user_files,
     manifest,
@@ -825,6 +826,16 @@ def cmd_doctor(args) -> None:
     never rewrites a file."""
     root = Path(args.path).resolve()
     sdd = root / ".sdd"
+    if getattr(args, "slim", False):
+        constitution = sdd / "constitution.md"
+        if not constitution.is_file():
+            die(f"no .sdd/constitution.md found in {root}")
+        report = _slim.plan(constitution.read_text(encoding="utf-8", errors="replace"))
+        if getattr(args, "json", False):
+            _emit_json({"version": 1, "command": "doctor", "mode": "slim", "project": str(root), **report})
+        else:
+            print(_slim.render(report, str(root)))
+        return
     if getattr(args, "json", False):
         payload = _doctor_payload(root)
         _emit_json(payload)
@@ -1078,9 +1089,12 @@ def _doctor_payload(root: Path) -> dict:
     if constitution.is_file():
         ctext = constitution.read_text(encoding="utf-8", errors="replace")
         size = constitution.stat().st_size
-        if size > 24 * 1024:
+        if size > _slim.LIMIT_BYTES:
             largest = sorted(_constitution_sections(constitution), key=lambda x: x[1], reverse=True)[:3]
             findings.append({"severity": "warn", "code": "constitution_oversized", "bytes": size,
+                             "limit": _slim.LIMIT_BYTES,
+                             "top": ", ".join(f"{h} {b} B" for h, b in largest),
+                             "slim_bytes": _slim.recoverable_bytes(ctext),
                              "sections": [{"heading": h, "bytes": b} for h, b in largest]})
         headings = re.findall(r"(?m)^##\s+(.+?)\s*$", ctext)
         duplicates = sorted({h for h in headings if headings.count(h) > 1})
@@ -1437,8 +1451,9 @@ def cmd_fix(args) -> None:
     use_gitignore = bool(getattr(args, "gitignore", False))  # opt-in: never part of --all
     use_manifest = bool(getattr(args, "manifest", False) or getattr(args, "all", False))
     use_weight = bool(getattr(args, "weight", False))  # opt-in: rewrites the owner's stage index
+    use_slim = bool(getattr(args, "slim", False))  # opt-in: removes unchanged template comments
     if not (use_mojibake or use_eol or use_links or use_features or use_gitignore or use_manifest
-            or use_weight):
+            or use_weight or use_slim):
         use_mojibake = use_eol = use_links = use_features = use_manifest = True
     repairs: list[dict] = []
     unresolved: list[dict] = []
@@ -1521,6 +1536,26 @@ def cmd_fix(args) -> None:
                     backup.mkdir(parents=True, exist_ok=True)
                     (backup / "constitution.md").write_bytes(original)
                     constitution.write_bytes(new_text.encode("utf-8"))
+    if use_slim:
+        if not constitution.is_file():
+            unresolved.append({"kind": "slim_without_constitution", "path": ".sdd/constitution.md"})
+        else:
+            # Raw bytes in, raw bytes out, like --weight: line endings stay as the owner has them.
+            original = constitution.read_bytes()
+            try:
+                slim_text, removed = _slim.slim_text(original.decode("utf-8"))
+            except UnicodeDecodeError:
+                unresolved.append({"kind": "invalid_utf8", "path": ".sdd/constitution.md"})
+                removed = []
+            if removed:
+                repairs.append({"kind": "slim_template_comments", "path": ".sdd/constitution.md",
+                                "comments": len(removed), "bytes": sum(r.bytes for r in removed)})
+                if not dry_run:
+                    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+                    backup = sdd / ".pre-fix-backup" / stamp
+                    backup.mkdir(parents=True, exist_ok=True)
+                    (backup / "constitution.md").write_bytes(original)
+                    constitution.write_bytes(slim_text.encode("utf-8"))
     if use_gitignore:
         if not (root / ".git").exists():
             unresolved.append({"kind": "gitignore_without_git", "path": ".gitignore"})
@@ -3665,6 +3700,9 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     dr.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    dr.add_argument("--slim", action="store_true",
+                    help="instead of the audit, print the plan to slim constitution.md: bytes per "
+                         "section, long lines with the file each belongs in, what `fix --slim` removes")
     dr.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     dr.set_defaults(func=cmd_doctor)
 
@@ -3682,6 +3720,9 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
                          ".sdd/.pre-*-backup/ folders in .gitignore")
     fx.add_argument("--weight", action="store_true",
                     help="opt-in: add an empty Weight column to the stage index (backup kept)")
+    fx.add_argument("--slim", action="store_true",
+                    help="opt-in: remove from constitution.md the comments that are still exactly "
+                         "the bundled template's (backup kept; see `doctor --slim` for the rest)")
     fx.add_argument("--dry-run", action="store_true", help="report repairs without writing")
     fx.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     fx.set_defaults(func=cmd_fix)

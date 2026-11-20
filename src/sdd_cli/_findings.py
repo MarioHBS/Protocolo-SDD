@@ -28,8 +28,10 @@ _TEXT: dict[str, tuple[str, str]] = {
     "session_state_mismatch": ("{detail}", "sddkit session sync"),
     "session_branch_mismatch": ("session expects branch {expected} but the current one is {current}",
                                 "git switch {expected}, or record the new branch with sddkit session sync"),
-    "constitution_oversized": ("constitution.md is {bytes} bytes and is read at every session",
-                               "move narrative to CHANGELOG.md; keep section 5 rows short"),
+    "constitution_oversized": ("constitution.md is {bytes} bytes (limit {limit}) and is read at every "
+                               "session; biggest sections: {top}",
+                               "sddkit doctor --slim lists what to move and where; "
+                               "sddkit fix --slim --dry-run removes {slim_bytes} B of unchanged template comments"),
     "duplicate_h2": ("section heading '{heading}' appears more than once",
                      "merge the sections or rename one"),
     "long_table_cell": ("table row at line {line} is over 600 bytes",
