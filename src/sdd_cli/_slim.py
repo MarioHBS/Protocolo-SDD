@@ -17,8 +17,17 @@ from dataclasses import dataclass
 
 from .content import CONTENT_DIR
 
-LIMIT_BYTES = 24 * 1024
+LIMIT_BYTES = 24 * 1024  # the whole constitution: past it the doctor notes a cold file (B-01)
+HOT_LIMIT_BYTES = 8 * 1024  # what every session reads at start (Settings + Current state): past it, WARN
+COLD_FILE_LIMIT_BYTES = 48 * 1024  # roadmap.md, estimates.md, CHANGELOG.md
 LONG_LINE_BYTES = 600
+
+# Optional Settings lines a project can add to set its own ceilings (B-02). Without them, the
+# defaults above apply. Example: `- **Constitution max size:** 75 KB`.
+_SETTING_LABELS = {"constitution max size": "constitution", "cold file max size": "cold"}
+_SIZE = re.compile(r"(?i)^\s*(\d+(?:[.,]\d+)?)\s*(kib|kb|k|mib|mb|m|bytes|byte|b)?\b")
+_UNITS = {"": 1, "b": 1, "byte": 1, "bytes": 1, "k": 1024, "kb": 1024, "kib": 1024,
+          "m": 1024 ** 2, "mb": 1024 ** 2, "mib": 1024 ** 2}
 
 _COMMENT = re.compile(r"<!--.*?-->", re.S)
 _H2 = re.compile(r"(?m)^##\s+(.+?)\s*$")
@@ -37,6 +46,38 @@ INSTRUCTION = (
     "Never reword a locked decision (section 3): its summary must say the same thing. "
     "Commit the move on its own, then run `sddkit doctor` again."
 )
+
+
+def parse_size(value: str) -> int | None:
+    """``75 KB`` -> 76800 (KB and KiB both mean 1024 bytes here); None when it is not a size."""
+    found = _SIZE.match(value or "")
+    if not found:
+        return None
+    number = float(found.group(1).replace(",", "."))
+    return int(number * _UNITS[(found.group(2) or "").lower()])
+
+
+def declared_limits(text: str) -> dict[str, int]:
+    """The ceilings the project declared in Settings: ``constitution`` and/or ``cold`` (B-02)."""
+    found: dict[str, int] = {}
+    for match in re.finditer(r"(?m)^[-*]\s+\*\*([^*]+):\*\*\s*([^\n]+)", text):
+        key = _SETTING_LABELS.get(match.group(1).strip().lower())
+        size = parse_size(match.group(2)) if key else None
+        if key and size and size > 0:
+            found[key] = size
+    return found
+
+
+def hot_part(text: str) -> str:
+    """What a session reads at start: everything before section 1 (Settings and Current state),
+    the same cut ``sddkit context`` makes."""
+    cutoff = re.search(r"(?m)^##\s+1\.\s", text)
+    return text[:cutoff.start()] if cutoff else text
+
+
+def destination_for(heading: str) -> str | None:
+    """The file a long line of this section belongs in, or None when the owner has not decided."""
+    return _DESTINATION.get(_heading_number(heading))
 
 
 def _template_comments() -> set[str]:
@@ -117,8 +158,10 @@ def _heading_number(heading: str) -> str:
     return match.group(1) if match else ""
 
 
-def plan(raw: str) -> dict:
-    """The read-only slimming plan for one constitution (what ``doctor --slim`` prints)."""
+def plan(raw: str, limit: int | None = None) -> dict:
+    """The read-only slimming plan for one constitution (what ``doctor --slim`` prints). ``limit``
+    is the project's own ceiling for the whole file when it declared one."""
+    limit = limit or LIMIT_BYTES
     text = raw.replace("\r\n", "\n")
     lines = text.split("\n")
     fenced = _fenced_lines(lines)
@@ -142,10 +185,11 @@ def plan(raw: str) -> dict:
         heading = section_at[index]
         long_lines.append({"line": index + 1, "bytes": size, "section": heading,
                            "kind": "table row" if "|" in line else "text",
-                           "destination": _DESTINATION.get(_heading_number(heading))})
+                           "destination": destination_for(heading)})
     _, removals = slim_text(raw)
     total = len(raw.encode("utf-8"))
-    return {"bytes": total, "limit": LIMIT_BYTES, "over_by": max(0, total - LIMIT_BYTES),
+    return {"bytes": total, "limit": limit, "over_by": max(0, total - limit),
+            "hot": {"bytes": len(hot_part(text).encode("utf-8")), "limit": HOT_LIMIT_BYTES},
             "sections": sections,
             "template_comments": {"count": len(removals), "bytes": sum(r.bytes for r in removals),
                                   "lines": [r.line for r in removals]},
@@ -167,6 +211,8 @@ def render(report: dict, project: str) -> str:
     out = [f"slim plan — {project}",
            f"  constitution.md: {report['bytes']} bytes, limit {report['limit']}"
            + (f" (over by {report['over_by']})" if report["over_by"] else " (within the limit)"),
+           f"  read at the start of every session: {report['hot']['bytes']} bytes "
+           f"(Settings and Current state), limit {report['hot']['limit']}",
            "", "where the bytes are (H2 sections, biggest first)"]
     for section in sorted(report["sections"], key=lambda s: s["bytes"], reverse=True):
         out.append(f"  {section['bytes']:>7}  {section['heading']}")

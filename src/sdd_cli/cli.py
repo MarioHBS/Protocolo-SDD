@@ -869,7 +869,8 @@ def cmd_doctor(args) -> None:
         constitution = sdd / "constitution.md"
         if not constitution.is_file():
             die(f"no .sdd/constitution.md found in {root}")
-        report = _slim.plan(constitution.read_text(encoding="utf-8", errors="replace"))
+        slim_text = constitution.read_text(encoding="utf-8", errors="replace")
+        report = _slim.plan(slim_text, _slim.declared_limits(slim_text).get("constitution"))
         if getattr(args, "json", False):
             _emit_json({"version": 1, "command": "doctor", "mode": "slim", "project": str(root), **report})
         else:
@@ -1146,11 +1147,21 @@ def _doctor_payload(root: Path) -> dict:
     if constitution.is_file():
         ctext = constitution.read_text(encoding="utf-8", errors="replace")
         size = constitution.stat().st_size
-        if size > _slim.LIMIT_BYTES:
-            largest = sorted(_constitution_sections(constitution), key=lambda x: x[1], reverse=True)[:3]
-            findings.append({"severity": "warn", "code": "constitution_oversized", "bytes": size,
-                             "limit": _slim.LIMIT_BYTES,
-                             "top": ", ".join(f"{h} {b} B" for h, b in largest),
+        limits = _slim.declared_limits(ctext)
+        largest = sorted(_constitution_sections(constitution), key=lambda x: x[1], reverse=True)[:3]
+        top = ", ".join(f"{h} {b} B" for h, b in largest)
+        # B-01: what costs every session is the start of the file (Settings + Current state), the same
+        # cut `sddkit context` makes; that part has a hard limit. The rest is read on demand, so a big
+        # constitution is a cold-file note against the project's own ceiling (B-02), not a warning.
+        hot_bytes = len(_slim.hot_part(ctext).encode("utf-8"))
+        if hot_bytes > _slim.HOT_LIMIT_BYTES:
+            findings.append({"severity": "warn", "code": "constitution_oversized", "bytes": hot_bytes,
+                             "limit": _slim.HOT_LIMIT_BYTES, "total": size, "top": top,
+                             "sections": [{"heading": h, "bytes": b} for h, b in largest]})
+        whole_limit = limits.get("constitution", _slim.LIMIT_BYTES)
+        if size > whole_limit:
+            findings.append({"severity": "note", "code": "cold_file_oversized", "path": ".sdd/constitution.md",
+                             "bytes": size, "limit": whole_limit, "hot": hot_bytes, "top": top,
                              "slim_bytes": _slim.recoverable_bytes(ctext),
                              "sections": [{"heading": h, "bytes": b} for h, b in largest]})
         _, weight_tables = _index_checks.add_weight_column(ctext)
@@ -1164,10 +1175,14 @@ def _doctor_payload(root: Path) -> dict:
         duplicates = sorted({h for h in headings if headings.count(h) > 1})
         for heading in duplicates:
             findings.append({"severity": "warn", "code": "duplicate_h2", "heading": heading})
+        section = ""
         for line_no, line in enumerate(ctext.splitlines(), 1):
+            if line.startswith("## "):
+                section = line[3:].strip()
             if "|" in line and len(line.encode("utf-8")) > 600:
                 findings.append({"severity": "warn", "code": "long_table_cell", "line": line_no,
-                                 "bytes": len(line.encode("utf-8"))})
+                                 "bytes": len(line.encode("utf-8")), "section": section,
+                                 "destination": _slim.destination_for(section) or ""})
             if "file:///" in line.lower():
                 findings.append({"severity": "warn", "code": "abs_file_links", "line": line_no,
                                  "actionable": True})
@@ -1232,11 +1247,14 @@ def _doctor_payload(root: Path) -> dict:
     if _global_skill_stale():
         findings.append({"severity": "note", "code": "global_skill_stale",
                          "path": str(_global_skill_path())})
+    cold_limit = _slim.declared_limits(constitution.read_text(encoding="utf-8", errors="replace")
+                                       ).get("cold", _slim.COLD_FILE_LIMIT_BYTES) if constitution.is_file() \
+        else _slim.COLD_FILE_LIMIT_BYTES
     for name in ("roadmap.md", "estimates.md", "CHANGELOG.md"):
         path = sdd / name
-        if path.is_file() and path.stat().st_size > 48 * 1024:
+        if path.is_file() and path.stat().st_size > cold_limit:
             findings.append({"severity": "note", "code": "cold_file_oversized", "path": f".sdd/{name}",
-                             "bytes": path.stat().st_size})
+                             "bytes": path.stat().st_size, "limit": cold_limit})
     if (manifest_data or {}).get("features", {}).get("edd"):
         weights = _index_checks.stage_weights(sdd)
         done = _index_checks.done_stages(sdd)

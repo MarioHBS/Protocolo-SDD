@@ -36,14 +36,14 @@ _TEXT: dict[str, tuple[str, str]] = {
     "weight_column_missing": ("the stage index (section 5) has {tables} table(s) without a Weight column, "
                               "so every audited stage gets the full audit; a stage can be marked light only through that column",
                               "sddkit fix --weight --dry-run, then sddkit fix --weight"),
-    "constitution_oversized": ("constitution.md is {bytes} bytes (limit {limit}) and is read at every "
-                               "session; biggest sections: {top}",
-                               "sddkit doctor --slim lists what to move and where; "
-                               "sddkit fix --slim --dry-run removes {slim_bytes} B of unchanged template comments"),
+    "constitution_oversized": ("the part of constitution.md every session reads (Settings and Current state) "
+                               "is {bytes} bytes, over {limit}; the whole file is {total}; biggest sections: {top}",
+                               "move the detail out of Settings and Current state into CHANGELOG.md and keep "
+                               "a pointer; sddkit doctor --slim lists the long lines"),
     "duplicate_h2": ("section heading '{heading}' appears more than once",
                      "merge the sections or rename one"),
     "long_table_cell": ("table row at line {line} is over 600 bytes",
-                        "keep 2-3 sentences and move the detail to backlog.md"),
+                        "{advice}"),
     "abs_file_links": ("absolute file:/// link at line {line}", "sddkit fix --links"),
     "feature_mismatch": ("feature {feature}: constitution says {constitution}, manifest says {manifest}",
                          "sddkit fix --features"),
@@ -71,7 +71,7 @@ _TEXT: dict[str, tuple[str, str]] = {
                                  "set Weight to full, or write why in the cell and get the owner's agreement"),
     "global_skill_stale": ("the global sdd skill {path} predates this kit",
                            "sddkit update --global-skill (keeps a backup)"),
-    "cold_file_oversized": ("{path} is {bytes} bytes", "keep it cold; trim its log rows"),
+    "cold_file_oversized": ("{path} is {bytes} bytes (limit {limit}){extra}", "{advice}"),
     "edd_missing_evals": ("stage {stage} has no evals.md", "sddkit scaffold {stage}"),
     "edd_closed_without_evals": ("closed stage {stage} has no evals.md (closed before EDD was turned on?)",
                                  "nothing to do if it predates EDD; otherwise add its evals.md and checklist.md"),
@@ -128,6 +128,28 @@ class _Missing(defaultdict):
         return "?"
 
 
+def _fill(finding: dict, fields: dict) -> None:
+    """Wording that depends on which section or file a finding is about (B-01, B-03)."""
+    if finding["code"] == "long_table_cell":
+        where = finding.get("destination")
+        fields["advice"] = (
+            f"keep 2-3 sentences and move the detail to {where} with a pointer; "
+            "a locked decision is never archived to backlog.md" if where == "CHANGELOG.md" else
+            f"keep 2-3 sentences and move the detail to {where}" if where else
+            "keep 2-3 sentences and move the detail to the file that holds it "
+            "(CHANGELOG.md for history, backlog.md for work still to do)")
+    elif finding["code"] == "cold_file_oversized":
+        if finding.get("path") == ".sdd/constitution.md":
+            fields["extra"] = (f"; a session reads only {finding.get('hot', '?')} bytes of it (Settings and "
+                               f"Current state); biggest sections: {finding.get('top', '')}")
+            fields["advice"] = ("sddkit doctor --slim lists what to move and where; sddkit fix --slim --dry-run "
+                                f"removes {finding.get('slim_bytes', 0)} B of unchanged template comments; "
+                                "or set `**Constitution max size:**` in Settings")
+        else:
+            fields["extra"] = ""
+            fields["advice"] = "keep it cold; trim its log rows, or set `**Cold file max size:**` in Settings"
+
+
 def describe(finding: dict) -> tuple[str, str]:
     """(message, hint) for one finding; unknown codes fall back to the code itself."""
     message, hint = _TEXT.get(finding["code"], (finding["code"], ""))
@@ -137,6 +159,7 @@ def describe(finding: dict) -> tuple[str, str]:
         return ", ".join(str(x) for x in value) if isinstance(value, list) else value
 
     fields = _Missing(str, {k: shown(v) for k, v in finding.items()})
+    _fill(finding, fields)
     detail = finding.get("detail")
     if isinstance(detail, dict):  # a track conflict: {"kind", "tracks", "paths"|"value"}
         extra = detail.get("paths") or detail.get("value") or ""
