@@ -1,45 +1,41 @@
-# Plan — sdd-cli 4.9.1
+# Plan — sdd-cli 4.9.6
 
-**Branch:** `4.9.1` (de `main` = 4.9.0) · **Idioma:** português
+**Branch:** `4.9.6` (de `main` = 4.9.1) · **Idioma:** português
 
-Tema: dois pontos cegos do `doctor` achados numa vistoria de dez projetos reais em 2026-11-17. Ele
-não diz quando o kit do projeto está atrás do CLI instalado, e cobra `evals.md` e `checklist.md` de
-etapas fechadas antes de o projeto ligar o EDD.
+Tema: enxugar a constituição com ajuda do kit. O `doctor` aponta `constitution_oversized` e manda
+"mover a narrativa para o CHANGELOG", mas nada ajuda a fazer isso; cada dono gasta um commit à mão.
 
-Origem: estágio 21 do plano privado (K-06, K-07).
+Origem: estágio 22 do plano privado (E-01, E-02; promove o A-03). A versão pulou de 4.9.1 para 4.9.6
+por decisão do dono em 2026-11-20: as versões 4.9.2 a 4.9.5 ficam sem uso e o que estava planejado
+para elas será renumerado depois de 4.9.6.
 
-## Estado atual do código (conferido em 4.9.0)
+## Estado atual do código (conferido em 4.9.1)
 
-- `cli.py:1137-1142` compara a versão do manifesto com `KIT_VERSION` só num sentido:
-  `cli_older_than_project` (`warn`) quando o CLI é mais velho. Projeto mais velho que o CLI não gera
-  nada; `global_skill_stale` cobre só a skill global.
-- `cli.py:1151-1172`: com `features.edd`, toda pasta de `stages/` com `spec.md` e sem `evals.md` dá
-  `edd_missing_evals`; com `report.md` e sem `checklist.md` dá `edd_missing_checklist`. Nenhum dos
-  dois olha o estado da etapa no §5. O peso `light` não ajuda: não cala `edd_missing_evals`, e só
-  isenta o checklist quando o `report.md` cobre todos os `E-NNN`, que não existem sem `evals.md`.
-- `sddkit update --notes` já imprime as notas de versão desde o kit instalado, sem gravar (U-02).
+- `cli.py` (bloco da constituição no `doctor`): `constitution_oversized` quando o arquivo passa de
+  `24 * 1024` bytes; o JSON traz as 3 maiores seções, o texto não mostra nem o limite nem os bytes de
+  cada seção.
+- `long_table_cell` aponta só a primeira linha de uma tabela com linha acima de 600 bytes.
+- `fix` já tem o padrão opt-in com `--dry-run` e backup (`--weight`): `.sdd/.pre-fix-backup/<ts>/`.
+- O template da constituição empacotado tem 12 comentários HTML (2.981 bytes).
 
 ## Itens
 
-- **K-06** nota `kit_behind` quando a versão do manifesto é menor que a do CLI; diz as duas versões
-  e manda ler `sddkit update --notes` e rodar `sddkit update --dry-run`.
-- **K-07** etapa com `report.md`, sem `evals.md` e marcada `done` no §5: os dois avisos viram uma
-  nota única, `edd_closed_without_evals`. Etapa aberta, ou fechada sem `report.md`, ou ausente do §5,
-  continua com os avisos de hoje.
+- **E-01** `sddkit fix --slim`: remove da constituição só o comentário HTML que é, byte a byte, um dos
+  do template empacotado. Opt-in, `--dry-run`, backup, mantém o fim de linha do arquivo. O achado
+  `constitution_oversized` passa a mostrar o limite, as 3 maiores seções com bytes e quanto o
+  `--slim` recuperaria.
+- **E-02** `sddkit doctor --slim` (só leitura): bytes por seção, cada linha acima de 600 bytes com o
+  arquivo a que pertence (§3 e §6 → `CHANGELOG.md`, §5 → `backlog.md`, outras seções → decidir com o
+  dono) e um texto de instrução para o agente. O kit **não edita** nada disso (decisão do dono de
+  2026-11-17); a §3 entra no escopo.
 
 ## Decisões
 
-1. **`kit_behind` é sempre `note`.** Não bloqueia nem muda o status de saída. Não vira `warn` por
-   número de versões: a régua seria arbitrária e o `update` é decisão do dono.
-2. **"Fechada" exige dois sinais:** `report.md` na pasta (o mesmo sinal que o `doctor` já usa para
-   "closed stage") **e** `Status` `done`/`concluída` na linha do §5. Um só não basta: relatório
-   escrito antes da hora ou linha marcada à mão não escondem o aviso.
-3. **Nota, não silêncio.** A evidência continua não sendo dispensada; a nota diz que a etapa não tem
-   evals e o que fazer se ela não for anterior ao EDD.
-4. **Sem campo novo.** Nada de "EDD desde a etapa N" na constituição ou no manifesto: o estado da
-   etapa já basta para o caso real.
-
-## Fora
-
-- `edd_spec_not_pointer` e `edd_todo_not_evals` em etapas que têm `evals.md`: defeito de formato
-  real, sem mudança.
+1. **Só comentário idêntico ao do template.** Comentário editado, dentro de bloco de código ou que
+   não existe no template fica. É o único descartável que o kit consegue provar.
+2. **`doctor --slim` e `fix --slim`, mesmo nome, papéis diferentes:** o `doctor` lista, o `fix`
+   aplica a parte determinística. O `doctor --slim` substitui a auditoria, não a acompanha.
+3. **Severidade e texto de `constitution_oversized` não mudam** (continua `warn`; continua dizendo
+   que é lido a cada sessão). Medir só a parte lida no início é decisão do estágio 27 (B-01), que
+   depende do dono.
+4. **Seções sem regra não recebem destino:** §1, §2, §4 e §7 saem como "decidir com o dono".
