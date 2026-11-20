@@ -136,10 +136,14 @@ writes and is listed for a human decision. Re-running after success is idempoten
 
 ## Diagnose
 
-### `sddkit doctor [PATH] [--json]`
+### `sddkit doctor [PATH] [--json] [--slim]`
 
 Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
-`error`. Findings (`code`, severity):
+`error`. With `--slim` it prints, instead of the audit, the plan to slim `constitution.md`: the
+bytes each section costs, every line over 600 bytes with the file it belongs in (section 3 and 6
+to `CHANGELOG.md`, section 5 to `backlog.md`, any other section: decide with the owner), what
+`sddkit fix --slim` removes by itself, and an instruction for the agent. The kit edits none of
+those lines. Findings (`code`, severity):
 
 | Area | Code | Meaning |
 |------|------|---------|
@@ -147,7 +151,7 @@ Audits `.sdd/` **read-only**. It exits non-zero when any finding has severity
 | | `mojibake_v1` (warn) | Possible lost accent (`?`); ambiguous, never auto-fixed. |
 | | `invalid_utf8` (error) | File is not UTF-8. |
 | Stages | `spec_without_todo`, `closed_open_todo` | Spec with no todo; closed stage with open checkboxes (`[x]`, `[-]`, `[!]` count as resolved). |
-| Size | `constitution_oversized`, `long_table_cell`, `cold_file_oversized` | Files or rows that inflate every session. |
+| Size | `constitution_oversized`, `long_table_cell`, `cold_file_oversized` | Files or rows that inflate every session. `constitution_oversized` names the limit (24 KiB), the three biggest sections and how many bytes `sddkit fix --slim` would recover; `sddkit doctor --slim` lists what to move. |
 | Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sddkit fix --links`). |
 | Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sddkit fix --features`). |
 | Settings | `tracks_setting_missing` | Real track activity but no explicit `Parallel tracks:` line in Settings — add `on` or `off` by hand. |
@@ -176,7 +180,8 @@ Repairs **deterministic** problems only; run with `--dry-run` first.
 | `--manifest` | Re-records the hash of managed files that differ from the manifest only by line endings (`manifest_eol_drift`). |
 | `--gitignore` | Opt-in: ignore agent worktree folders (`.kilo/worktrees`, ...) and the kit's `.sdd/.pre-*-backup/` folders in `.gitignore`; a backup folder Git already tracks is listed as unfixable (run `git rm -r --cached` on it). |
 | `--weight` | Opt-in: add an empty `Weight` column to the stage index (section 5, canonical table and provisional queue) when it has none. A copy of `constitution.md` is kept in `.sdd/.pre-fix-backup/<timestamp>/`; running it twice changes nothing. |
-| `--all` | Everything except `--gitignore` and `--weight` (the default with no flag). |
+| `--slim` | Opt-in: remove from `constitution.md` the HTML comments that are still exactly the bundled template's (an edited comment, or one inside a code block, stays). A copy goes to `.sdd/.pre-fix-backup/<timestamp>/`; line endings are kept; running it twice changes nothing. It does not shorten anything you wrote: `sddkit doctor --slim` lists those lines. |
+| `--all` | Everything except `--gitignore`, `--weight` and `--slim` (the default with no flag). |
 
 Exit status: `0` nothing to repair, `1` repairs applied (or, with `--dry-run`,
 would be), `2` something needs a human.
