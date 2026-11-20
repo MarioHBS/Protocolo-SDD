@@ -449,8 +449,9 @@ def test_close_refuses_when_claims_remain(tmp_path):
 def test_close_marks_state_closed_and_drops_the_active_tracks_row(tmp_path):
     _close_project(tmp_path, "billing")
     result = _tracks.close(tmp_path, "billing")
-    assert result == {"track": "billing", "state_md": "updated",
-                       "active_tracks_row_removed": True, "archived_to": None, "dry_run": False}
+    assert {k: v for k, v in result.items() if k not in {"state_md_diff", "stale_references"}} == {
+        "track": "billing", "state_md": "updated",
+        "active_tracks_row_removed": True, "archived_to": None, "dry_run": False}
     state = (tmp_path / ".sdd" / "tracks" / "billing" / "state.md").read_text(encoding="utf-8")
     assert "**State:** CLOSED" in state
     constitution = (tmp_path / ".sdd" / "constitution.md").read_text(encoding="utf-8")
