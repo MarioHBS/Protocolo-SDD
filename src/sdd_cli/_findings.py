@@ -41,6 +41,8 @@ _TEXT: dict[str, tuple[str, str]] = {
                          "sddkit fix --features"),
     "manifest_eol_drift": ("{count} managed file(s) differ from the manifest only by line endings (e.g. {path})",
                            "sddkit fix --manifest"),
+    "eol_crlf": ("{count} managed file(s) of the kit are in CRLF (e.g. {path}); the kit keeps LF",
+                 "sddkit fix --eol --dry-run, then sddkit fix --eol"),
     "managed_file_edited": ("{count} managed file(s) differ from the kit and from the manifest (e.g. {path})",
                             "compare with the bundled kit and merge by hand, or restore from .sdd/.pre-migrate-backup/"),
     "readme_anchor_missing": (".sdd/README.md lacks the section '{anchor}' that skills and templates cite",

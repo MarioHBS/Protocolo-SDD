@@ -1,0 +1,2 @@
+# LF everywhere, so a checkout on Windows (core.autocrlf) never turns the kit content into CRLF.
+* text=auto eol=lf

@@ -53,6 +53,31 @@ def die(msg: str) -> None:
     raise SystemExit(1)
 
 
+_TEXT_SUFFIXES = {".md", ".json", ".txt", ".yml", ".yaml", ".toml", ".sh", ".html"}
+
+
+def _install_file(src: Path, dst: Path) -> None:
+    """Copy a file of the bundled kit into a project, with LF line endings (F-01).
+
+    The package is built from a checkout, and a Windows checkout with ``core.autocrlf`` turns every
+    text file of ``content/`` into CRLF. Copying those bytes as they are put CRLF into projects
+    whose ``.gitattributes`` says ``eol=lf``. Text is therefore written as LF whatever the source
+    holds; anything that is not UTF-8 text is copied byte for byte. Backups of the owner's own
+    files do not come through here: they stay exact copies.
+    """
+    data = src.read_bytes()
+    if src.suffix.lower() in _TEXT_SUFFIXES and b"\r" in data:
+        try:
+            data.decode("utf-8")
+        except UnicodeDecodeError:
+            shutil.copy2(src, dst)
+            return
+        dst.write_bytes(data.replace(b"\r\n", b"\n"))
+        shutil.copymode(src, dst)
+        return
+    shutil.copy2(src, dst)
+
+
 def _cli_executable_path() -> str:
     """Resolve the path of the running `sddkit` command itself (R3-01).
 
@@ -332,7 +357,7 @@ def _copy_tree(src: Path, dst: Path, recorded: dict, root: Path) -> None:
         rel = item.relative_to(src)
         target = dst / rel
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(item, target)
+        _install_file(item, target)
         recorded[str(target.relative_to(root)).replace("\\", "/")] = \
             manifest.hash_file(target)
 
@@ -344,7 +369,7 @@ def _install_shim(root: Path, prov: providers.Provider,
     if dst.exists() and not force:
         return f"  {yellow('skip')}  {prov.shim_path} {dim('(already exists)')}"
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
+    _install_file(src, dst)
     recorded[prov.shim_path] = manifest.hash_file(dst)
     return f"  {green('ok')}    {prov.shim_path} {dim('-> ' + prov.invoke)}"
 
@@ -359,7 +384,7 @@ def _install_agent(root: Path, prov: providers.Provider, recorded: dict) -> str:
     if dst.exists():
         return f"  {yellow('skip')}  {prov.agent_path} {dim('(already exists, kept as it is)')}"
     dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
+    _install_file(src, dst)
     recorded[prov.agent_path] = manifest.hash_file(dst)
     return f"  {green('ok')}    {prov.agent_path} {dim('(read-only audit subagent)')}"
 
@@ -609,7 +634,7 @@ def cmd_init(args) -> None:
     sdd_dst.mkdir(exist_ok=True)
 
     for name in MANAGED_ROOT_FILES:
-        shutil.copy2(sdd_src / name, sdd_dst / name)
+        _install_file(sdd_src / name, sdd_dst / name)
         recorded[f".sdd/{name}"] = manifest.hash_file(sdd_dst / name)
         print(f"  {green('ok')}    .sdd/{name}")
 
@@ -642,7 +667,7 @@ def cmd_init(args) -> None:
     if cg.exists():
         print(f"  {yellow('keep')}  .sdd/CHANGELOG.md {dim('(yours, untouched)')}")
     else:
-        shutil.copy2(sdd_src / "templates" / "CHANGELOG.template.md", cg)
+        _install_file(sdd_src / "templates" / "CHANGELOG.template.md", cg)
         print(f"  {green('ok')}    .sdd/CHANGELOG.md")
 
     evaluation_dir = sdd_dst / "kit-evaluation"
@@ -651,7 +676,7 @@ def cmd_init(args) -> None:
         print(f"  {yellow('keep')}  .sdd/kit-evaluation/README.md {dim('(yours, untouched)')}")
     else:
         evaluation_dir.mkdir(exist_ok=True)
-        shutil.copy2(sdd_src / "templates" / "kit-evaluation.template.md", evaluation)
+        _install_file(sdd_src / "templates" / "kit-evaluation.template.md", evaluation)
         print(f"  {green('ok')}    .sdd/kit-evaluation/README.md")
         print(dim("  suggestion: add /.sdd/kit-evaluation/ to .gitignore (local evaluation evidence)"))
 
@@ -663,7 +688,7 @@ def cmd_init(args) -> None:
 
     ga = root / ".gitattributes"
     if not ga.exists():
-        shutil.copy2(CONTENT_DIR / "gitattributes.txt", ga)
+        _install_file(CONTENT_DIR / "gitattributes.txt", ga)
         print(f"  {green('ok')}    .gitattributes {dim('(enforces LF)')}")
 
     print(bold("\nProvider shims"))
@@ -1134,6 +1159,10 @@ def _doctor_payload(root: Path) -> dict:
     if drifted:
         findings.append({"severity": "note", "code": "manifest_eol_drift", "count": len(drifted),
                          "path": drifted[0], "actionable": True})
+    crlf_files = _managed_crlf_files(root, manifest_data)
+    if crlf_files:
+        findings.append({"severity": "note", "code": "eol_crlf", "count": len(crlf_files),
+                         "path": crlf_files[0], "actionable": True})
     edited = _managed_files_edited(root, manifest_data)
     if edited:
         findings.append({"severity": "warn", "code": "managed_file_edited", "count": len(edited),
@@ -1398,6 +1427,28 @@ def _manifest_eol_drift(root: Path, data: dict | None) -> list[str]:
     return drifted
 
 
+_BACKUP_PARTS = {".pre-fix-backup", ".pre-migrate-backup"}
+
+
+def _managed_crlf_files(root: Path, data: dict | None) -> list[str]:
+    """Managed text files of the kit that are on disk with CRLF line endings (F-02).
+
+    ``fix --eol`` repairs exactly these (and the owner's own ``.sdd/`` files), so the doctor can
+    say so instead of reporting clean while the fix would rewrite files.
+    """
+    found = []
+    for rel in sorted((data or {}).get("managed_files", {})):
+        path = root / rel
+        if path.suffix.lower() not in _TEXT_SUFFIXES or not path.is_file():
+            continue
+        try:
+            if b"\r\n" in path.read_bytes():
+                found.append(rel)
+        except OSError:
+            continue
+    return found
+
+
 def _lf(path: Path) -> bytes:
     return path.read_bytes().replace(b"\r\n", b"\n")
 
@@ -1467,9 +1518,14 @@ def cmd_fix(args) -> None:
         if not report.is_utf8:
             unresolved.append({"kind": "invalid_utf8", "path": rel})
     if use_eol:
-        for path in sorted(sdd.rglob("*")):
-            if (not path.is_file() or path.suffix not in {".md", ".json"}
-                    or _mojibake.BACKUP_DIR in path.parts):
+        # `.sdd/` plus the kit's managed files outside it (shims, provider agents), minus the kit's
+        # own backups, which are exact copies of what the files were (F-02).
+        eol_paths = [p for p in sorted(sdd.rglob("*")) if not _BACKUP_PARTS.intersection(p.parts)]
+        managed = (manifest.load(root) or {}).get("managed_files", {})
+        eol_paths += [root / rel for rel in sorted(managed)
+                      if not rel.startswith(".sdd/") and (root / rel).suffix.lower() in _TEXT_SUFFIXES]
+        for path in eol_paths:
+            if not path.is_file() or path.suffix not in {".md", ".json"}:
                 continue
             try:
                 raw = path.read_bytes()
@@ -2999,7 +3055,7 @@ def cmd_migrate(args) -> None:
     src = CONTENT_DIR / "sdd"
     for rel in MANAGED_ROOT_FILES:
         dst = sdd / rel
-        shutil.copy2(src / rel, dst)
+        _install_file(src / rel, dst)
         recorded[f".sdd/{rel}"] = manifest.hash_file(dst)
 
     for d in MANAGED_DIRS:
@@ -3105,7 +3161,7 @@ def _install_global_skill(dry_run: bool) -> None:
             shutil.copy2(path, backup)
     if not dry_run:
         path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, path)
+        _install_file(src, path)
     print(f"  {green(verb)} global skill {path}")
 
 
@@ -3344,10 +3400,10 @@ def cmd_update(args) -> None:
         new_src = src_sdd / rel[len(".sdd/"):]
         cur = root / rel
         cur.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(new_src, cur)
+        _install_file(new_src, cur)
     for rel, src in shim_changed:
         (root / rel).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, root / rel)
+        _install_file(src, root / rel)
 
     managed_files.update(recorded)
     m["managed_files"] = managed_files
