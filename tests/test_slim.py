@@ -203,12 +203,13 @@ def test_doctor_slim_json_has_the_same_content(tmp_path, capsys):
     assert payload["instruction"] == _slim.INSTRUCTION
 
 
-def test_the_oversized_finding_says_the_limit_the_sections_and_what_slim_recovers(tmp_path):
+def test_the_cold_note_says_the_limit_the_sections_and_what_slim_recovers(tmp_path):
     body = "\n".join(f"| {i} | {'y' * 400} |" for i in range(80))
-    root = _project(tmp_path, f"# Constitution\n\n{_template_comment()}\n\n## 3. Locked structural decisions\n\n{body}\n")
-    finding = next(f for f in _doctor_payload(root)["findings"] if f["code"] == "constitution_oversized")
-    assert finding["limit"] == 24 * 1024 and finding["slim_bytes"] > 0
+    root = _project(tmp_path, f"# Constitution\n\n## Settings\n\n{_template_comment()}\n\n## 1. Vision\n\n"
+                              f"## 3. Locked structural decisions\n\n{body}\n")
+    finding = next(f for f in _doctor_payload(root)["findings"]
+                   if f["code"] == "cold_file_oversized" and f["path"] == ".sdd/constitution.md")
+    assert finding["limit"] == 24 * 1024 and finding["slim_bytes"] > 0 and finding["severity"] == "note"
     message, hint = describe(finding)
     assert "limit 24576" in message and "3. Locked structural decisions" in message
     assert "sddkit doctor --slim" in hint and f"{finding['slim_bytes']} B" in hint
-    assert finding["severity"] == "warn"  # the severity did not change in this release
