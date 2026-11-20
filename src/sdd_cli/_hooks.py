@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -168,12 +169,43 @@ def _write(path: Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def install(root: Path, cli_name: str, local: bool = False) -> dict:
-    """Register the kit's hooks next to the owner's, once. Returns what was added and where."""
+def tracked_by_git(root: Path, path: Path) -> bool | None:
+    """Whether Git already tracks ``path`` (None: not a Git repository, or Git is missing)."""
+    try:
+        done = subprocess.run(["git", "-C", str(root), "ls-files", "--error-unmatch", str(path)],
+                              capture_output=True, text=True, timeout=10)
+        inside = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
+                                capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if inside.returncode != 0:
+        return None
+    return done.returncode == 0
+
+
+def _versioned(root: Path, path: Path, local: bool) -> bool:
+    """True when the file the hooks go to is one Git tracks or would track (H-05): then every
+    clone runs the hook, including people without ``bash`` or the CLI."""
+    if local:
+        return False
+    tracked = tracked_by_git(root, path)
+    if tracked is None:
+        return False
+    if tracked:
+        return True
+    ignored = subprocess.run(["git", "-C", str(root), "check-ignore", "-q", str(path)], capture_output=True)
+    return ignored.returncode != 0
+
+
+def install(root: Path, cli_name: str, local: bool = False, dry_run: bool = False) -> dict:
+    """Register the kit's hooks next to the owner's, once. Returns what was added and where.
+
+    With ``dry_run`` nothing is written; ``preview`` holds the entries that would be added."""
     path = settings_path(root, local)
     data = _load(path)
     hooks = data.setdefault("hooks", {})
     added = []
+    preview: dict[str, list] = {}
     for name, event in EVENTS.items():
         line = command(name, cli_name)
         groups = hooks.setdefault(event, [])
@@ -181,15 +213,18 @@ def install(root: Path, cli_name: str, local: bool = False) -> dict:
             continue
         # shell=bash: the `|| true` above is not valid in Windows PowerShell 5.1, which is what
         # Claude Code falls back to when Git Bash is missing; without bash the hook just does not run.
-        groups.append({"matcher": EDIT_MATCHER, "hooks": [
-            {"type": "command", "command": line, "shell": "bash", "timeout": _TIMEOUTS[name]}]})
+        group = {"matcher": EDIT_MATCHER, "hooks": [
+            {"type": "command", "command": line, "shell": "bash", "timeout": _TIMEOUTS[name]}]}
+        groups.append(group)
+        preview.setdefault(event, []).append(group)
         added.append(name)
-    if added:
+    if added and not dry_run:
         _write(path, data)
-    return {"file": path, "added": added}
+    return {"file": path, "added": added, "dry_run": dry_run, "preview": preview,
+            "versioned": _versioned(root, path, local) if added else False}
 
 
-def uninstall(root: Path, cli_name: str, local: bool = False) -> dict:
+def uninstall(root: Path, cli_name: str, local: bool = False, dry_run: bool = False) -> dict:
     """Remove only the entries the kit wrote; the owner's own hooks stay."""
     path = settings_path(root, local)
     data = _load(path)

@@ -1109,6 +1109,10 @@ def _doctor_payload(root: Path) -> dict:
         severity = "note" if item.kind == "closed_in_place" else "warn"
         findings.append({"severity": severity, "code": f"track_{item.kind}",
                          "track": item.track, "track_state": item.track_state, "detail": item.detail})
+    stale_links = _tracks.stale_references(sdd, _tracks.closed_track_slugs(sdd), live_only=True)
+    if stale_links:  # TK-03: links left behind by `track close --archive`
+        findings.append({"severity": "note", "code": "track_link_stale", "count": len(stale_links),
+                         "path": stale_links[0]["path"], "line": stale_links[0]["line"]})
     manifest_data = manifest.load(root)
     constitution = sdd / "constitution.md"
     if constitution.is_file():
@@ -1785,10 +1789,22 @@ def cmd_track(args) -> None:
             print(f"{verb} track {args.slug}")
             if result["state_md"]:
                 print(f"  state.md: {result['state_md']}")
+                if args.dry_run:
+                    for line in result["state_md_diff"]:
+                        print(dim(f"    {line}"))
             print(f"  Active tracks row: {'removed' if result['active_tracks_row_removed'] else 'not found (nothing to remove)'}")
             if result["archived_to"]:
                 moved = "would move" if args.dry_run else "moved"
                 print(f"  {moved} to {result['archived_to']}")
+                refs = result["stale_references"]
+                if refs:
+                    where = "would still point" if args.dry_run else "still point"
+                    print(yellow(f"  {len(refs)} link(s) in .sdd/ {where} at tracks/{args.slug}/ "
+                                 f"(now under tracks/_closed/); update them by hand:"))
+                    for ref in refs[:10]:
+                        print(f"    {ref['path']}:{ref['line']}")
+                    if len(refs) > 10:
+                        print(dim(f"    ...and {len(refs) - 10} more (use --json for the full list)"))
         return
     if args.track_command == "guard":
         try:
@@ -1863,10 +1879,11 @@ def cmd_hooks(args) -> None:
             print(dim(f"Next: {CLI_NAME} hooks install"))
         return
     try:
+        dry_run = bool(getattr(args, "dry_run", False))
         if args.hooks_command == "install":
-            result = _hooks.install(root, CLI_NAME, args.local)
+            result = _hooks.install(root, CLI_NAME, args.local, dry_run)
         else:
-            result = _hooks.uninstall(root, CLI_NAME, args.local)
+            result = _hooks.uninstall(root, CLI_NAME, args.local, dry_run)
     except ValueError as exc:
         die(str(exc))
     changed = result.get("added") or result.get("removed")
@@ -1874,9 +1891,16 @@ def cmd_hooks(args) -> None:
         _emit_json({"command": f"hooks {args.hooks_command}", "project": str(root),
                     "file": str(result["file"]), **{k: v for k, v in result.items() if k != "file"}})
         return
-    verb = "installed" if args.hooks_command == "install" else "removed"
+    verb = ("would install" if dry_run else "installed") if args.hooks_command == "install" \
+        else ("would remove" if dry_run else "removed")
     if changed:
         print(f"{verb} {len(changed)} hook(s) in {result['file']}")
+        if dry_run and result.get("preview"):
+            print(json.dumps({"hooks": result["preview"]}, ensure_ascii=False, indent=2))
+        if result.get("versioned"):
+            print(yellow(f"  {result['file'].name} is versioned in Git: the hooks will run for everyone who "
+                         "clones this repository, including people without bash or the CLI."))
+            print(dim(f"  Prefer: {CLI_NAME} hooks install --local   (.claude/settings.local.json, not committed)"))
     else:
         print(f"nothing to do: {result['file']} already "
               + ("has the hooks" if args.hooks_command == "install" else "has none of the kit's hooks"))
@@ -2151,7 +2175,9 @@ def cmd_evaluate(args) -> None:
               "kit_version": KIT_VERSION, "project_kit_version": doctor["sdd"],
               "context": {"startup_estimated_tokens": context.get("startup_estimated_tokens", 0), "files": context.get("budget", [])},
               "artifacts": {"stages": len([p for p in stages.iterdir() if p.is_dir()]) if stages.is_dir() else 0,
-                            "tracks": len([p for p in tracks.iterdir() if p.is_dir()]) if tracks.is_dir() else 0},
+                            # `_closed/` is the archive bucket, not a track (TK-04)
+                            "tracks": len([p for p in tracks.iterdir()
+                                           if p.is_dir() and not p.name.startswith(("_", "."))]) if tracks.is_dir() else 0},
               "doctor_findings": doctor["findings"]}
     if args.write:
         output = root / ".sdd" / "kit-evaluation" / "snapshot.json"
@@ -3860,6 +3886,7 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
         if name != "status":
             item.add_argument("--local", action="store_true",
                               help="use .claude/settings.local.json (not committed) instead of settings.json")
+            item.add_argument("--dry-run", action="store_true", help="show what would be written, write nothing")
         item.add_argument("--json", action="store_true", help="emit machine-readable JSON")
         item.set_defaults(func=cmd_hooks)
     hook_run = hooks_sub.add_parser("run", help="answer one hook call (the provider runs this; reads JSON on stdin)")
