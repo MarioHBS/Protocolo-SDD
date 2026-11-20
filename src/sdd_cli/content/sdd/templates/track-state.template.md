@@ -3,11 +3,8 @@
      roadmap.md from inside a track except at incorporation (see the
      `sdd-track` skill, "closing a stage inside a track"), and even then only
      by appending your own row(s) to §5 — never rewriting the table. This
-     file is free-form scratch. The CLI reads only the `State:` line (the
-     doctor) and writes only in `sddkit track close`, which sets `State:` to
-     CLOSED and `Last updated:` to today and keeps what they said on a
-     `Previous state:` / `Previous update:` line. The machine-readable
-     footprint lives next to it in `claims.json`. -->
+     file is free-form scratch: the CLI never reads or writes it. The machine-
+     readable footprint lives next to it in `claims.json`. -->
 
 # Track [slug] — [one-line track goal]
 
