@@ -162,7 +162,7 @@ those lines. Findings (`code`, severity):
 | Weight | `weight_light_without_reason` | A stage marked `light` in the optional `Weight` column of section 5 has no one-sentence reason (`light: only fixes a typo`). |
 | Documentation | `docs_missing_file`, `docs_missing_header`, `docs_path_outside_project` | The documentation plan versus disk. |
 | Session | `session_inconsistent`, `session_state_mismatch`, `session_branch_mismatch` | A saved session that no longer fits reality. |
-| Tracks | `track_not_started`, `track_not_incorporated`, `track_closed_in_place` (note; `sddkit track close`), `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
+| Tracks | `track_not_started`, `track_not_incorporated`, `track_closed_in_place` (note; `sddkit track close`), `track_link_stale` (note; a link in `constitution.md`, `roadmap.md`, `backlog.md` or `README.md` still points at `tracks/<slug>/` of a track now under `tracks/_closed/`), `track_overlap` (error), `track_claims_invalid`, `sequence_duplicate` (error) | Track hygiene, colliding footprints, two files with the same number. |
 | Worktrees | `inside_linked_worktree`, `nested_worktree_copies`, `nested_worktree_copies_ignored` (note; already `.gitignore`'d, but a test/lint tool still scans it by path) | A stale copy of `.sdd/` (see `sddkit track`). |
 | Backups | `backup_not_ignored` (note; `sddkit fix --gitignore`), `backup_tracked` (note; `git rm -r --cached <folder>`) | `.sdd/.pre-fix-backup/` or `.sdd/.pre-migrate-backup/` that Git sees, or already tracks: `.gitignore` alone does not stop a tracked folder, and the kit never edits your Git index. |
 | Dependencies | `dependency_inconsistent` | `sddkit deps` records that no longer hold. |
@@ -259,9 +259,13 @@ they need exclusively.
   claims. Two sessions can no longer take the same number.
 - `sddkit track close SLUG [--archive] [--dry-run]` finishes a track once every
   local stage is incorporated and no claim remains: marks `state.md` CLOSED,
-  drops its row from `Active tracks`. `--archive` also moves the folder to
-  `.sdd/tracks/_closed/<slug>` (a closed track left in place is reported as
-  the note `track_closed_in_place`).
+  drops its row from `Active tracks`. `State:` and `Last updated:` change only on their first
+  line: what they said moves to a `Previous state:` / `Previous update:` line and any
+  continuation lines stay, so no sentence is cut; a state that already says CLOSED, FECHADA or
+  encerrada in prose is kept. `--dry-run` prints the `state.md` diff. `--archive` also moves the
+  folder to `.sdd/tracks/_closed/<slug>` and lists the links in `.sdd/` that still point at the old
+  path (it rewrites none of them); a closed track left in place is reported as the note
+  `track_closed_in_place`.
 
 Agents such as Kilo Code create git **worktrees** on their own: each is a full
 copy including a stale `.sdd/`. `sddkit doctor` reports them; `sddkit fix --gitignore`
@@ -274,10 +278,12 @@ them. It is **opt-in**: `init` and `update` never register a hook, because a hoo
 machine at every edit. Only the `claude` provider has a tool hook; for the others, `track check`,
 `track guard` and `doctor` by hand are the same checks.
 
-- `sddkit hooks install [PATH] [--local]` adds two hooks to `.claude/settings.json` (`--local`: to
+- `sddkit hooks install [PATH] [--local] [--dry-run]` adds two hooks to `.claude/settings.json` (`--local`: to
   `.claude/settings.local.json`, which is not committed), next to yours. Running it twice adds nothing; a
-  settings file that is not valid JSON is refused and left untouched.
-- `sddkit hooks uninstall [PATH] [--local]` removes only the entries the kit wrote.
+  settings file that is not valid JSON is refused and left untouched. `--dry-run` prints the JSON that
+  would be added and writes nothing. When the file is versioned in Git, the command says so and suggests
+  `--local`: a committed hook runs for everyone who clones, including people without `bash` or the CLI.
+- `sddkit hooks uninstall [PATH] [--local] [--dry-run]` removes only the entries the kit wrote.
 - `sddkit hooks status [PATH] [--json]` shows which hooks are on, and which installed providers have none.
 
 What the two hooks do (both match `Edit|Write|MultiEdit`):
