@@ -31,6 +31,11 @@ _TEXT: dict[str, tuple[str, str]] = {
     "session_state_mismatch": ("{detail}", "sddkit session sync"),
     "session_branch_mismatch": ("session expects branch {expected} but the current one is {current}",
                                 "git switch {expected}, or record the new branch with sddkit session sync"),
+    "session_branch_merged": ("session expects branch {expected}, which is already merged into {current}",
+                              "record the current branch with sddkit session sync, or close the stage"),
+    "weight_column_missing": ("the stage index (section 5) has {tables} table(s) without a Weight column, "
+                              "so every audited stage gets the full audit; a stage can be marked light only through that column",
+                              "sddkit fix --weight --dry-run, then sddkit fix --weight"),
     "constitution_oversized": ("constitution.md is {bytes} bytes (limit {limit}) and is read at every "
                                "session; biggest sections: {top}",
                                "sddkit doctor --slim lists what to move and where; "
@@ -114,8 +119,7 @@ _TEXT: dict[str, tuple[str, str]] = {
     "nested_worktree_copies_ignored": (
         "{count} agent worktree copies under {path} are already .gitignore'd, but a test/lint/"
         "type-check tool that reads the filesystem directly still scans them",
-        "add {path} to vitest.config test.exclude, eslint.config globalIgnores, and tsconfig "
-        "exclude -- .gitignore alone does not stop a tool that does not consult Git"),
+        "{advice}"),
 }
 
 
@@ -142,16 +146,32 @@ def describe(finding: dict) -> tuple[str, str]:
     return message.format_map(fields), hint.format_map(fields)
 
 
+def location(finding: dict) -> str:
+    """Where one finding is, in a few words (``doctor --all``): file and line, stage, track..."""
+    where = []
+    if finding.get("path"):
+        where.append(str(finding["path"]) + (f":{finding['line']}" if finding.get("line") else ""))
+    elif finding.get("line"):
+        where.append(f"line {finding['line']}")
+    for key in ("stage", "track", "milestone", "heading", "feature", "section", "slug"):
+        if finding.get(key):
+            where.append(f"{key} {finding[key]}")
+    if finding.get("bytes"):
+        where.append(f"{finding['bytes']} B")
+    return ", ".join(where) or finding["code"]
+
+
 def group(findings: list[dict]) -> list[dict]:
     """Collapse repeats of one code into a single entry with a count (103 absolute
     links are one problem, not 103)."""
     groups: dict[str, dict] = {}
     for finding in findings:
-        entry = groups.setdefault(finding["code"], {"first": finding, "count": 0})
+        entry = groups.setdefault(finding["code"], {"first": finding, "count": 0, "members": []})
         entry["count"] += 1
+        entry["members"].append(finding)
     out = []
     for code, entry in groups.items():
         message, hint = describe(entry["first"])
         out.append({"code": code, "severity": entry["first"]["severity"], "message": message,
-                    "hint": hint, "count": entry["count"]})
+                    "hint": hint, "count": entry["count"], "members": entry["members"]})
     return out

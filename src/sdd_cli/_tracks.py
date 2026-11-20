@@ -589,6 +589,17 @@ def stale_references(sdd: Path, slugs: list[str], live_only: bool = False) -> li
     return found
 
 
+def branch_merged_into(root: Path, branch: str, into: str) -> bool:
+    """True when ``branch`` exists and is already contained in ``into`` (D-05). False without Git,
+    for a branch that no longer exists, or for any Git error: the caller then keeps the warning."""
+    try:
+        done = subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor", branch, into],
+                              capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return done.returncode == 0
+
+
 def closed_track_slugs(sdd: Path) -> list[str]:
     closed = sdd / "tracks" / "_closed"
     return sorted(p.name for p in closed.iterdir() if p.is_dir()) if closed.is_dir() else []

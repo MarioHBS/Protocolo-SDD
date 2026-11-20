@@ -825,12 +825,25 @@ def _context_payload(root: Path, budget: bool = False) -> dict:
     return data
 
 
+def _find_project_root(start: Path) -> Path:
+    """The nearest folder at or above ``start`` that has a ``.sdd/`` (D-03), like Git finds ``.git``.
+    ``start`` itself when none does, so a folder with no project above it still says "not an SDD
+    project". Used by the read-only commands only; commands that write keep the folder they were given."""
+    for candidate in (start, *start.parents):
+        if (candidate / ".sdd").is_dir():
+            return candidate
+    return start
+
+
 def cmd_context(args) -> None:
-    data = _context_payload(Path(args.path).resolve(), args.budget)
+    given = Path(args.path).resolve()
+    data = _context_payload(_find_project_root(given), args.budget)
     if args.json:
         _emit_json(data)
         return
     print(dim(f"{CLI_NAME} executable: {data['cli_path']}"))
+    if Path(data["project"]) != given:
+        print(dim(f"project root: {data['project']} (found above {given})"))
     print(data["settings_and_current_state"].rstrip())
     print(f"\nActive stage: {data['active_stage'] or '(none)'}")
     for name, path in data.get("active_paths", {}).items():
@@ -849,7 +862,8 @@ def cmd_context(args) -> None:
 def cmd_doctor(args) -> None:
     """Audit the project's `.sdd/` — mojibake + user-file hygiene. Reports only;
     never rewrites a file."""
-    root = Path(args.path).resolve()
+    given = Path(args.path).resolve()
+    root = _find_project_root(given)
     sdd = root / ".sdd"
     if getattr(args, "slim", False):
         constitution = sdd / "constitution.md"
@@ -869,6 +883,8 @@ def cmd_doctor(args) -> None:
         return
 
     print(bold(f"doctor — {root}"))
+    if root != given:
+        print(dim(f"  project root found above {given}"))
     print(dim(f"  {CLI_NAME} executable: {_cli_executable_path()}"))
 
     # --- SDD presence + version -------------------------------------------
@@ -916,11 +932,18 @@ def cmd_doctor(args) -> None:
         print(yellow(f"\n{yellow('WARN')} accent-loss (`?` for accents, v1) in "
                      f"{len(v1_only)} file(s) — NOT auto-fixed: a `?` next to a "
                      "letter may be a real question mark. Review by hand."))
-        for r in v1_only[:20]:
+        show_all = bool(getattr(args, "all", False))
+        for r in v1_only if show_all else v1_only[:20]:
             rel = r.path.relative_to(root)
             print(f"  {yellow('v1')}   {rel} {dim('(' + str(len(r.v1)) + ' hits)')}")
-        if len(v1_only) > 20:
-            print(dim(f"    ...and {len(v1_only) - 20} more files"))
+            if show_all:
+                raw = r.path.read_bytes()
+                for hit in r.v1:
+                    line = raw.count(b"\n", 0, hit.offset) + 1
+                    col = hit.offset - (raw.rfind(b"\n", 0, hit.offset) + 1) + 1
+                    print(dim(f"         {line}:{col}  {hit.snippet!r}"))
+        if len(v1_only) > 20 and not show_all:
+            print(dim(f"    ...and {len(v1_only) - 20} more files (doctor --all lists them, with line and snippet)"))
 
     if non_utf8:
         status = max(status, 1)
@@ -988,6 +1011,11 @@ def cmd_doctor(args) -> None:
             print(f"  {label} {item['code']}{more}: {item['message']}")
             if item["hint"]:
                 print(dim(f"        fix: {item['hint']}"))
+            if getattr(args, "all", False) and item["count"] > 1:
+                for member in item["members"]:
+                    print(dim(f"          - {_findings.location(member)}"))
+            elif item["count"] > 1:
+                print(dim("          (doctor --all lists each one)"))
     status = max(status, payload["status"])
     if status:
         raise SystemExit(status)
@@ -1125,13 +1153,21 @@ def _doctor_payload(root: Path) -> dict:
                              "top": ", ".join(f"{h} {b} B" for h, b in largest),
                              "slim_bytes": _slim.recoverable_bytes(ctext),
                              "sections": [{"heading": h, "bytes": b} for h, b in largest]})
+        _, weight_tables = _index_checks.add_weight_column(ctext)
+        # D-01: the optional column is only worth a note for a project that runs the audit gate (some
+        # stage has an audit.md); without it every audited stage gets the full lens set. A project that
+        # never audits, and a new one, have nothing to gain and hear nothing.
+        if weight_tables and any((sdd / "stages").glob("*/audit.md")):
+            findings.append({"severity": "note", "code": "weight_column_missing", "tables": weight_tables,
+                             "actionable": True})
         headings = re.findall(r"(?m)^##\s+(.+?)\s*$", ctext)
         duplicates = sorted({h for h in headings if headings.count(h) > 1})
         for heading in duplicates:
             findings.append({"severity": "warn", "code": "duplicate_h2", "heading": heading})
         for line_no, line in enumerate(ctext.splitlines(), 1):
             if "|" in line and len(line.encode("utf-8")) > 600:
-                findings.append({"severity": "warn", "code": "long_table_cell", "line": line_no})
+                findings.append({"severity": "warn", "code": "long_table_cell", "line": line_no,
+                                 "bytes": len(line.encode("utf-8"))})
             if "file:///" in line.lower():
                 findings.append({"severity": "warn", "code": "abs_file_links", "line": line_no,
                                  "actionable": True})
@@ -1283,8 +1319,14 @@ def _doctor_payload(root: Path) -> dict:
                 except ValueError:
                     expected = None
             if expected and expected != branch:
-                findings.append({"severity": "warn", "code": "session_branch_mismatch",
-                                 "track": slug, "expected": expected, "current": branch})
+                if _tracks.branch_merged_into(root, expected, branch):
+                    # D-05: the stage branch is already inside the current one; nothing is lost, the
+                    # saved session is just out of date.
+                    findings.append({"severity": "note", "code": "session_branch_merged",
+                                     "track": slug, "expected": expected, "current": branch})
+                else:
+                    findings.append({"severity": "warn", "code": "session_branch_mismatch",
+                                     "track": slug, "expected": expected, "current": branch})
     dot_git = root / ".git"
     if dot_git.is_file():
         findings.append({"severity": "warn", "code": "inside_linked_worktree",
@@ -1302,8 +1344,11 @@ def _doctor_payload(root: Path) -> dict:
             # and name what is actually still missing.
             ignored = _git_already_ignores(root, rel)
             if ignored:
+                advice, excluded = _worktree_exclusion(root, rel)
+                if excluded:  # D-04: the owner already excluded it where the tool reads its config
+                    continue
                 findings.append({"severity": "note", "code": "nested_worktree_copies_ignored",
-                                 "path": rel, "count": len(copies)})
+                                 "path": rel, "count": len(copies), "advice": advice})
             else:
                 findings.append({"severity": "warn", "code": "nested_worktree_copies",
                                  "path": rel, "count": len(copies)})
@@ -1320,6 +1365,35 @@ def _doctor_payload(root: Path) -> dict:
             "sdd": (manifest_data or {}).get("kit_version", "v1 (no manifest)"),
             "status": 1 if any(x["severity"] == "error" for x in findings) else 0,
             "findings": findings}
+
+
+_JS_CONFIGS = ("vitest.config.*", "vite.config.*", "eslint.config.*", "tsconfig*.json")
+_NOT_GIT = "-- .gitignore alone does not stop a tool that does not consult Git"
+
+
+def _worktree_exclusion(root: Path, rel: str) -> tuple[str, bool]:
+    """(advice, already excluded) for agent worktree copies Git ignores but a tool still scans (D-04).
+
+    The advice follows the stack the project has: Dart/Flutter (``pubspec.yaml``) is excluded in
+    ``analysis_options.yaml``, JavaScript/TypeScript in the vitest, eslint and tsconfig files, and
+    anything else gets a generic line. ``excluded`` is true when the config the tool reads already
+    names the folder, so the note does not repeat itself after the owner did the work."""
+    def mentions(path: Path) -> bool:
+        try:
+            return rel in path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return False
+
+    if (root / "pubspec.yaml").is_file():
+        options = root / "analysis_options.yaml"
+        return (f"add {rel}/** to analyzer.exclude in analysis_options.yaml {_NOT_GIT}",
+                options.is_file() and mentions(options))
+    configs = [p for pattern in _JS_CONFIGS for p in sorted(root.glob(pattern)) if p.is_file()]
+    if configs or (root / "package.json").is_file():
+        return (f"add {rel} to vitest.config test.exclude, eslint.config globalIgnores, and tsconfig "
+                f"exclude {_NOT_GIT}", bool(configs) and all(mentions(p) for p in configs))
+    return (f"exclude {rel} from every test, lint or type-check tool that reads the filesystem "
+            f"directly {_NOT_GIT}", False)
 
 
 def _emit_json(data: dict) -> None:
@@ -3782,6 +3856,9 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     dr.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    dr.add_argument("--all", action="store_true",
+                    help="list every occurrence of a repeated finding (and each accent-loss hit with line "
+                         "and snippet) instead of the first one and a count")
     dr.add_argument("--slim", action="store_true",
                     help="instead of the audit, print the plan to slim constitution.md: bytes per "
                          "section, long lines with the file each belongs in, what `fix --slim` removes")
