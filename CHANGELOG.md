@@ -2,25 +2,57 @@
 
 ## [4.9.6] — In progress
 
-Slimming the constitution with the kit's help. The versions 4.9.2 to 4.9.5 were skipped on
-purpose; their planned content moves to later numbers.
+One release for everything planned for 4.9.2 to 4.9.6 (those numbers were skipped on purpose): line
+endings fixed at the source, safer writes in tracks and hooks, a doctor that says what it knows, and
+a constitution measured by what a session reads.
+
+### Fixed
+
+- F-01: the kit writes LF into projects whatever the package holds. A package built from a Windows
+  checkout (`core.autocrlf`) carried CRLF in 44 of 46 `content/` files, and `init`/`update` copied
+  those bytes into projects whose `.gitattributes` says `eol=lf`. Text is now written as LF, and the
+  repository pins `eol=lf`.
+- F-02: `sddkit doctor` notes managed files that are in CRLF (`eol_crlf`); `sddkit fix --eol` also
+  covers the managed shims and leaves `.sdd/.pre-fix-backup/` and `.sdd/.pre-migrate-backup/` alone.
+  `sddkit fix --eol --manifest` repairs and re-records the hashes in one run.
+- TK-01: `track close` no longer cuts a multi-line `State:` or `Last updated:` bullet: the old first
+  line moves to a `Previous state:` / `Previous update:` line and the continuation lines stay. A state
+  already closed in prose (CLOSED, FECHADA, encerrada) is kept. `--dry-run` prints the diff.
+- TK-02: the doctor reads `CLOSED (date) — text` as closed.
+- TK-03: `track close --archive` lists the links in `.sdd/` that still point at the old folder; the
+  doctor notes them in the live indexes (`track_link_stale`).
+- TK-04: `sddkit evaluate` does not count `tracks/_closed/` as a track.
+- D-04: the `nested_worktree_copies_ignored` advice follows the stack (Dart: `analyzer.exclude`;
+  JavaScript: vitest, eslint, tsconfig; otherwise a generic line) and stops once that config names
+  the folder.
 
 ### Added
 
-- E-01: `sddkit fix --slim` removes from `constitution.md` the HTML comments that are still
-  byte-for-byte the bundled template's, and nothing else. Opt-in (not part of the default `fix`),
-  with `--dry-run`, a backup under `.sdd/.pre-fix-backup/` and the file's own line endings. On the
-  ten real projects it recovers 0 to 1.7 KB, so it does not clear the warning by itself.
-- E-02: `sddkit doctor --slim` (read-only) prints the bytes each section costs, every line over
-  600 bytes with the file it belongs in (section 3 and 6 to `CHANGELOG.md`, section 5 to
-  `backlog.md`, other sections: decide with the owner) and an instruction for the agent. The kit
-  edits none of those lines.
+- E-01: `sddkit fix --slim` removes from `constitution.md` the comments that are still exactly the
+  bundled template's (opt-in, `--dry-run`, backup, line endings kept). It frees 0 to 1.7 KB on the
+  ten real projects.
+- E-02: `sddkit doctor --slim` (read-only) prints the bytes of each section, every line over 600
+  bytes with the file it belongs in and an instruction for the agent. The kit edits none of it.
+- H-05: `sddkit hooks install` and `uninstall` take `--dry-run`; `install` says when the settings
+  file is versioned in Git and suggests `--local`.
+- D-01: note `weight_column_missing` for a project that runs the audit gate (some `audit.md`) and
+  whose stage index has no `Weight` column.
+- D-02: `sddkit doctor --all` lists every occurrence of a repeated finding and, for `mojibake_v1`,
+  each hit with line, column and snippet.
+- D-03: `doctor` and `context` run from a subfolder audit the nearest `.sdd/` above and say which.
+- D-05: a session whose branch is already merged into the current one is the note
+  `session_branch_merged`, not a warning.
+- B-02: optional Settings lines set a project's own ceilings: `- **Constitution max size:** 75 KB`
+  and `- **Cold file max size:** 60 KB`.
 
 ### Changed
 
-- `constitution_oversized` now names the limit (24576 bytes), the three biggest sections with their
-  bytes and how many bytes `fix --slim` would recover, and points to `doctor --slim`. Severity and
-  threshold are unchanged.
+- B-01: `constitution_oversized` (warn) now measures the part a session reads at start (Settings and
+  Current state, the cut `sddkit context` makes; limit 8 KiB). A big constitution is a
+  `cold_file_oversized` note against 24 KiB (or the project's ceiling), with the hot size, the
+  biggest sections and what `fix --slim` would recover. Messages show the limit in use.
+- B-03: `long_table_cell` advises by section: a locked decision (3) or history (6) goes to
+  `CHANGELOG.md` with a pointer, never to `backlog.md`; a stage-index row (5) goes to `backlog.md`.
 
 ## [4.9.1] — In progress
 

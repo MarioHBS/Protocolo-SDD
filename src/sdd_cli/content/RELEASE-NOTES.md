@@ -7,9 +7,13 @@ kit never edits the constitution or any other file you own.
 
 ## 4.9.6
 
-- New `sddkit doctor --slim` (read-only) says where the bytes of `constitution.md` are, lists every line over 600 bytes with the file it belongs in (`CHANGELOG.md` for sections 3 and 6, `backlog.md` for section 5) and gives the agent an instruction. The kit never edits those lines.
-- New `sddkit fix --slim` removes only the comments that are still exactly the template's (opt-in, `--dry-run`, backup). It frees little: the real gain comes from `doctor --slim`.
-- `constitution_oversized` now shows the limit, the biggest sections and what `fix --slim` recovers.
+- The kit now writes LF into your project even when the package was built on Windows. Files already in CRLF stay that way until you run `sddkit fix --eol --manifest --dry-run` and then the same without `--dry-run`; the doctor notes them as `eol_crlf`.
+- `sddkit track close` keeps what `State:` and `Last updated:` said (on a `Previous state:` / `Previous update:` line) instead of cutting multi-line bullets, and `--archive` lists the links it leaves behind.
+- `sddkit hooks install --dry-run` shows what it would write, and says when `.claude/settings.json` is versioned in Git (`--local` keeps it out of the repository).
+- `sddkit doctor --all` lists every occurrence of a repeated finding; run from a subfolder, `doctor` and `context` find the project above.
+- `constitution_oversized` now measures what a session reads at start (Settings and Current state; 8 KiB). A big constitution is a `cold_file_oversized` note with its sizes. Set your own ceilings in Settings (`- **Constitution max size:** 75 KB`, `- **Cold file max size:** 60 KB`).
+- `sddkit doctor --slim` lists the lines to move out of a big constitution and where each goes; `sddkit fix --slim` removes only template comments you never edited. The kit moves none of your text.
+- Manual action: if the stage index has no `Weight` column and the doctor notes `weight_column_missing`, run `sddkit fix --weight --dry-run`, then without `--dry-run`.
 
 ## 4.9.1
 
