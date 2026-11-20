@@ -19,6 +19,9 @@ _TEXT: dict[str, tuple[str, str]] = {
                                "sddkit track incorporate {track} <stage>"),
     "track_closed_in_place": ("track {track} is closed but still sits outside tracks/_closed/",
                               "sddkit track close {track} --archive"),
+    "track_link_stale": ("{count} link(s) in the live index files still point at a track that moved to "
+                         "tracks/_closed/ (first: {path}:{line})",
+                         "point them at tracks/_closed/<slug>/, or drop them if they were only history"),
     "track_overlap": ("two tracks' footprints overlap: {detail}",
                       "sequence the later stage with 'Depends on' (sddkit track check)"),
     "track_claims_invalid": ("a claims.json is invalid: {detail}", "fix or delete the file, then sddkit track claim"),

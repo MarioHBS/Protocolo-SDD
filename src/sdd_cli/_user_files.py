@@ -142,7 +142,7 @@ def _scan_tracks_v4(sdd: Path) -> list[TrackDivergence]:
         text = state.read_text(encoding="utf-8", errors="replace") if state.is_file() else ""
         state_text = text.replace("**", "")
         closed = bool(re.search(r"(?im)^[-*]?\s*(?:status|state|estado|situação)\s*:\s*"
-                                r"(?:closed|encerrad[ao])\s*$", state_text)
+                                r"(?:closed|encerrad[ao]|fechad[ao])\b", state_text)  # TK-02: prose may follow
                       or re.search(r"(?im)^[-*]?\s*incorporated\s*:\s*true\s*$", text)
                       or (active is not None and slug not in active))
         stages = directory / "stages"

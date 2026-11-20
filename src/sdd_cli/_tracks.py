@@ -11,6 +11,7 @@ never take the same one.
 
 from __future__ import annotations
 
+import difflib
 import fnmatch
 import json
 import os
@@ -518,19 +519,79 @@ def incorporate(root: Path, slug: str, stage_dir: Path, *, dry_run: bool = False
 
 # -------------------------------------------------------------------- close
 
-_STATE_LINE_RE = re.compile(r"(?im)^(-\s*\*\*State:\*\*\s*).*$")
-_LAST_UPDATED_LINE_RE = re.compile(r"(?im)^(-\s*\*\*Last updated:\*\*\s*).*$")
+_ALREADY_CLOSED_RE = re.compile(r"(?i)^(?:closed|fechad[ao]|encerrad[ao])\b")
+
+
+def _set_bullet(text: str, label: str, value: str, previous_label: str) -> str:
+    """Set the ``- **<label>:**`` bullet to ``value`` without losing what it said (TK-01).
+
+    The old first-line text moves to a ``<previous_label>:`` line right under the bullet, and the
+    indented continuation lines of a multi-line bullet stay exactly where they are, so closing a
+    track never cuts a sentence in half. A bullet that already says ``value`` is left alone."""
+    lines = text.split("\n")
+    pattern = re.compile(rf"(?i)^(-\s*\*\*{re.escape(label)}:\*\*\s*)(.*)$")
+    for index, line in enumerate(lines):
+        found = pattern.match(line)
+        if found:
+            break
+    else:
+        return text
+    old = found.group(2).strip()
+    if old == value:
+        return text
+    replacement = [found.group(1) + value]
+    if old:
+        replacement.append(f"  {previous_label}: {old}")
+    lines[index:index + 1] = replacement
+    return "\n".join(lines)
 
 
 def _close_state_md(text: str) -> str:
     """Mark state.md CLOSED and stamp today's date. A file that does not use
-    the template's `**State:**` field (free-form scratch, per its own header
-    comment) is left untouched rather than guessed at."""
-    if not _STATE_LINE_RE.search(text):
+    the template's ``**State:**`` field (free-form scratch, per its own header
+    comment) is left untouched rather than guessed at. A state that already
+    says CLOSED / FECHADA / encerrada in prose stays as the owner wrote it."""
+    state = re.search(r"(?im)^-\s*\*\*State:\*\*\s*(.*)$", text)
+    if not state:
         return text
-    text = _STATE_LINE_RE.sub(lambda m: m.group(1) + "CLOSED", text, count=1)
+    if not _ALREADY_CLOSED_RE.match(state.group(1).strip()):
+        text = _set_bullet(text, "State", "CLOSED", "Previous state")
     today = datetime.now(UTC).date().isoformat()
-    return _LAST_UPDATED_LINE_RE.sub(lambda m: m.group(1) + today, text, count=1)
+    return _set_bullet(text, "Last updated", today, "Previous update")
+
+
+_LIVE_INDEXES = ("constitution.md", "roadmap.md", "backlog.md", "README.md")
+
+
+def stale_references(sdd: Path, slugs: list[str], live_only: bool = False) -> list[dict]:
+    """Links in the live ``.sdd/`` markdown that still point at ``tracks/<slug>/`` for a track that
+    now sits under ``tracks/_closed/`` (TK-03). Read-only; history inside the closed tracks and the
+    kit's backups is not looked at. ``live_only`` limits it to the index files read to find work
+    (constitution, roadmap, backlog, README); the rest of ``.sdd/`` is history."""
+    if not slugs:
+        return []
+    pattern = re.compile(r"tracks/(?:" + "|".join(re.escape(s) for s in slugs) + r")(?=[/)\]`\s'\"#]|$)")
+    found = []
+    candidates = [sdd / n for n in _LIVE_INDEXES] if live_only else sorted(sdd.rglob("*.md"))
+    for path in candidates:
+        if not path.is_file():
+            continue
+        parts = path.relative_to(sdd).parts
+        if parts[0] in {".pre-fix-backup", ".pre-migrate-backup", "archive"} or parts[:2] == ("tracks", "_closed"):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for number, line in enumerate(text.splitlines(), 1):
+            if pattern.search(line):
+                found.append({"path": ".sdd/" + "/".join(parts), "line": number})
+    return found
+
+
+def closed_track_slugs(sdd: Path) -> list[str]:
+    closed = sdd / "tracks" / "_closed"
+    return sorted(p.name for p in closed.iterdir() if p.is_dir()) if closed.is_dir() else []
 
 
 def _drop_active_track_row(text: str, slug: str) -> tuple[str, bool]:
@@ -576,13 +637,15 @@ def close(root: Path, slug: str, *, archive: bool = False, dry_run: bool = False
                           "release them before closing")
     constitution = sdd / "constitution.md"
     state_file = track_dir / "state.md"
-    result = {"track": slug, "state_md": None, "active_tracks_row_removed": False,
-              "archived_to": None, "dry_run": dry_run}
+    result = {"track": slug, "state_md": None, "state_md_diff": [], "active_tracks_row_removed": False,
+              "archived_to": None, "stale_references": [], "dry_run": dry_run}
     with _lock.file_lock(sdd / LOCK_NAME):
         if state_file.is_file():
             before = state_file.read_text(encoding="utf-8", errors="replace")
             after = _close_state_md(before)
             result["state_md"] = "updated" if after != before else "unchanged"
+            result["state_md_diff"] = list(difflib.unified_diff(
+                before.splitlines(), after.splitlines(), "state.md (before)", "state.md (after)", lineterm=""))
             if not dry_run and after != before:
                 state_file.write_text(after, encoding="utf-8", newline="\n")
         if constitution.is_file():
@@ -606,4 +669,8 @@ def close(root: Path, slug: str, *, archive: bool = False, dry_run: bool = False
                 if archived.exists():
                     raise ValueError(f"archive target already exists: {target}")
                 shutil.move(str(track_dir), str(archived))
+        if archive:
+            # Links left behind: after a real move the folder is gone from the old path; in a dry run
+            # the old path still exists, so the same list says what the move would leave behind.
+            result["stale_references"] = stale_references(sdd, [slug])
     return result
