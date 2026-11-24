@@ -103,16 +103,31 @@ def analyze(root: Path) -> dict:
     cited = _stage_citations(root)
     external = detect_external(root, field)
     external_numbers = {f["number"] for f in (external or {}).get("files", [])}
+    live = {}  # D-NNN -> the record that already explains it (a superseded or obsolete one does not count)
+    for record in _adr.list_adrs(root):
+        decision = str(record.meta.get("decision", "")).strip()
+        if decision and _adr.normalize_status(record.meta.get("status")) not in (_adr.SUPERSEDED, _adr.OBSOLETE):
+            live.setdefault(decision, record)
     candidates = []
     for row in table or []:
         if row["placeholder"]:
             continue
         cells = row["cells"] + [""] * 5
-        mentioned = sorted({int(n) for cell in cells[1:] for n in _ADR_REF_RE.findall(cell)})
+        fields = row.get("fields", {})
+
+        def cell(labels: tuple[str, ...], position: int, cells=cells, fields=fields) -> str:
+            # by the header's own label (English or Portuguese), else by the kit's column order
+            return next((fields[label] for label in labels if label in fields), cells[position])
+
+        locked_on = cell(("locked on", "travada em"), 4)
+        mentioned = sorted({int(n) for c in cells[1:] for n in _ADR_REF_RE.findall(c)})
+        existing = live.get(row["id"])
         candidates.append({
-            "id": row["id"], "decision": cells[1], "choice": cells[2], "rationale": cells[3],
-            "locked_on": cells[4], "record": row["record"],
-            "locked": bool(_ISO_DATE_RE.match(cells[4])),
+            "id": row["id"], "decision": cell(("decision", "decisão", "decisao"), 1),
+            "choice": cell(("choice", "escolha"), 2), "rationale": cell(("rationale", "justificativa"), 3),
+            "locked_on": locked_on, "record": row["record"],
+            "existing": _adr.link_for(existing) if existing else "",
+            "locked": bool(_ISO_DATE_RE.match(locked_on)),
             "cited_in": cited.get(row["id"], []),
             "external_numbers": [n for n in mentioned if n in external_numbers]})
     return {"has_table": table is not None, "candidates": candidates, "decision_records": field,
@@ -121,8 +136,8 @@ def analyze(root: Path) -> dict:
 
 
 def pending(analysis: dict) -> list[dict]:
-    """Rows with no record yet."""
-    return [c for c in analysis["candidates"] if not c["record"].strip()]
+    """Rows with no record yet: an empty Record cell and no live record naming the row."""
+    return [c for c in analysis["candidates"] if not c["record"].strip() and not c["existing"]]
 
 
 # --------------------------------------------------------------- validation
@@ -194,6 +209,9 @@ def validate(answers: dict, analysis: dict, root: Path) -> dict:
     if not isinstance(mapping, dict) or any(not isinstance(k, str) or not isinstance(v, str)
                                             for k, v in mapping.items()):
         raise ValueError("map must be an object of ADR-NNN -> D-NNN strings")
+    unknown = sorted(v for v in mapping.values() if v not in {c["id"] for c in analysis["candidates"]})
+    if unknown:
+        raise ValueError("map points at rows that are not in section 3: " + ", ".join(unknown))
     return {"schema_version": SCHEMA, "strategy": strategy, "path": path, "records": records, "map": mapping}
 
 
@@ -232,6 +250,11 @@ def build_plan(root: Path, analysis: dict, answers: dict) -> dict:
     notes: list[str] = []
     section7: dict | None = None
     field = analysis["decision_records"]
+    for candidate in analysis["candidates"]:
+        if not candidate["record"].strip() and candidate["existing"]:
+            links[candidate["id"]] = candidate["existing"]
+            notes.append(f"{candidate['id']} is already explained by a record in .sdd/decisions/; "
+                         "its Record cell is filled")
 
     if strategy in ("link", "import"):
         folder = (root / answers["path"]).is_dir()
@@ -254,9 +277,10 @@ def build_plan(root: Path, analysis: dict, answers: dict) -> dict:
             decision = answers["map"].get(f"ADR-{number:03d}") or _external_decision(text, known)
             if not decision:
                 decision = next((c["id"] for c in analysis["candidates"]
-                                 if number in c["external_numbers"] and not c["record"].strip()), "")
+                                 if number in c["external_numbers"]
+                                 and not (c["record"].strip() or c["existing"])), "")
             row = rows.get(decision)
-            target_rows = [decision] if decision and row and not row["record"].strip() else []
+            target_rows = [decision] if decision and row and not (row["record"].strip() or row["existing"]) else []
             if strategy == "link":
                 link = f"[ADR-{number:03d}]({os.path.relpath(root / rel, root / '.sdd').replace(os.sep, '/')})"
                 for did in target_rows:
@@ -283,6 +307,11 @@ def build_plan(root: Path, analysis: dict, answers: dict) -> dict:
     elif field["mode"] in (_decisions.MODE_UNSET, _decisions.MODE_LEGACY, _decisions.MODE_NONE):
         section7 = {"mode": _decisions.MODE_INTERNAL, "path": ""}
 
+    outside = (analysis["external"] or {}).get("files", [])
+    if strategy != "import" and outside:
+        taken |= {f["number"] for f in outside}
+        notes.append(f"new records are numbered after the ADR files in {analysis['external']['path']}, "
+                     "so ADR-NNN keeps meaning one record")
     next_number = max(taken, default=0) + 1
     for item in answers["records"]:
         row = rows[item["decision"]]
@@ -308,6 +337,8 @@ def build_plan(root: Path, analysis: dict, answers: dict) -> dict:
 
     if section7 and section7["mode"] == field["mode"] and section7["path"] == field.get("path", ""):
         section7 = None
+    if strategy != "link" and not (create or links):
+        section7 = None  # an owner who answers "no record" keeps their section 7, word for word
     return {"strategy": strategy, "create": create, "links": links, "section7": section7,
             "add_record_column": analysis["has_record_column"] is False and bool(links or section7),
             "notes": notes}
@@ -332,17 +363,26 @@ def apply(root: Path, plan: dict) -> dict:
     (with a backup), then the index. Returns what was written and what was skipped."""
     created, skipped = [], []
     with _lock.file_lock(root / ".sdd" / _tracks.LOCK_NAME):
+        used = set(_adr._used_numbers(root))
+        taken_meanwhile = [item["id"] for item in plan["create"]
+                           if item["number"] in used and not (root / item["path"]).exists()]
+        if taken_meanwhile:
+            raise ValueError(", ".join(taken_meanwhile) + " was taken by another session while the plan was "
+                             "being made; nothing was written, run the command again")
         for item in plan["create"]:
             if _adr.write_new_file(root / item["path"], item["content"]):
                 created.append(item["path"])
             else:
                 skipped.append(item["path"])
         _adr.claim_numbers(root, [item["number"] for item in plan["create"] if item["path"] in created])
+    not_written = {Path(path).name for path in skipped}
+    links = {d: link for d, link in plan["links"].items()
+             if not any(f"{_adr.DECISIONS_DIR}/{name})" in link for name in not_written)}
 
     def edit(text: str) -> str:
         if plan["add_record_column"]:
             text, _ = _decisions.add_record_column(text)
-        for decision, link in plan["links"].items():
+        for decision, link in links.items():
             text, _ = _decisions.set_record(text, decision, link)
         if plan["section7"]:
             text = _decisions.set_decision_records(text, plan["section7"]["mode"], plan["section7"]["path"])
@@ -429,12 +469,11 @@ def run_interview(root: Path, analysis: dict, console: _docs_plan.Console, *, st
     if step("records"):
         covered = set()
         if answers.get("strategy") in ("link", "import") and external:
-            for candidate in todo:
-                if candidate["external_numbers"]:
-                    covered.add(candidate["id"])
-        records = []
+            covered = {c["id"] for c in todo if c["external_numbers"]}
+        records = answers.setdefault("records", [])
+        asked = answers.setdefault("asked", [])
         for candidate in todo:
-            if candidate["id"] in covered:
+            if candidate["id"] in covered or candidate["id"] in asked:
                 continue
             label = f"{candidate['id']} {candidate['decision']}: {candidate['choice']}".strip()
             hint = []
@@ -444,20 +483,24 @@ def run_interview(root: Path, analysis: dict, console: _docs_plan.Console, *, st
                 hint.append("still proposed")
             console.say(f"\n{label}" + (f"  ({'; '.join(hint)})" if hint else ""))
             default = len(candidate["cited_in"]) > 1
-            if not console.confirm("Does it deserve a record (real alternatives, refutable premise, "
-                                   "several stages, costly to reverse)?", default):
-                continue
-            status = console.choose("Status", _adr.STATUSES,
-                                    _adr.ACCEPTED if candidate["locked"] else _adr.PROPOSED)
-            item = {"decision": candidate["id"], "status": status,
-                    "context": console.ask("Context: why it was needed (empty if unknown)", ""),
-                    "alternatives": _ask_list(console, "Alternatives that were considered"),
-                    "stage": console.ask("Stage where it was made (empty if unknown)", "")}
-            if status == _adr.IMPLEMENTED:
-                item["implemented_in"] = console.ask("Implemented in (stage, file or commit)",
-                                                     candidate["cited_in"][0] if candidate["cited_in"] else "")
-            records.append(item)
-        answers["records"] = records
+            wanted = console.confirm("Does it deserve a record (real alternatives, refutable premise, "
+                                     "several stages, costly to reverse)?", default)
+            item = None
+            if wanted:
+                status = console.choose("Status", _adr.STATUSES,
+                                        _adr.ACCEPTED if candidate["locked"] else _adr.PROPOSED)
+                item = {"decision": candidate["id"], "status": status,
+                        "context": console.ask("Context: why it was needed (empty if unknown)", ""),
+                        "alternatives": _ask_list(console, "Alternatives that were considered"),
+                        "stage": console.ask("Stage where it was made (empty if unknown)", "")}
+                if status == _adr.IMPLEMENTED:
+                    item["implemented_in"] = console.ask("Implemented in (stage, file or commit)",
+                                                         candidate["cited_in"][0] if candidate["cited_in"] else "")
+            if item:
+                records.append(item)
+            asked.append(candidate["id"])  # a row answered is never asked again after --resume
+            if on_step:
+                on_step(state)
         finish("records")
     return {"schema_version": SCHEMA, "strategy": answers.get("strategy", "rows"),
             "path": answers.get("path", ""), "records": answers.get("records", []), "map": {}}
