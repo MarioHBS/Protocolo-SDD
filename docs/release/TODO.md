@@ -31,4 +31,4 @@
 - [x] `update --dry-run` nos 10 projetos: nada gravado
 - [x] `CHANGELOG.md` e `RELEASE-NOTES.md` citam todos os itens; versão em `pyproject.toml` e `content/VERSION`
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.9.6`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
+- [x] tag `v4.9.6`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
