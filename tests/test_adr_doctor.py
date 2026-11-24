@@ -72,7 +72,7 @@ def test_decisions_without_the_folder_are_one_note_never_a_warning(tmp_path):
     (finding,) = _found(root, "decisions_dir_missing")
     assert finding["severity"] == "note" and finding["count"] == 2
     message, hint = _findings.describe(finding)
-    assert "2 locked decision(s)" in message and "sddkit adr init" in hint
+    assert "2 decision(s) in section 3" in message and "sddkit adr init" in hint
     assert _doctor_payload(root)["status"] == 0
 
 

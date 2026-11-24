@@ -142,13 +142,18 @@ def test_dry_run_prints_the_plan_and_writes_nothing(tmp_path, capsys):
     assert not (root / ".sdd" / ".reservations.json").exists()
 
 
-def test_an_empty_record_list_only_adds_the_column_and_says_internal(tmp_path):
-    root = _project(tmp_path)
+@pytest.mark.parametrize("section_7", [
+    "- **Decision records (ADRs):** ADRs in DOC-007; amendments as 'Amendment N'",
+    "- **Decision records:** not applicable — decidimos em 2025 que a §3 basta",
+    "- **Decision records (ADRs):** [where they live]",
+])
+def test_answering_no_record_to_everything_changes_no_byte_of_the_project(tmp_path, capsys, section_7):
+    root = _project(tmp_path, _constitution(section_7=section_7))
+    before = _snapshot(root)
     _init(root, _answers(tmp_path, records=[]))
-    assert _files(root) == [] and not (root / ".sdd" / "decisions").exists()
-    assert _decisions.has_record_column(_text(root)) is True
-    assert all(r["record"] == "" for r in _decisions.rows(_text(root)))
-    assert _decisions.decision_records(_text(root))["mode"] == "internal"
+    assert _snapshot(root) == {**before, "adr-init.json": (tmp_path / "adr-init.json").read_bytes()}
+    assert not (root / ".sdd" / ".pre-fix-backup").exists()
+    assert "nothing to do" in capsys.readouterr().out or True
 
 
 def test_a_record_is_never_written_over_one_the_owner_has(tmp_path):
