@@ -16,7 +16,7 @@ Commands by purpose:
 | Set up | `sddkit init`, `sddkit providers`, `sddkit update`, `sddkit migrate` |
 | Diagnose | `sddkit doctor`, `sddkit fix`, `sddkit health`, `sddkit context`, `sddkit evaluate` |
 | Work | `sddkit session`, `sddkit scaffold`, `sddkit track`, `sddkit hooks`, `sddkit seq`, `sddkit deps`, `sddkit impact` |
-| Document | `sddkit document`, `sddkit manual` |
+| Document | `sddkit document`, `sddkit adr`, `sddkit manual` |
 | Observe | `sddkit dashboard` |
 | Feedback | `sddkit proposals` |
 
@@ -390,6 +390,42 @@ missing files (existing files are never overwritten).
 Without a terminal — an agent session — pass the same answers as JSON:
 `sddkit document --answers plan.json --dry-run`, then again without `--dry-run`.
 `sddkit doctor` keeps the plan honest (missing files, missing headers).
+
+### `sddkit adr <new|index>`
+
+Architecture decision records (ADRs) live in `.sdd/decisions/`, one file per record,
+whether or not the Documentation feature is on:
+
+```text
+.sdd/decisions/
+  README.md              generated index (never edit it by hand)
+  ADR-001-<slug>.md      one file per record
+```
+
+The record is the body of a decision; the row `D-NNN` of the constitution's section 3 stays the
+register of locked decisions and points at its record through the `Record` column. A decision gets
+a record when there were real alternatives, when its premise can be checked and refuted, when it
+affects more than one stage, or when reverting it is expensive; otherwise the `D-NNN` row is enough.
+Every record has a `D-NNN` row, never the other way round.
+
+- `sddkit adr new TITLE [PATH] [--decision D-NNN] [--stage SLUG] [--status S] [--supersedes ADR-NNN]
+  [--context TEXT] [--alternative TEXT] [--dry-run] [--json]` creates the next record with status
+  `proposta`, regenerates the index and, with `--decision`, writes the link in that row's `Record`
+  cell (the constitution is copied to `.sdd/.pre-fix-backup/` first; a §3 table without the column
+  is left alone). Numbers come from the same lock and ledger as `sddkit seq next`: a number is
+  never handed out twice, even after its file is deleted. `--supersedes` marks the older record
+  `substituída` and points it at the new one; only its frontmatter changes, never its body.
+  `--dry-run` shows the file without reserving a number or writing anything.
+- `sddkit adr index [PATH] [--check] [--json]` rewrites `.sdd/decisions/README.md` from the
+  frontmatter of the records, byte for byte the same when nothing changed. `--check` changes
+  nothing and exits 1 when the index is out of date.
+
+Frontmatter of a record: `id`, `status`, `date`, `stage`, `decision` (`D-NNN`), `supersedes`,
+`superseded_by`, `implemented_in`, `reconstructed`, `source`. Status cycle: `proposta` →
+`aceita` → `implementada` → `substituída` or `obsoleta`. The body is immutable once accepted: an
+adjustment becomes an "Amendment N" section at the end of the file, and a changed decision becomes
+a new record with `--supersedes`. `sddkit update` and `sddkit migrate` never create
+`.sdd/decisions/`; only `sddkit adr new` (and, later, `sddkit adr init`) do.
 
 ### `sddkit manual [--md [FILE]]`
 
