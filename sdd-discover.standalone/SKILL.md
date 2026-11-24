@@ -168,7 +168,7 @@ UTF-8 JSON. It is the import source and must stay consistent with
   "project": {"name": "Example", "language": "pt-BR"},
   "vision": {"what_it_is": "...", "who_it_is_for": "...", "definition_of_done": "..."},
   "features": {"estimation": false, "documentation": false, "tracks": false, "edd": true},
-  "decisions": [{"decision": "...", "choice": "...", "rationale": "...", "locked_on": "2026-09-22"}],
+  "decisions": [{"decision": "...", "choice": "...", "rationale": "...", "locked_on": "2026-09-22", "adr": true, "context": "...", "alternatives": ["option: why not"]}],
   "open_questions": [{"question": "...", "blocks_gate": "yes", "status": "open"}],
   "backlog": [],
   "stages": [
@@ -193,6 +193,14 @@ Semantics the importer applies:
   date). They always arrive as **proposals**, and the project starts in the
   `DECIDING` state: nothing is specified until the decision gate (`sdd-decide`)
   audits them. Treat them as proposed (Step 3).
+- `adr`, `context` and `alternatives` are optional, per decision. Set `adr: true`
+  only for a decision with real alternatives, a premise that can be refuted, an
+  effect on more than one stage, or a high cost to revert, and then fill `context`
+  (why it was needed) and `alternatives` (each rejected option and why, as
+  strings). A CLI that supports records (4.10.0 and later) writes that decision's
+  record in `.sdd/decisions/` with status `proposta`, next to its `D-NNN` row; an
+  older CLI ignores the three fields. A decision without `adr: true` is only a
+  row. Leave the fields out when unsure.
 - `open_questions` become rows `Q-001…`; use `blocks_gate` `"yes"` or `"no"` and
   `status` `"open"` for anything unresolved.
 - Every stage is also written to `backlog.md` with its origin, context,
@@ -212,7 +220,9 @@ Semantics the importer applies:
 - [ ] `features` is an object of booleans only (omit or `false` for undecided).
 - [ ] `stages` is a non-empty list; each has a unique kebab-case `slug`, a
       non-empty `title`, a valid `origin`, and `footprints` (if present) as a list.
-- [ ] `decisions`, `open_questions` and `backlog` (if present) are lists.
+- [ ] `decisions`, `open_questions` and `backlog` (if present) are lists; every
+      decision is an object, and where present `adr` is a boolean, `context` a
+      string and `alternatives` a list of strings.
 - [ ] Every stage has `context` or `tasks` (the CLI warns otherwise).
 - [ ] JSON and `discovery.md` agree on stages, decisions and open questions.
 - [ ] Every decision is labeled proposed in `discovery.md`; every structural

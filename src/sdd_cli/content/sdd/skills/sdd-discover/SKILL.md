@@ -111,12 +111,21 @@ Use this contract (`schema_version` is literal):
   "project": {"name": "Example", "language": "pt-BR"},
   "vision": {"what_it_is": "...", "who_it_is_for": "...", "definition_of_done": "..."},
   "features": {"estimation": false, "documentation": false, "tracks": false, "edd": true},
-  "decisions": [{"decision": "...", "choice": "...", "rationale": "...", "locked_on": "2026-09-22"}],
+  "decisions": [{"decision": "...", "choice": "...", "rationale": "...", "locked_on": "2026-09-22", "adr": true, "context": "...", "alternatives": ["option: why not"]}],
   "open_questions": [{"question": "...", "blocks_gate": "yes", "status": "open"}],
   "backlog": [],
   "stages": [{"slug": "first-slice", "title": "First end-to-end slice", "origin": "escopo-original", "footprints": ["src/**"], "context": "...", "tasks": ["..."]}]
 }
 ```
+
+`adr`, `context` and `alternatives` are optional, per decision. Set `adr: true`
+only for a decision that passes the record criterion of `sdd-decide` (real
+alternatives, a premise that can be refuted, effect on more than one stage, or
+expensive to revert), and then fill `context` (why it was needed) and
+`alternatives` (each rejected option and why, as strings). The import writes that
+decision's record in `.sdd/decisions/` with status `proposta`, next to its
+`D-NNN` row; a decision without `adr: true` is only a row. Leave the fields out
+when unsure: a file without them is still valid `sdd-discovery/v1`.
 
 `stages` must be non-empty; its first item becomes canonical stage `001` and
 active for specification, while later items form the provisional queue.
