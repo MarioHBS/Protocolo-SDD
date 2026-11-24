@@ -39,9 +39,11 @@ rebuilds them for projects that decided things before the folder existed. (The p
 
 ### Changed
 
-- `sdd-specify`, `sdd-init`, `sdd-close`, `sdd-document`, `sdd-discover` (and the standalone copy) and
-  the kit README point at `sddkit adr` instead of "follow the project's convention, do not invent a
-  format".
+- `sdd-specify`, `sdd-init`, `sdd-close`, `sdd-document` and `sdd-discover` (and the standalone copy)
+  point at `sddkit adr` instead of "follow the project's convention, do not invent a format". The
+  managed `.sdd/README.md` is deliberately left as it was: a project whose manifest holds an old hash
+  for it would see `managed_file_edited` forever (the IP-018 family), and the skills already carry
+  the instructions.
 - `init --discovery` writes six cells per decision row (the new `Record` column); the template's
   `Decision records (ADRs)` free-text line became the `Decision records` field.
 - `sddkit update` and `sddkit migrate` still never create `.sdd/decisions/`.

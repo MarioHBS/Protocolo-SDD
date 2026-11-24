@@ -42,3 +42,10 @@ G-02 e G-03 (4.6.0) já estão feitos; M-03 só reaproveita o status `proposta`.
 5. **Coluna "Registro" só no template novo.** Tabela §3 sem a coluna continua lida; em projeto
    existente a coluna é preenchida por `adr init` (prévia e backup), nunca por `update`.
 6. **Arquivos novos em LF**; edição da constituição preserva o fim de linha do arquivo.
+7. **O `.sdd/README.md` gerenciado não muda nesta release.** O `doctor` 4.9.6 × 4.10.0 mostrou que o
+   P2 (manifesto com hash antigo, arquivo igual ao README da 4.9.6) passaria a acusar
+   `managed_file_edited` para sempre (família do IP-018, igual ao `track-state.template.md` da 4.9.6).
+   A descrição de `decisions/` fica no `USAGE.md` e nas skills.
+8. **Coluna da §3 chama-se `Record`** (o kit é em inglês); `Registro` e `ADR` são aceitos como apelidos.
+9. **"Não aplicável" e "não há ADRs" (e os equivalentes em inglês) silenciam a nota** `decisions_dir_missing`:
+   o `doctor` nos 10 projetos mostrou 6 deles escrevendo isso em português ou inglês na §7.
