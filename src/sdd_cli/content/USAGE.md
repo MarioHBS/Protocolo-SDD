@@ -396,7 +396,7 @@ Without a terminal — an agent session — pass the same answers as JSON:
 `sddkit document --answers plan.json --dry-run`, then again without `--dry-run`.
 `sddkit doctor` keeps the plan honest (missing files, missing headers).
 
-### `sddkit adr <new|index>`
+### `sddkit adr <new|index|init>`
 
 Architecture decision records (ADRs) live in `.sdd/decisions/`, one file per record,
 whether or not the Documentation feature is on:
@@ -425,12 +425,49 @@ Every record has a `D-NNN` row, never the other way round.
   frontmatter of the records, byte for byte the same when nothing changed. `--check` changes
   nothing and exits 1 when the index is out of date.
 
+- `sddkit adr init [PATH] [--resume] [--answers FILE] [--dry-run] [--json]` is for a project that
+  decided things before this folder existed (decisions in section 3, maybe ADRs somewhere else).
+  It reads what the project already says, proposes candidates and asks only what cannot be
+  inferred: first what to do with ADRs that already exist outside `.sdd/` (`link`: they stay where
+  they are, section 7 says `external — <path>` and, for a folder with one `ADR-NNN` file per ADR,
+  the `Record` cells link them; `import`: that folder is copied into `.sdd/decisions/`, numbers
+  kept; `rows`: ignore them), then, for each `D-NNN` row without a record, whether it deserves one
+  and its status, context, alternatives and stage. Every record it writes has `reconstructed: true`
+  and a `source:`; a date, a context or an alternative the sources do not give is left empty or
+  marked `[unknown: not recorded in the source]`, never made up. A single document that holds
+  many ADRs can only be linked from section 7: the kit does not cut it into records. It only
+  creates files (an existing file is kept and reported), adds the `Record` column when the
+  table lacks it, fills the cells and section 7, and regenerates the index; the constitution is
+  copied to `.sdd/.pre-fix-backup/` first and keeps its line endings. A second run changes nothing.
+  `--dry-run` prints the plan as JSON and writes nothing. Answers are saved after every step;
+  `--resume` continues. Without a terminal (an agent session) pass `--answers FILE`:
+
+  ```json
+  {
+    "schema_version": "sdd-adr-init/v1",
+    "strategy": "rows",
+    "path": "docs/decisoes/",
+    "map": {"ADR-003": "D-012"},
+    "records": [
+      {"decision": "D-004", "status": "aceita", "stage": "002-data-model",
+       "context": "Needed transactions.", "alternatives": ["SQLite: one writer only"],
+       "implemented_in": "", "date": "", "title": "", "source": ""}
+    ]
+  }
+  ```
+
+  `strategy` is `rows` (default), `link` or `import`; `path` is required for the last two and must
+  exist inside the project. `records` lists the rows that get a record (every other row stays a
+  row); only `decision` is required. `map` pairs an external `ADR-NNN` with its `D-NNN` when the
+  file does not name it. A `D-NNN` that already has a record is skipped, so the same file can be
+  applied again.
+
 Frontmatter of a record: `id`, `status`, `date`, `stage`, `decision` (`D-NNN`), `supersedes`,
 `superseded_by`, `implemented_in`, `reconstructed`, `source`. Status cycle: `proposta` →
 `aceita` → `implementada` → `substituída` or `obsoleta`. The body is immutable once accepted: an
 adjustment becomes an "Amendment N" section at the end of the file, and a changed decision becomes
 a new record with `--supersedes`. `sddkit update` and `sddkit migrate` never create
-`.sdd/decisions/`; only `sddkit adr new` (and, later, `sddkit adr init`) do.
+`.sdd/decisions/`; only `sddkit adr new` and `sddkit adr init` do.
 
 ### `sddkit manual [--md [FILE]]`
 
