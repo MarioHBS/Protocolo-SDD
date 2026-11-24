@@ -41,7 +41,9 @@ Write all output in the language set in `constitution.md → Settings → Langua
 3. **Bootstrap the structure** (if missing): ensure `.sdd/constitution.md`,
    `.sdd/roadmap.md`, `.sdd/CHANGELOG.md` and `.sdd/stages/` exist. Fill **§1
    Project vision** with what was confirmed. Fill **§7 Project decision
-   conventions** if the project already uses ADRs or its own versioning scheme.
+   conventions** if the project already uses ADRs or its own versioning scheme:
+   set `Decision records` to `internal` (records in `.sdd/decisions/`) or to
+   `external — <folder or document>` when the ADRs already live elsewhere.
    `CHANGELOG.md` is seeded from its template (English skeleton, one
    placeholder entry); the constitution's **§6 is born as an empty dated-band
    index pointing at it** — never a long narrative. The first real entry is
@@ -54,7 +56,11 @@ Write all output in the language set in `constitution.md → Settings → Langua
      decisions** (docs/ADRs/schema). You may go straight to `ROADMAP`, **only
      if** you record those decisions as `D-NNN` rows in §3 citing their source.
      The gate is satisfied by citation, not by from-scratch questioning. Record
-     this in §6. Jumping to ROADMAP with §3 empty is forbidden.
+     this in §6. Jumping to ROADMAP with §3 empty is forbidden. When the
+     project already has ADRs, or decisions worth a record, tell the owner that
+     `sddkit adr init` rebuilds them as records in `.sdd/decisions/` through an
+     interview that never invents what the sources do not say; do not write the
+     records by hand here.
 
 5. **Update the date** and hand over control, telling the user which path was
    taken and why.

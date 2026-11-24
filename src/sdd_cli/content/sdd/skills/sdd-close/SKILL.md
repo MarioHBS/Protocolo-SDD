@@ -104,6 +104,15 @@ Write all artifacts in the language set in
    constitution so it keeps pointing at `CHANGELOG.md` (§6 is the index, never
    the long history). Never rewrite the changelog's English skeleton.
 
+   **Decision records.** For each decision this stage delivered that has a record
+   (the `Record` cell of its `D-NNN` row in §3, records in `.sdd/decisions/`), move
+   the record from `aceita` to `implementada` and set `implemented_in:` to this
+   stage in its frontmatter; a record whose decision this stage replaced is
+   superseded by a new record (`sddkit adr new ... --supersedes ADR-NNN`), not
+   edited. Then run `sddkit adr index`. The record's body stays as it was, and
+   `sddkit doctor` flags a record that says `implementada` without
+   `implemented_in`.
+
 9. **Point to the next stage.** First **re-weigh the queue**: read the `Weight` of the
    stages still waiting against what this stage taught (a refactor that just landed may
    make a pending stage trivial; a contract discovered along the way may make a `light`

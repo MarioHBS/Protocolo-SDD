@@ -143,8 +143,11 @@ earlier stage delivered, **never do it silently**:
    describe exactly what changes and what remains.
 3. Update the decision in the constitution and record it in `CHANGELOG.md`
    (and refresh §6's dated-band index to keep pointing there), listing affected
-   stages. If the project uses ADRs (§7), amend the ADR following the project's
-   convention — do not invent a format here.
+   stages. If the decision has a record (its `Record` cell in §3, or §7's
+   `Decision records`), adjust it as an "Amendment N" section at the end of that
+   file; when the decision itself changes, create a new record with
+   `sddkit adr new "<title>" --decision D-NNN --supersedes ADR-NNN` (the old one
+   only changes status). With `external` records, follow the convention §7 names.
 4. Verify that completed stages remain valid; if one broke, register a
    reconciliation stage instead of leaving an inconsistency.
 

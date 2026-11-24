@@ -32,7 +32,9 @@ and let the user adjust. Do not present them as rigid tiers — they are anchors
   Fits solo projects, short-lived tools, prototypes, or anything where the
   specs already carry the knowledge.
 - **Medium** — adds a small fixed core: architecture overview, data model,
-  API/contract reference, glossary, and decision records (ADRs). Fits projects
+  API/contract reference, glossary, and a view of the decision records (ADRs;
+  the records themselves live in `.sdd/decisions/`, and a document that mirrors
+  them cites or copies them, never replaces them). Fits projects
   with a real user base, a second developer arriving, or a long life ahead.
 - **Comprehensive** — a numbered, versioned corpus (e.g. `DOC-001`…) covering
   architecture, governance, roles/permissions, state machines, domain events,
