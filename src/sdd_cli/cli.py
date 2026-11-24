@@ -18,6 +18,7 @@ from pathlib import Path
 
 from . import (
     _adr,
+    _adr_checks,
     _dashboard,
     _decisions,
     _deps,
@@ -1311,6 +1312,7 @@ def _doctor_payload(root: Path) -> dict:
     findings.extend(_index_checks.audit_findings(sdd, _index_checks.stage_weights(sdd),
                                                  _closing_stages(root)))
     findings.extend(_docs_plan.findings(root))
+    findings.extend(_adr_checks.findings(root))
     saved_session = _session.load(root)
     for issue in _session.validate(root, saved_session):
         findings.append({"severity": "warn", "code": "session_inconsistent", "detail": issue})
