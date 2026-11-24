@@ -56,7 +56,7 @@ artefatos usam o idioma escolhido no `init`.
 | Preparar | `init`, `discover`, `providers`, `update`, `migrate` |
 | Diagnosticar | `doctor`, `fix`, `health`, `context`, `evaluate` |
 | Trabalhar | `session`, `scaffold`, `track`, `seq`, `deps`, `impact` |
-| Documentar | `document`, `manual` |
+| Documentar | `document`, `adr`, `manual` |
 | Observar | `dashboard` |
 
 Rode `sddkit <comando> --help` para detalhes, ou `sddkit manual` para tudo. Para um projeto que ainda

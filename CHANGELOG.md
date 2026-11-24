@@ -1,5 +1,51 @@
 # Changelog — sdd-cli
 
+## [4.10.0] — In progress
+
+Decision records (ADRs) become part of the kit: a folder of their own, a command, a link from the
+constitution's decision table, a field that says where they live, doctor checks, and an interview that
+rebuilds them for projects that decided things before the folder existed. (The project plan calls this
+"stage 12"; the numbers 4.11.0 and 4.12.0 go to the stages that were planned there.)
+
+### Added
+
+- M-01: `.sdd/decisions/ADR-NNN-<slug>.md`, one file per record, with a frontmatter (`id`, `status`,
+  `date`, `stage`, `decision`, `supersedes`, `superseded_by`, `implemented_in`, `reconstructed`,
+  `source`), the status cycle `proposta → aceita → implementada → substituída | obsoleta`, and the
+  managed template `templates/adr.template.md`. `sddkit adr new TITLE` creates the next record
+  (`--decision`, `--stage`, `--status`, `--context`, `--alternative`, `--supersedes`, `--dry-run`).
+  Numbers come from the lock and the ledger `seq next` uses, so a number is never handed out twice,
+  even after its file is deleted; superseding changes only the old record's frontmatter.
+- M-02: `sddkit adr index` writes `.sdd/decisions/README.md` from the frontmatter (byte-for-byte the
+  same when nothing changed; `--check` exits 1 when it is out of date). Section 3 of the constitution
+  template gains a `Record` column that links the decision's record (`adr new --decision` fills it);
+  a table without the column keeps being read. `sdd-decide` says when a decision also gets a record.
+- M-05: section 7's `Decision records` field is `internal`, `external — <path>` or "not applicable";
+  the doctor checks records against section 3, section 7 and the index (`adr_duplicate_id` is an
+  error; `adr_status_invalid`, `adr_without_decision`, `decision_row_adr_missing`,
+  `adr_implemented_without_ref`, `adr_superseded_without_successor`, `adr_index_stale` and
+  `adr_external_path_missing` are warnings; `decisions_dir_missing` is a note). A project that keeps no
+  ADRs by choice never gets more than a note.
+- M-03: a discovery decision may carry `adr: true`, `context` and `alternatives` (all optional;
+  `sdd-discovery/v1` files without them import as before). `init --discovery` writes that decision's
+  record with status `proposta`, next to its `proposed` row; `sdd-decide` moves it to `aceita` with the
+  row, and `sdd-close` to `implementada`. `discover --check` validates the three fields.
+- M-04: `sddkit adr init` rebuilds records for a project that decided things before the folder: an
+  interview (or `--answers`, contract `sdd-adr-init/v1`) that links ADRs kept elsewhere, imports a
+  folder with one file per ADR, or builds records from the `D-NNN` rows the owner confirms. Every
+  record it writes is `reconstructed: true` with a `source:`; what the sources do not say stays marked
+  as unknown. It only creates files, copies the constitution first and keeps its line endings,
+  resumes (`--resume`), has `--dry-run`, and a second run changes nothing.
+
+### Changed
+
+- `sdd-specify`, `sdd-init`, `sdd-close`, `sdd-document`, `sdd-discover` (and the standalone copy) and
+  the kit README point at `sddkit adr` instead of "follow the project's convention, do not invent a
+  format".
+- `init --discovery` writes six cells per decision row (the new `Record` column); the template's
+  `Decision records (ADRs)` free-text line became the `Decision records` field.
+- `sddkit update` and `sddkit migrate` still never create `.sdd/decisions/`.
+
 ## [4.9.6] — In progress
 
 One release for everything planned for 4.9.2 to 4.9.6 (those numbers were skipped on purpose): line

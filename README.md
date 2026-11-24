@@ -55,7 +55,7 @@ language chosen at `init`.
 | Set up | `init`, `discover`, `providers`, `update`, `migrate` |
 | Diagnose | `doctor`, `fix`, `health`, `context`, `evaluate` |
 | Work | `session`, `scaffold`, `track`, `seq`, `deps`, `impact` |
-| Document | `document`, `manual` |
+| Document | `document`, `adr`, `manual` |
 | Observe | `dashboard` |
 
 Run `sddkit <command> --help` for details, or `sddkit manual` for everything. For a project that

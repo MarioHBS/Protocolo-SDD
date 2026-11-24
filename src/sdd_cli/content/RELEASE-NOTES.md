@@ -5,6 +5,15 @@ kit and the bundled one; `sddkit update --notes` prints them again without chang
 A line starting with `Manual action:` is something the project has to do by hand, because the
 kit never edits the constitution or any other file you own.
 
+## 4.10.0
+
+- Decision records (ADRs) now live in `.sdd/decisions/`, one file per record, whether or not the Documentation feature is on. `sddkit adr new "<title>" --decision D-NNN` creates the next one (status `proposta`; numbers are never reused) and `sddkit adr index` regenerates the index.
+- The decision table (section 3) of a new constitution has a `Record` column that links each decision's record, and section 7 says where records live with `Decision records: internal` or `external — <path>`. Your constitution is not rewritten by `update`.
+- New `sddkit doctor` checks read the records against section 3, section 7 and the index. A project that keeps no ADRs only gets one note (`decisions_dir_missing`).
+- A discovery decision may carry `adr: true` (with `context` and `alternatives`); `init --discovery` then writes its record as a proposal next to its row, and `sdd-decide` accepts it with the row.
+- The skills `sdd-decide`, `sdd-specify`, `sdd-close`, `sdd-init`, `sdd-document` and `sdd-discover` now say when a decision gets a record and how to create it with `sddkit adr`.
+- Manual action: if your project already has decisions in section 3 (or ADRs kept elsewhere), run `sddkit adr init --dry-run`, then `sddkit adr init`. It asks what the project does not say, never invents it, and only creates files; it adds the `Record` column and the section 7 field after copying the constitution to `.sdd/.pre-fix-backup/`. Without a terminal, pass `--answers FILE` (see `sddkit manual`). Doing nothing is also fine: the doctor only notes it.
+
 ## 4.9.6
 
 - The kit now writes LF into your project even when the package was built on Windows. Files already in CRLF stay that way until you run `sddkit fix --eol --manifest --dry-run` and then the same without `--dry-run`; the doctor notes them as `eol_crlf`.

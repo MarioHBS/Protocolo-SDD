@@ -507,6 +507,7 @@ the file in the IDE or a browser and re-run the command to refresh it.
 +-- stages/              your per-stage artifacts (yours)
 +-- tracks/              parallel tracks: state.md, claims.json, stages/ (yours)
 +-- backlog.md           detail of stages still in the provisional queue (yours)
++-- decisions/           ADR-NNN-<slug>.md records and a generated README.md index (yours; `sddkit adr`)
 +-- documentation.json   the documentation plan from `sddkit document` (yours)
 +-- .sdd-manifest.json   version, language, flags, file hashes (managed)
 
