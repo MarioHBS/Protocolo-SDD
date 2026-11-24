@@ -111,7 +111,7 @@ _TEXT: dict[str, tuple[str, str]] = {
                                          "set `superseded_by:` to the record that replaces it "
                                          "(sddkit adr new --supersedes does it for you)"),
     "adr_index_stale": ("{path} does not match the records' frontmatter", "sddkit adr index"),
-    "decisions_dir_missing": ("{count} locked decision(s) in section 3 and no .sdd/decisions/ folder",
+    "decisions_dir_missing": ("{count} decision(s) in section 3 and no .sdd/decisions/ folder",
                               "sddkit adr new \"<title>\" --decision D-NNN for a new record; "
                               "sddkit adr init rebuilds records for decisions made before this folder existed "
                               "(or write `not applicable` in section 7 if the project keeps no ADRs)"),

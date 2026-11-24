@@ -310,7 +310,7 @@ def _apply_discovery(root: Path, data: dict) -> None:
                 root, title or decision_id,
                 decision=decision_id, status=_adr.PROPOSED, context=item.get("context", ""),
                 alternatives=item.get("alternatives") or [], source="discovery.json",
-                date=item.get("locked_on") or None,
+                date=(item["locked_on"] if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(item.get("locked_on", ""))) else None),
                 decision_text=_adr.decision_section(str(item.get("choice", "")), str(item.get("rationale", ""))))
             record = f"[{made['id']}]({_adr.DECISIONS_DIR}/{Path(made['path']).name})"
         decisions.append({**item, "locked_on": _proposed_marker(item.get("locked_on")), "record": record})
@@ -2044,12 +2044,19 @@ def cmd_seq(args) -> None:
 
 
 def _link_decision(root: Path, decision: str, result: dict, dry_run: bool) -> str:
-    """Put the new record's link in the Record cell of its D-NNN row (§3); returns what happened."""
+    """Put the new record's link in the Record cell of its D-NNN row (§3); returns what happened.
+
+    A cell that holds the link of a record this one supersedes is replaced (the row now has a new
+    record); a cell holding anything else is left as the owner wrote it."""
     link = f"[{result['id']}]({_adr.DECISIONS_DIR}/{Path(result['path']).name})"
     outcome: dict[str, str] = {}
+    replaced = set(result.get("superseded", []))
 
     def edit(text: str) -> str:
-        updated, outcome["value"] = _decisions.set_record(text, decision, link)
+        current = next((r["record"] for r in _decisions.rows(text) or [] if r["id"] == decision), "")
+        takes_over = bool(current) and any(f"ADR-{n}" in replaced or _adr.adr_id(int(n)) in replaced
+                                           for n in re.findall(r"ADR-(\d+)", current))
+        updated, outcome["value"] = _decisions.set_record(text, decision, link, overwrite=takes_over)
         return updated
 
     _decisions.edit_constitution(root, edit, dry_run=dry_run)
@@ -2069,6 +2076,11 @@ def _cmd_adr_init(args, root: Path) -> None:
     analysis = _adr_init.analyze(root)
     if not analysis["has_table"]:
         die("constitution.md has no section 3 table of decisions: there is nothing to build records from")
+    try:
+        (root / ".sdd" / "constitution.md").read_bytes().decode("utf-8")
+    except UnicodeDecodeError:
+        die("constitution.md is not valid UTF-8; fix it first (sddkit doctor, sddkit fix --mojibake) so the "
+            "Record column and section 7 can be written safely")
     if args.answers:
         try:
             answers = _adr_init.load_answers(Path(args.answers), analysis, root)
@@ -2082,14 +2094,19 @@ def _cmd_adr_init(args, root: Path) -> None:
         if args.resume and not state:
             print(dim("nothing to resume; starting a new interview"))
         try:
-            raw = _adr_init.run_interview(root, analysis, _docs_plan.Console(), state=state,
-                                          on_step=lambda s: _adr_init.save_state(root, s))
+            # a dry run writes nothing, not even the answers so far
+            raw = _adr_init.run_interview(
+                root, analysis, _docs_plan.Console(), state=state,
+                on_step=None if args.dry_run else (lambda s: _adr_init.save_state(root, s)))
             answers = _adr_init.validate(raw, analysis, root)
         except _docs_plan.InterviewAborted:
             die("interview interrupted; answers so far are kept: run 'sddkit adr init --resume'")
         except ValueError as exc:
             die(str(exc))
-    plan = _adr_init.build_plan(root, analysis, answers)
+    try:
+        plan = _adr_init.build_plan(root, analysis, answers)
+    except ValueError as exc:  # for example a damaged reservation ledger
+        die(str(exc))
     result = {"command": "adr init", "dry_run": bool(args.dry_run), **_adr_init.summary(plan)}
     if args.dry_run:
         _emit_json(result) if args.json else print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -2107,6 +2124,8 @@ def _cmd_adr_init(args, root: Path) -> None:
         outcome = _adr_init.apply(root, plan)
     except _lock.LockTimeout as exc:
         die(f"could not take the lock: {exc}")
+    except ValueError as exc:
+        die(str(exc))
     _adr_init.clear_state(root)
     if args.json:
         _emit_json({**result, **outcome})
@@ -3804,8 +3823,10 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                  "what the project already says (the D-NNN rows of section 3, section 7, ADR files outside "
                  ".sdd/), proposes candidates and asks only what cannot be inferred. Every record it writes is "
                  "marked reconstructed with its source, and what the sources do not say stays marked unknown. "
-                 "It only creates files and fills the Record column and section 7 (the constitution is copied "
-                 "first). --resume continues an interrupted run; without a terminal pass --answers.",
+                 "It only creates files, fills the Record column and rewrites section 7's Decision records field "
+                 "(the text it replaces is kept after 'previously:'; the constitution is copied first, and "
+                 "is not touched when nothing is built). --resume continues an interrupted run; without a "
+                 "terminal pass --answers.",
                  "sddkit adr init --dry-run\nsddkit adr init\nsddkit adr init --answers adr-init.json --dry-run"),
     "adr index": ("Regenerate .sdd/decisions/README.md (id, title, status, decision, stage, date) from the "
                   "frontmatter of the records. Never edit that file by hand. --check changes nothing and "
