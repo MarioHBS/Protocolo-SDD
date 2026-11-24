@@ -94,9 +94,7 @@ Two realities v2 acknowledges explicitly:
 - **Bootstrap from existing decisions.** If the project already arrives with
   documented decisions (docs, ADRs, schema), the gate may be satisfied by
   *citing* those decisions as `D-NNN` rows in §3, without a from-scratch round
-  of questions. What is never allowed is starting to build with §3 empty. Records
-  that already exist elsewhere can be linked, or rebuilt into `.sdd/decisions/`,
-  with `sddkit adr init`.
+  of questions. What is never allowed is starting to build with §3 empty.
 - **Structural decision mid-flight.** If a new structural decision surfaces
   during implementation, take a **short excursion back to DECIDING** to lock it
   (using the anti-regression procedure), then return to IMPLEMENTING. This is
@@ -187,7 +185,6 @@ anyone re-explaining what happened before.
         +-- report.md        — closing report (becomes context for the next stage)
         +-- checklist.md     — (optional) verification log, one scenario per section
         +-- evals.md         — (Eval Driven Development) the stage's acceptance criteria, E-NNN
-+-- decisions/           — (optional) one ADR per file, ADR-NNN-<slug>.md, and a generated README.md index
 +-- tracks/              — (optional) parallel work; see "Parallel tracks" below
     +-- <slug>/
         +-- state.md          — free-form, owned only by that track's agent session
@@ -211,14 +208,6 @@ Optional management artifacts (created only when the matching feature is on):
 - `cross-cutting.md` — optional project checklist (theme, responsiveness,
   accessibility, permissions...) turned into acceptance criteria by
   `sdd-specify`; start from `templates/cross-cutting.template.md`.
-- `decisions/` — architecture decision records (ADRs), created by `sddkit adr new`
-  (or rebuilt for an older project by `sddkit adr init`), whatever the Documentation
-  feature says. The `D-NNN` row of §3 stays the register of locked decisions and
-  links its record in the `Record` column; `README.md` in the folder is generated
-  (`sddkit adr index`) and never edited by hand. A record's status runs
-  `proposta`, `aceita`, `implementada`, `substituída` or `obsoleta`; its body is
-  immutable once accepted (an "Amendment N" section, or a new record with
-  `--supersedes`). §7's `Decision records` says `internal` or `external`.
 - `documentation.json` — the documentation plan agreed by `sddkit document`:
   which documents exist, where they live (they may be outside `.sdd/`) and which
   stages must refresh them.
