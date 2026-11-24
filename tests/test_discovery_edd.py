@@ -69,7 +69,7 @@ def test_discovery_decision_without_a_date_is_just_proposed(tmp_path):
     cmd_init(_init_args(tmp_path, source))
     constitution = (tmp_path / ".sdd" / "constitution.md").read_text(encoding="utf-8")
     row = next(line for line in constitution.splitlines() if line.startswith("| D-001 |"))
-    assert row.rstrip().endswith("| proposed |")
+    assert row.rstrip().endswith("| proposed |  |")  # the last cell is the empty Record column
 
 
 def test_discovery_summary_and_next_step_say_the_project_starts_in_deciding(tmp_path, capsys):

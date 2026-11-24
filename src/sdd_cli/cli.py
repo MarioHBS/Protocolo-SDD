@@ -256,7 +256,8 @@ def _discovery_list(items: list[dict], fields: tuple[str, ...], prefix: str) -> 
     for index, item in enumerate(items, 1):
         values = [str(item.get(field, "")) for field in fields]
         rows.append(f"| {prefix}-{index:03d} | " + " | ".join(values) + " |")
-    return "\n".join(rows) or f"| {prefix}-001 | [none recorded] |  |  |"
+    empty = " |" * (len(fields) - 1)
+    return "\n".join(rows) or f"| {prefix}-001 | [none recorded] |{empty}"
 
 
 _DISCOVERY_NEXT_ACTION = ("- **Next action:** load the `sdd-decide` skill and run only its cold self-audit "
@@ -284,7 +285,7 @@ def _apply_discovery(root: Path, data: dict) -> None:
     text = text.replace("- **Who it is for:** [users / audience]", f"- **Who it is for:** {vision['who_it_is_for']}")
     text = text.replace("- **Definition of done:** [what must be true for the project to be complete]", f"- **Definition of done:** {vision['definition_of_done']}")
     decisions = [{**item, "locked_on": _proposed_marker(item.get("locked_on"))} for item in data.get("decisions", [])]
-    decision_rows = _discovery_list(decisions, ("decision", "choice", "rationale", "locked_on"), "D")
+    decision_rows = _discovery_list(decisions, ("decision", "choice", "rationale", "locked_on", "record"), "D")
     text = re.sub(r"\| D-001 \|[^\n]*\|", decision_rows, text)
     questions = data.get("open_questions", [])
     question_rows = _discovery_list(questions, ("question", "blocks_gate", "status"), "Q")
