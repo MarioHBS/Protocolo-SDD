@@ -282,12 +282,23 @@ def test_adding_the_record_column_is_idempotent_and_keeps_line_endings():
     assert _decisions.add_record_column(updated) == (updated, False)
 
 
+def test_a_table_written_in_portuguese_gets_a_registro_column():
+    pt = ("## 3. Decisões travadas\n\n| ID | Decisão | Escolha | Justificativa | Travada em |\n"
+          "|----|---------|---------|---------------|------------|\n| D-001 | a | b | c | d |\n\n## 4. Q\n")
+    updated, changed = _decisions.add_record_column(pt)
+    assert changed and "| Registro |" in updated and "Record" not in updated
+    assert _decisions.has_record_column(updated) is True
+    assert _decisions.add_record_column(updated) == (updated, False)
+
+
 # ------------------------------------------------------------- section 7
 
 @pytest.mark.parametrize("line, mode, path", [
     ("- **Decision records:** internal", "internal", ""),
     ("- **Decision records:** external — docs/decisoes/", "external", "docs/decisoes/"),
     ("- **Decision records:** external (`docs/adr`)", "external", "docs/adr"),
+    ("- **Decision records:** external — `docs/DOC-007 — ADR Registro.md` (one document)", "external",
+     "docs/DOC-007 — ADR Registro.md"),
     ("- **Decision records (ADRs):** not applicable", "none", ""),
     ("- **Decision records (ADRs):** Não aplicável; decisões ficam na seção 3", "none", ""),
     ("- **Decision records (ADRs):** não há ADRs formais; decisões vivem só em §3", "none", ""),
@@ -298,6 +309,13 @@ def test_adding_the_record_column_is_idempotent_and_keeps_line_endings():
 def test_section_7_field_modes(line, mode, path):
     found = _decisions.decision_records(f"## 7. Project decision conventions\n\n{line}\n- **Other:** x\n")
     assert (found["mode"], found["path"]) == (mode, path)
+
+
+def test_a_path_with_spaces_is_written_between_backticks_and_read_back():
+    text = "## 7. Project decision conventions\n\n- **Decision records (ADRs):** [where]\n"
+    updated = _decisions.set_decision_records(text, "external", "docs/DOC-007 — ADR Registro.md")
+    assert "external — `docs/DOC-007 — ADR Registro.md`" in updated
+    assert _decisions.decision_records(updated)["path"] == "docs/DOC-007 — ADR Registro.md"
 
 
 def test_section_7_field_set_keeps_the_text_it_replaces():

@@ -16,6 +16,7 @@ from pathlib import Path
 from . import _index_checks
 
 RECORD_ALIASES = ("record", "registro", "adr")
+_PT_LABELS = ("decisão", "decisao", "escolha", "justificativa", "travada em", "travada em:")
 _DECISION_ID_RE = re.compile(r"D-\d+\Z")
 _COMMENT_RE = re.compile(r"(?s)<!--.*?-->")
 _NONE_RE = re.compile(
@@ -114,7 +115,10 @@ def add_record_column(text: str) -> tuple[str, bool]:
     header = _index_checks._cells(lines[header_at])
     if _record_column(header) is not None:
         return text, False
-    lines[header_at] = _index_checks._with_cell(lines[header_at], "Record", len(header))
+    # A table the agent wrote in Portuguese gets the Portuguese label (`Registro` is an accepted alias).
+    portuguese = any(label.casefold() in _PT_LABELS for label in header)
+    lines[header_at] = _index_checks._with_cell(lines[header_at], "Registro" if portuguese else "Record",
+                                                len(header))
     sep = lines[header_at + 1]
     body = sep.rstrip("\r\n")
     lines[header_at + 1] = body.rstrip() + "--------|" + sep[len(body):]
@@ -181,7 +185,8 @@ def decision_records(text: str) -> dict:
         return {"mode": MODE_INTERNAL, "path": "", "raw": raw}
     if re.match(r"(?i)external\b", raw):
         rest = re.sub(r"(?i)^external\b[\s—–:(-]*", "", raw).strip()
-        token = rest.split()[0] if rest else ""
+        quoted = re.match(r"([`'\"])(.+?)\1", rest)  # a path with spaces is written between backticks
+        token = quoted.group(2) if quoted else (rest.split()[0] if rest else "")
         return {"mode": MODE_EXTERNAL, "path": token.strip("`'\"(),;"), "raw": raw}
     if _NONE_RE.match(raw):
         return {"mode": MODE_NONE, "path": "", "raw": raw}
@@ -192,7 +197,8 @@ def set_decision_records(text: str, mode: str, path: str = "") -> str:
     """Rewrite the §7 field as ``internal`` or ``external — <path>``; free text it replaces is kept
     after the dash, so nothing the owner wrote is lost."""
     current = decision_records(text)
-    value = mode if mode == MODE_INTERNAL else f"{MODE_EXTERNAL} — {path}".rstrip(" —")
+    shown = f"`{path}`" if re.search(r"\s", path) else path
+    value = mode if mode == MODE_INTERNAL else f"{MODE_EXTERNAL} — {shown}".rstrip(" —")
     if current["mode"] == MODE_LEGACY:
         value += f" — previously: {current['raw']}"
     line = f"- **Decision records:** {value}"
