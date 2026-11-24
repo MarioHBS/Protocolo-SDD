@@ -179,12 +179,26 @@ def _load_discovery(path_value: str) -> dict:
     for key in ("decisions", "open_questions", "backlog"):
         if key in data and not isinstance(data[key], list):
             die(f"discovery.{key} must be a list")
+    for number, item in enumerate(data.get("decisions", []), 1):
+        where = f"discovery.decisions[{number}]"
+        if not isinstance(item, dict):
+            die(f"{where} must be an object")
+        # Optional, M-03: a decision that passes the sdd-decide criterion also gets a record (ADR).
+        if "adr" in item and not isinstance(item["adr"], bool):
+            die(f"{where}.adr must be true or false")
+        if "context" in item and not isinstance(item["context"], str):
+            die(f"{where}.context must be a string")
+        if "alternatives" in item and (not isinstance(item["alternatives"], list)
+                                       or any(not isinstance(a, str) for a in item["alternatives"])):
+            die(f"{where}.alternatives must be a list of strings")
     return data
 
 
 def _discovery_summary(data: dict) -> str:
+    records = sum(1 for item in data.get("decisions", []) if item.get("adr") is True)
     return (f"Discovery: {data['project']['name']}\n"
-            f"  decisions: {len(data.get('decisions', []))}\n"
+            f"  decisions: {len(data.get('decisions', []))}"
+            + (f" ({records} with a record in .sdd/decisions/, status proposta)" if records else "") + "\n"
             f"  open questions: {len(data.get('open_questions', []))}\n"
             f"  stages: 001-{data['stages'][0]['slug']} active + {max(0, len(data['stages']) - 1)} provisional\n"
             "  creates: Settings, vision, decisions (as proposals), questions, backlog.md, canonical index, provisional queue and stage folder\n"
@@ -285,7 +299,19 @@ def _apply_discovery(root: Path, data: dict) -> None:
     text = text.replace("- **What it is:** [one to three sentences]", f"- **What it is:** {vision['what_it_is']}")
     text = text.replace("- **Who it is for:** [users / audience]", f"- **Who it is for:** {vision['who_it_is_for']}")
     text = text.replace("- **Definition of done:** [what must be true for the project to be complete]", f"- **Definition of done:** {vision['definition_of_done']}")
-    decisions = [{**item, "locked_on": _proposed_marker(item.get("locked_on"))} for item in data.get("decisions", [])]
+    decisions = []
+    for number, item in enumerate(data.get("decisions", []), 1):
+        record = ""
+        if item.get("adr") is True:  # M-03: the record starts as a proposal, like its row
+            decision_id = f"D-{number:03d}"
+            title = ": ".join(part for part in (item.get("decision"), item.get("choice")) if part)
+            made = _adr.new_adr(
+                root, title or decision_id,
+                decision=decision_id, status=_adr.PROPOSED, context=item.get("context", ""),
+                alternatives=item.get("alternatives") or [], source="discovery.json",
+                date=item.get("locked_on") or None)
+            record = f"[{made['id']}]({_adr.DECISIONS_DIR}/{Path(made['path']).name})"
+        decisions.append({**item, "locked_on": _proposed_marker(item.get("locked_on")), "record": record})
     decision_rows = _discovery_list(decisions, ("decision", "choice", "rationale", "locked_on", "record"), "D")
     text = re.sub(r"\| D-001 \|[^\n]*\|", decision_rows, text)
     questions = data.get("open_questions", [])
