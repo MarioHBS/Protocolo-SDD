@@ -18,7 +18,9 @@ from . import _index_checks
 RECORD_ALIASES = ("record", "registro", "adr")
 _DECISION_ID_RE = re.compile(r"D-\d+\Z")
 _COMMENT_RE = re.compile(r"(?s)<!--.*?-->")
-_NONE_RE = re.compile(r"(?i)^(?:not applicable|n/?a|none|nenhum|n[aã]o se aplica)\b")
+_NONE_RE = re.compile(
+    r"(?i)^(?:not applicable|n/?a|none|no adrs?|nenhum|sem adrs?|n[aã]o se aplica|n[aã]o aplic[aá]vel|"
+    r"n[aã]o h[aá] adrs?)(?![\w])")
 
 MODE_INTERNAL, MODE_EXTERNAL, MODE_NONE, MODE_UNSET, MODE_LEGACY = (
     "internal", "external", "none", "unset", "legacy")

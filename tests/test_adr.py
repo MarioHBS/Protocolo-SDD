@@ -289,6 +289,9 @@ def test_adding_the_record_column_is_idempotent_and_keeps_line_endings():
     ("- **Decision records:** external — docs/decisoes/", "external", "docs/decisoes/"),
     ("- **Decision records:** external (`docs/adr`)", "external", "docs/adr"),
     ("- **Decision records (ADRs):** not applicable", "none", ""),
+    ("- **Decision records (ADRs):** Não aplicável; decisões ficam na seção 3", "none", ""),
+    ("- **Decision records (ADRs):** não há ADRs formais; decisões vivem só em §3", "none", ""),
+    ("- **Decision records (ADRs):** No ADRs, decisions live in section 3", "none", ""),
     ("- **Decision records (ADRs):** ADRs in DOC-007; amendments as 'Amendment N'", "legacy", ""),
     ("- **Decision records (ADRs):** [where they live, format]", "unset", ""),
 ])
