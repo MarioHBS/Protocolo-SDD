@@ -437,17 +437,19 @@ Every record has a `D-NNN` row, never the other way round.
   marked `[unknown: not recorded in the source]`, never made up. A single document that holds
   many ADRs can only be linked from section 7: the kit does not cut it into records. It only
   creates files (an existing file is kept and reported), adds the `Record` column when the
-  table lacks it, fills the cells and section 7, and regenerates the index; the constitution is
-  copied to `.sdd/.pre-fix-backup/` first and keeps its line endings. A second run changes nothing.
-  `--dry-run` prints the plan as JSON and writes nothing. Answers are saved after every step;
-  `--resume` continues. Without a terminal (an agent session) pass `--answers FILE`:
+  table lacks it, fills the cells and rewrites section 7's `Decision records` field (text that
+  was there stays after `previously:`), and regenerates the index; the constitution is copied to
+  `.sdd/.pre-fix-backup/` first and keeps its line endings. When the answers build no record
+  and link nothing, the constitution is not touched at all. A decision that already has a record
+  (its `Record` cell, or a live record whose `decision:` names it) gets no second one: the
+  existing record is linked. A second run changes nothing. `--dry-run` prints the plan as JSON
+  and writes nothing (not even the saved answers). The interview saves its answers after every
+  row; `--resume` continues. Without a terminal (an agent session) pass `--answers FILE`:
 
   ```json
   {
     "schema_version": "sdd-adr-init/v1",
     "strategy": "rows",
-    "path": "docs/decisoes/",
-    "map": {"ADR-003": "D-012"},
     "records": [
       {"decision": "D-004", "status": "aceita", "stage": "002-data-model",
        "context": "Needed transactions.", "alternatives": ["SQLite: one writer only"],
@@ -456,18 +458,24 @@ Every record has a `D-NNN` row, never the other way round.
   }
   ```
 
+  For ADRs kept elsewhere use `"strategy": "link"` or `"import"` with `"path": "docs/decisoes/"`
+  (and, when a file does not name its decision, `"map": {"ADR-003": "D-012"}`).
+
   `strategy` is `rows` (default), `link` or `import`; `path` is required for the last two and must
   exist inside the project. `records` lists the rows that get a record (every other row stays a
-  row); only `decision` is required. `map` pairs an external `ADR-NNN` with its `D-NNN` when the
-  file does not name it. A `D-NNN` that already has a record is skipped, so the same file can be
+  row); only `decision` is required. `map` pairs an external `ADR-NNN` with its `D-NNN` (a row of
+  section 3) when the file does not name it. New records are numbered after any ADR files that live
+  outside `.sdd/decisions/`, so `ADR-NNN` keeps meaning one record. A `D-NNN` that already has a record is skipped, so the same file can be
   applied again.
 
 Frontmatter of a record: `id`, `status`, `date`, `stage`, `decision` (`D-NNN`), `supersedes`,
 `superseded_by`, `implemented_in`, `reconstructed`, `source`. Status cycle: `proposta` →
 `aceita` → `implementada` → `substituída` or `obsoleta`. The body is immutable once accepted: an
 adjustment becomes an "Amendment N" section at the end of the file, and a changed decision becomes
-a new record with `--supersedes`. `sddkit update` and `sddkit migrate` never create
-`.sdd/decisions/`; only `sddkit adr new` and `sddkit adr init` do.
+a new record with `--supersedes` (when that command also gets `--decision`, the row's `Record` cell
+moves to the new record; the old file is copied to `.sdd/.pre-fix-backup/` and only its `status:` and
+`superseded_by:` lines change). `sddkit update` and `sddkit migrate` never create `.sdd/decisions/`;
+`sddkit adr new`, `sddkit adr init` and `sddkit init --discovery` (for a decision marked `adr: true`) do.
 
 ### `sddkit manual [--md [FILE]]`
 

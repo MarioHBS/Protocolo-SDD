@@ -145,7 +145,9 @@ If you are in `IMPLEMENTING` and a new structural decision surfaces:
    Apply the record criterion of step 3: a decision that passes it gets its
    record (`sddkit adr new ... --decision D-NNN`); one that revises an existing
    record is an "Amendment N" section in that file, or a new record with
-   `--supersedes` when the decision itself changed.
+   `--supersedes` when the decision itself changed. A record made here is
+   `proposta`: move it to `aceita` when the excursion's decision is locked in §3
+   (its `status:` frontmatter, then `sddkit adr index`).
 3. Return to `IMPLEMENTING`. No need to restart the whole cycle.
 
 This is a legitimate, expected path — what matters is that the decision ends up

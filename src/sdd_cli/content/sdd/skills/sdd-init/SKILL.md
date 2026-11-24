@@ -60,7 +60,23 @@ Write all output in the language set in `constitution.md → Settings → Langua
      project already has ADRs, or decisions worth a record, tell the owner that
      `sddkit adr init` rebuilds them as records in `.sdd/decisions/` through an
      interview that never invents what the sources do not say; do not write the
-     records by hand here.
+     records by hand here. An agent session has no terminal, so conduct that
+     interview yourself and hand the result to the CLI as a file:
+     1. Read the §3 rows, §7's `Decision records`, and any ADR files or ADR
+        document the project keeps (`sddkit adr init --dry-run --answers` with
+        `{"schema_version": "sdd-adr-init/v1", "records": []}` shows what it
+        found and writes nothing).
+     2. For ADRs that already exist: ask the owner whether to leave them where
+        they are (`"strategy": "link"`, `"path": "<folder or document>"`) or,
+        for a folder with one `ADR-NNN` file per ADR, to copy them into
+        `.sdd/decisions/` (`"import"`). Otherwise use `"rows"`.
+     3. For each `D-NNN` row ask whether it deserves a record (the criterion of
+        `sdd-decide` step 3), and only for those ask status, context,
+        alternatives, stage. Leave blank what the owner does not know; never
+        fill it from guesswork.
+     4. Write the answers to a JSON file (the shape is in `sddkit manual`), run
+        `sddkit adr init --answers FILE --dry-run`, show the owner the plan,
+        then run it again without `--dry-run`.
 
 5. **Update the date** and hand over control, telling the user which path was
    taken and why.
