@@ -73,13 +73,16 @@ def rows(text: str) -> list[dict] | None:
     if not found:
         return None
     header_at, first, end = found
-    record_at = _record_column(_index_checks._cells(lines[header_at]))
+    header = _index_checks._cells(lines[header_at])
+    record_at = _record_column(header)
     result = []
     for line in lines[first:end]:
         cells = _index_checks._cells(line)
         if not cells or not _DECISION_ID_RE.match(cells[0]):
             continue
         result.append({"id": cells[0], "cells": cells,
+                       # by header label (English or Portuguese), so a reordered table reads right
+                       "fields": {h.casefold(): cells[i] for i, h in enumerate(header) if i < len(cells)},
                        "record": cells[record_at] if record_at is not None and record_at < len(cells) else "",
                        "placeholder": len(cells) > 1 and cells[1].startswith("[")})
     return result
@@ -164,7 +167,7 @@ def set_record(text: str, decision_id: str, link: str, *, overwrite: bool = Fals
 
 # --------------------------------------------------------------------- §7
 
-_FIELD_RE = re.compile(r"(?m)^([-*])[ \t]+\*\*Decision records(?:\s*\(ADRs\))?:\*\*([^\n]*(?:\n[ \t]+\S[^\n]*)*)")
+_FIELD_RE = re.compile(r"(?im)^([-*])[ \t]+\*\*Decision records(?:\s*\(ADRs\))?:\*\*([^\n]*(?:\n[ \t]+\S[^\n]*)*)")
 
 
 def decision_records(text: str) -> dict:
@@ -181,10 +184,10 @@ def decision_records(text: str) -> dict:
     raw = " ".join(_COMMENT_RE.sub(" ", match.group(2)).split())
     if not raw or raw.startswith("["):
         return {"mode": MODE_UNSET, "path": "", "raw": raw}
-    if re.match(r"(?i)internal\b", raw):
+    if re.match(r"(?i)(?:internal|interno)\b", raw):
         return {"mode": MODE_INTERNAL, "path": "", "raw": raw}
-    if re.match(r"(?i)external\b", raw):
-        rest = re.sub(r"(?i)^external\b[\s—–:(-]*", "", raw).strip()
+    if re.match(r"(?i)(?:external|externo)\b", raw):
+        rest = re.sub(r"(?i)^(?:external|externo)\b[\s—–:(-]*", "", raw).strip()
         quoted = re.match(r"([`'\"])(.+?)\1", rest)  # a path with spaces is written between backticks
         token = quoted.group(2) if quoted else (rest.split()[0] if rest else "")
         return {"mode": MODE_EXTERNAL, "path": token.strip("`'\"(),;"), "raw": raw}
@@ -199,7 +202,7 @@ def set_decision_records(text: str, mode: str, path: str = "") -> str:
     current = decision_records(text)
     shown = f"`{path}`" if re.search(r"\s", path) else path
     value = mode if mode == MODE_INTERNAL else f"{MODE_EXTERNAL} — {shown}".rstrip(" —")
-    if current["mode"] == MODE_LEGACY:
+    if current["mode"] in (MODE_LEGACY, MODE_NONE):  # what the owner wrote is never lost
         value += f" — previously: {current['raw']}"
     line = f"- **Decision records:** {value}"
     span = _section_body(text, 7)
