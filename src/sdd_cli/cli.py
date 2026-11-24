@@ -17,12 +17,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from . import (
+    _adr,
     _dashboard,
+    _decisions,
     _deps,
     _docs_plan,
     _findings,
     _hooks,
     _index_checks,
+    _lock,
     _mojibake,
     _proposals,
     _proposals_send,
@@ -2009,6 +2012,73 @@ def cmd_seq(args) -> None:
     _emit_json(record) if args.json else print(record["number"])
 
 
+def _link_decision(root: Path, decision: str, result: dict, dry_run: bool) -> str:
+    """Put the new record's link in the Record cell of its D-NNN row (§3); returns what happened."""
+    link = f"[{result['id']}]({_adr.DECISIONS_DIR}/{Path(result['path']).name})"
+    outcome: dict[str, str] = {}
+
+    def edit(text: str) -> str:
+        updated, outcome["value"] = _decisions.set_record(text, decision, link)
+        return updated
+
+    _decisions.edit_constitution(root, edit, dry_run=dry_run)
+    return outcome.get("value", "no_constitution")
+
+
+_LINK_NOTES = {
+    "no_column": "the section 3 table has no Record column; `sddkit adr init` adds it",
+    "no_row": "no row {decision} in section 3 of the constitution",
+    "kept": "the Record cell of {decision} already holds another value; left as it was",
+    "no_constitution": "no constitution to update",
+}
+
+
+def cmd_adr(args) -> None:
+    """Architecture decision records: `new` creates one, `index` regenerates the generated README."""
+    root = Path(args.path).resolve()
+    if not (root / ".sdd").is_dir():
+        die(f"no .sdd/ found in {root}")
+    if args.adr_command == "index":
+        stale = _adr.index_is_stale(root)
+        if args.check:
+            _emit_json({"command": "adr index", "stale": stale}) if args.json else print(
+                "index is out of date" if stale else "index is current")
+            if stale:
+                raise SystemExit(1)
+            return
+        changed = _adr.write_index(root) if _adr.decisions_dir(root).is_dir() or stale else False
+        if args.json:
+            _emit_json({"command": "adr index", "changed": changed})
+        else:
+            print(f"{green('ok')}  " + (f"wrote {_adr.DECISIONS_DIR}/{_adr.INDEX_NAME}" if changed
+                                        else "index already current; nothing written"))
+        return
+    try:
+        result = _adr.new_adr(
+            root, args.title, decision=args.decision or "", stage=args.stage or "", status=args.status,
+            supersedes=args.supersedes or [], context=args.context or "",
+            alternatives=args.alternative or [], dry_run=args.dry_run)
+    except ValueError as exc:
+        die(str(exc))
+    except _lock.LockTimeout as exc:
+        die(f"could not reserve a number: {exc}")
+    linked = _link_decision(root, args.decision, result, args.dry_run) if args.decision else ""
+    result["record_cell"] = linked or None
+    if args.json:
+        _emit_json({k: v for k, v in result.items() if k != "content" or args.dry_run})
+        return
+    verb = "would create" if args.dry_run else "created"
+    print(f"{green('ok') if not args.dry_run else dim('dry-run')}  {verb} {result['path']} ({result['status']})")
+    for old in result["superseded"]:
+        print(f"  {old}: status -> {_adr.SUPERSEDED}, superseded_by -> {result['id']}")
+    if linked == "set":
+        print(f"  section 3 {args.decision}: Record -> {result['id']}")
+    elif linked in _LINK_NOTES:
+        print(dim("  note: " + _LINK_NOTES[linked].format(decision=args.decision)))
+    if args.dry_run:
+        print(dim(result["content"].rstrip("\n")))
+
+
 def _proposal_summary(entry: dict) -> dict:
     return {"key": entry["key"], "project": entry["project"], "id": entry["id"],
             "title": entry["title"], "date": entry["date"], "status": entry["status"],
@@ -3543,7 +3613,7 @@ commands by purpose:
   set up       init, discover, providers, update, migrate
   diagnose     doctor, fix, health, context, evaluate
   work         session, scaffold, track, seq, deps, impact
-  document     document, manual
+  document     document, adr, manual
   observe      dashboard
 
 Run 'sdd <command> --help' for details and examples, or 'sddkit manual' for the full manual.
@@ -3624,6 +3694,20 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
     "seq next": ("Reserve the next number in .sdd/.reservations.json. Sequences are declared in the "
                  "constitution as `name` = `dir/NNNN_*.ext`; 'migration' defaults to supabase/migrations.",
                  "sddkit seq next migration\nsddkit seq next migration --track billing --json"),
+    "adr": ("Keep architecture decision records (ADRs) as files of .sdd/decisions/: one file per record "
+            "(ADR-NNN-<slug>.md), a generated index, and a link from the decision's row in section 3. "
+            "Numbers are never reused.",
+            "sddkit adr new \"Use PostgreSQL\" --decision D-004 --stage 002-data-model\n"
+            "sddkit adr new \"Move to a queue\" --supersedes ADR-003\nsddkit adr index"),
+    "adr new": ("Create the next record with status 'proposta' and regenerate the index. --decision links "
+                "it from its D-NNN row; --supersedes marks the older record 'substituída' (its body is "
+                "never touched). Needs no documentation feature; creates .sdd/decisions/ if missing.",
+                "sddkit adr new \"Use PostgreSQL\" --decision D-004 --context 'Need transactions' "
+                "--alternative 'SQLite: no concurrent writers'\nsddkit adr new \"Use PostgreSQL\" --dry-run"),
+    "adr index": ("Regenerate .sdd/decisions/README.md (id, title, status, decision, stage, date) from the "
+                  "frontmatter of the records. Never edit that file by hand. --check changes nothing and "
+                  "exits 1 when the index is out of date.",
+                  "sddkit adr index\nsddkit adr index --check"),
     "proposals": ("Gather the improvement proposals each project keeps in .sdd/improvement-proposals.md "
                   "into one local inbox, so they can be reviewed together. Never writes to the projects.",
                   "sddkit proposals collect ../app-a ../app-b\nsddkit proposals collect --scan ~/projects"),
@@ -3996,6 +4080,28 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     seq_next.add_argument("--track", help="track holding this reservation")
     seq_next.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     seq_next.set_defaults(func=cmd_seq)
+
+    adr = sub.add_parser("adr", help="architecture decision records in .sdd/decisions/")
+    adr_sub = adr.add_subparsers(dest="adr_command", required=True)
+    adr_new = adr_sub.add_parser("new", help="create the next record (status proposta)")
+    adr_new.add_argument("title", help="what was decided, in a few words")
+    adr_new.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    adr_new.add_argument("--decision", help="the D-NNN row of section 3 this record explains (fills its Record cell)")
+    adr_new.add_argument("--stage", help="stage where the decision was made, e.g. 003-auth-model")
+    adr_new.add_argument("--status", default=_adr.PROPOSED, help="status in the cycle (default: proposta)")
+    adr_new.add_argument("--supersedes", action="append", metavar="ADR-NNN",
+                         help="record this one replaces; it becomes 'substituída' (repeat for several)")
+    adr_new.add_argument("--context", help="why the decision was needed (otherwise a placeholder is left)")
+    adr_new.add_argument("--alternative", action="append",
+                         help="an alternative that was considered (repeat for several)")
+    adr_new.add_argument("--dry-run", action="store_true", help="show what would be created; write nothing")
+    adr_new.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    adr_new.set_defaults(func=cmd_adr)
+    adr_index = adr_sub.add_parser("index", help="regenerate .sdd/decisions/README.md from the frontmatter")
+    adr_index.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    adr_index.add_argument("--check", action="store_true", help="only report whether the index is current (exit 1 if not)")
+    adr_index.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    adr_index.set_defaults(func=cmd_adr)
 
     proposals = sub.add_parser("proposals", help="gather improvement proposals from several projects")
     proposals_sub = proposals.add_subparsers(dest="proposals_command", required=True)
