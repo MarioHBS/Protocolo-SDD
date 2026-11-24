@@ -46,7 +46,7 @@ _FALLBACK_TEMPLATE = """# {{ID}} — {{TITLE}}
 
 ## Decision
 
-[What was decided.]
+{{DECISION}}
 
 ## Alternatives considered
 
@@ -57,6 +57,7 @@ _FALLBACK_TEMPLATE = """# {{ID}} — {{TITLE}}
 [What gets easier, what gets harder.]
 """
 CONTEXT_PLACEHOLDER = "[Why this decision was needed: the forces at play.]"
+DECISION_PLACEHOLDER = "[What was decided, in one or two sentences.]"
 ALTERNATIVES_PLACEHOLDER = "- [Option A: why it was rejected]"
 
 
@@ -289,10 +290,13 @@ def _template(root: Path) -> str:
     return _FALLBACK_TEMPLATE
 
 
-def _body(root: Path, record_id: str, title: str, context: str, alternatives: list[str]) -> str:
+def render_body(root: Path, record_id: str, title: str, context: str, alternatives: list[str],
+                decision_text: str = "") -> str:
+    """The body of a new record from the project's template (or the bundled one)."""
     text = re.sub(r"\A(?:\s*<!--.*?-->)+\s*", "", _template(root), flags=re.S)
-    options ="\n".join(a if a.lstrip().startswith(("-", "*")) else f"- {a}" for a in alternatives)
+    options = "\n".join(a if a.lstrip().startswith(("-", "*")) else f"- {a}" for a in alternatives)
     for key, value in (("{{ID}}", record_id), ("{{TITLE}}", title),
+                       ("{{DECISION}}", decision_text.strip() or DECISION_PLACEHOLDER),
                        ("{{CONTEXT}}", context.strip() or CONTEXT_PLACEHOLDER),
                        ("{{ALTERNATIVES}}", options or ALTERNATIVES_PLACEHOLDER)):
         text = text.replace(key, value)
@@ -322,10 +326,46 @@ def _check_new(root: Path, *, title: str, status: str | None, decision: str,
     return canonical
 
 
+def decision_section(choice: str, rationale: str) -> str:
+    """The Decision section of a record made from a §3 row or a discovery decision: what the
+    row says, and nothing else (empty when it says nothing)."""
+    text = choice.strip()
+    if rationale.strip():
+        text += ("\n\n" if text else "") + f"Rationale: {rationale.strip()}"
+    return text
+
+
+def render_record(meta: dict, body: str) -> str:
+    return render_frontmatter(meta) + "\n" + body.lstrip("\n")
+
+
+def claim_numbers(root: Path, numbers: list[int]) -> None:
+    """Record numbers in the ledger so they are never handed out again. The caller holds the lock."""
+    ledger = _tracks._read_ledger(root)
+    entries = ledger.setdefault("sequences", {}).setdefault(LEDGER_KEY, [])
+    known = {int(e["number"]) for e in entries if str(e.get("number", "")).isdigit()}
+    added = [n for n in sorted(set(numbers)) if n not in known]
+    entries.extend({"number": f"{n:03d}", "track": None} for n in added)
+    if added:
+        _tracks._write_json(root / ".sdd" / _tracks.LEDGER_NAME, ledger)
+
+
+def write_new_file(path: Path, content: str) -> bool:
+    """Create ``path`` with LF endings; ``False`` (nothing written) when it already exists."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with path.open("x", encoding="utf-8", newline="\n") as handle:
+            handle.write(content)
+    except FileExistsError:
+        return False
+    return True
+
+
 def new_adr(root: Path, title: str, *, decision: str = "", stage: str = "", status: str = PROPOSED,
             supersedes: list[str] | None = None, context: str = "",
             alternatives: list[str] | None = None, reconstructed: bool = False, source: str = "",
-            implemented_in: str = "", date: str | None = None, dry_run: bool = False) -> dict:
+            implemented_in: str = "", date: str | None = None, decision_text: str = "",
+            dry_run: bool = False) -> dict:
     """Create one record (and regenerate the index). With ``dry_run`` nothing is reserved or written.
 
     A record that this one ``supersedes`` gets ``status: substituída`` and ``superseded_by``
@@ -338,7 +378,8 @@ def new_adr(root: Path, title: str, *, decision: str = "", stage: str = "", stat
     meta = {"id": record_id, "status": status, "date": date or datetime.now(UTC).date().isoformat(),
             "stage": stage, "decision": decision, "supersedes": supersedes, "superseded_by": [],
             "implemented_in": implemented_in, "reconstructed": reconstructed, "source": source}
-    content = render_frontmatter(meta) + "\n" + _body(root, record_id, title.strip(), context, alternatives or [])
+    content = render_record(meta, render_body(root, record_id, title.strip(), context, alternatives or [],
+                                              decision_text))
     path = decisions_dir(root) / f"{record_id}-{slugify(title)}.md"
     result = {"id": record_id, "path": path.relative_to(root).as_posix(), "status": status,
               "superseded": supersedes, "dry_run": dry_run, "content": content,

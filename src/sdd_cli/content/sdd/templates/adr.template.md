@@ -18,7 +18,7 @@
 
 ## Decision
 
-[What was decided, in one or two sentences.]
+{{DECISION}}
 
 ## Alternatives considered
 
