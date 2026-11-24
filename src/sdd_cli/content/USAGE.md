@@ -77,7 +77,10 @@ Use the `sdd-discover` skill before initialization to conduct the interview and
 produce both `discovery.md` (human review) and `discovery.json` (CLI import).
 The JSON contains project, language, features, vision, decisions, open questions,
 backlog and an ordered `stages` list. The first stage becomes canonical `001`;
-the rest form the provisional queue. `init` never waits for input without a TTY:
+the rest form the provisional queue. A decision may carry `adr: true` with `context`
+and `alternatives` (all optional): the import then also writes its record in
+`.sdd/decisions/` with status `proposta` and links it in the row's `Record` column;
+a file without those fields imports as before. `init` never waits for input without a TTY:
 an import then requires `--yes` after successful validation.
 
 ### `sddkit providers [--plain]`
@@ -200,7 +203,8 @@ Explains the discovery flow and prints where the `sdd-discover` skill file lives
 (this project's copy and the installed kit's), so it can be given to any AI
 provider: the skill interviews you and writes `discovery.md` (for review) and
 `discovery.json` (contract `sdd-discovery/v1`). `--check FILE` validates the JSON
-and prints its summary without writing anything. `--against PROJECT` also compares
+(including the optional `adr`, `context` and `alternatives` of each decision) and
+prints its summary, with how many records the import will write, without writing anything. `--against PROJECT` also compares
 the planned stage slugs with the project's canonical index and provisional queue:
 which planned stages are missing, and which project stages the discovery does not
 cover. It is a comparison by name (a renamed or split stage appears on both lists).
