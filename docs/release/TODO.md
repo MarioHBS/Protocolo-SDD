@@ -18,6 +18,6 @@
 - [x] `update --dry-run` nos 10 projetos: nada gravado; `update` real em cópia do P7 não cria `decisions/`
 - [x] `adr index` duas vezes: arquivo idêntico byte a byte
 - [x] revisão do material complementar (help, doctor, skills, template, READMEs)
-- [ ] vistoria final por agente Opus, achados tratados
+- [x] vistoria final por agente Opus, achados tratados
 - [x] `docs/release/NOTES.md`
 - [ ] tag `v4.10.0`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
