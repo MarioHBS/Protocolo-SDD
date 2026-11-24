@@ -190,8 +190,9 @@ Semantics the importer applies:
   `001-<slug>` and is the first slice to be worked on; later items form the
   provisional queue, in order.
 - `decisions` become rows `D-001…` of the constitution (`locked_on` is an ISO
-  date). Depending on the installed CLI version they arrive as locked or as
-  proposals awaiting the gate audit; either way treat them as proposed (Step 3).
+  date). They always arrive as **proposals**, and the project starts in the
+  `DECIDING` state: nothing is specified until the decision gate (`sdd-decide`)
+  audits them. Treat them as proposed (Step 3).
 - `open_questions` become rows `Q-001…`; use `blocks_gate` `"yes"` or `"no"` and
   `status` `"open"` for anything unresolved.
 - Every stage is also written to `backlog.md` with its origin, context,
@@ -228,9 +229,10 @@ Tell the owner, in order:
    provider/language flags decided in Step 1. The CLI shows a second summary
    and asks for confirmation (use `--yes` when there is no terminal) before
    writing anything.
-4. Inside the new project, once `sddkit init` has run, have the agent load
-   `sdd-decide` to audit the proposed decisions before specification starts, if
-   the constitution does not already point there.
+4. Inside the new project the constitution is in `DECIDING` and its next action
+   already points to `sdd-decide`: have the agent load it and run its cold
+   self-audit on the imported decisions. Once the audit passes, the gate opens
+   straight to specification.
 5. For a project that already exists, compare the plan with what it has,
    read-only: `sddkit discover --check discovery.json --against PATH`. The files
    are input for deliberation: the project can restructure its decisions and
