@@ -272,7 +272,8 @@ def preset(depth: str) -> list[dict]:
               doc("data-model.md", "entities, relations and constraints"),
               doc("api-reference.md", "API/contract reference"),
               doc("glossary.md", "domain terms"),
-              doc("decisions.md", "decision records (ADRs)")]
+              doc("decisions.md", "a readable view of the decision records (the ADRs live in .sdd/decisions/; "
+                                  "this document cites them and is never the source)")]
     if depth == "medium":
         return medium
     return [readme,

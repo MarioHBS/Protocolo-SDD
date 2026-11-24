@@ -3790,9 +3790,11 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                  "sddkit seq next migration\nsddkit seq next migration --track billing --json"),
     "adr": ("Keep architecture decision records (ADRs) as files of .sdd/decisions/: one file per record "
             "(ADR-NNN-<slug>.md), a generated index, and a link from the decision's row in section 3. "
-            "Numbers are never reused.",
+            "Numbers are never reused. 'new' creates a record, 'index' regenerates the index, 'init' "
+            "rebuilds records for a project that already has decisions.",
             "sddkit adr new \"Use PostgreSQL\" --decision D-004 --stage 002-data-model\n"
-            "sddkit adr new \"Move to a queue\" --supersedes ADR-003\nsddkit adr index"),
+            "sddkit adr new \"Move to a queue\" --supersedes ADR-003\nsddkit adr index\n"
+            "sddkit adr init --dry-run      # a project that decided things before this folder existed"),
     "adr new": ("Create the next record with status 'proposta' and regenerate the index. --decision links "
                 "it from its D-NNN row; --supersedes marks the older record 'substituída' (its body is "
                 "never touched). Needs no documentation feature; creates .sdd/decisions/ if missing.",
