@@ -103,10 +103,13 @@
 > display in ascending ID order. Changing one requires the anti-regression
 > procedure (see `sdd-specify`) and an entry in `CHANGELOG.md` (refresh §6's
 > dated-band index to keep pointing there).
+> The `Record` column links the decision's ADR in `.sdd/decisions/` when it has one
+> (`sddkit adr new --decision D-NNN` fills it); leave it empty for a decision that
+> needs no record. Every ADR has a row here, never the other way round.
 
-| ID    | Decision                     | Choice | Rationale | Locked on |
-|-------|------------------------------|--------|-----------|-----------|
-| D-001 | [e.g. database]              | [...]  | [...]     | [date]    |
+| ID    | Decision                     | Choice | Rationale | Locked on | Record |
+|-------|------------------------------|--------|-----------|-----------|--------|
+| D-001 | [e.g. database]              | [...]  | [...]     | [date]    |        |
 
 ---
 
@@ -219,8 +222,10 @@
 > Where THIS project's specific conventions live, so the generic skills can
 > reference them abstractly. Fill in as needed; write "not applicable" if unused.
 
-- **Decision records (ADRs):** [where they live, format — e.g. "ADRs in DOC-007;
-  amendments as 'Amendment N — ADR-XXX'". If unused, "not applicable".]
+- **Decision records:** internal
+  <!-- internal = ADRs are files of `.sdd/decisions/` (`sddkit adr new`, `sddkit adr index`).
+       external = they live elsewhere: write `external — <folder or document>`, e.g.
+       `external — docs/decisoes/`. If the project keeps no ADRs, write "not applicable". -->
 - **Migration / artifact versioning:** [convention — e.g. "migrations numbered
   NNNN, versioned, never loose SQL"]
 - **Sequences:** none
