@@ -77,8 +77,24 @@ Do not stall the flow debating local matters — note them and move on.
 
 3. **Lock the decisions.** Each settled structural decision becomes a row in §3
    (`D-NNN`, choice, rationale, date) and/or feeds the principles in §2. Move the
-   question to resolved. If the project uses ADRs (§7), reference them following
-   that convention.
+   question to resolved.
+
+   **Does the decision also get a record (ADR)?** Yes when there were real
+   alternatives, when its premise can be checked and refuted, when it affects more
+   than one stage, or when reverting it is expensive. Otherwise the `D-NNN` row is
+   enough: a light decision needs no file. Every ADR has a `D-NNN` row; the reverse
+   is not required.
+
+   - Where the project keeps its records is §7's `Decision records` field. With
+     `internal`, run `sddkit adr new "<title>" --decision D-NNN --stage <stage>
+     --context "<why it was needed>" --alternative "<what was rejected, and why>"`:
+     it creates `.sdd/decisions/ADR-NNN-<slug>.md`, regenerates the index and writes
+     the link in the row's `Record` column. Never number or name the file by hand.
+   - With `external`, write the record where §7 says and put its identifier in the
+     `Record` column. With "not applicable", skip the record.
+   - A record's body is immutable once accepted: an adjustment is an "Amendment N"
+     section at the end of the file; a decision that changes is a new record
+     (`sddkit adr new --supersedes ADR-NNN`) and the old one only changes status.
 
 4. **Verify the gate (cold self-audit).** Before releasing, review as if someone
    else were reading from scratch:
