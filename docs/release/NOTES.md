@@ -88,3 +88,41 @@ Lido de verdade, não só pelos testes:
 - `adr init` em P1, P3, P5 a P10 (P2 e P4 são os dois casos de ADR fora do `.sdd/`; os demais declaram
   não ter ADR).
 - Documentos de ADR únicos com seções parseáveis: o kit não os separa por decisão de escopo.
+
+## Vistoria final (agente Opus, 2026-11-24)
+
+Um agente Opus, somente leitura, auditou a branch (diff contra `main`, testes, ruff, o CLI em cópias) e
+voltou com **um bloqueante e cinco pontos importantes**; todos foram corrigidos nesta release, cada um
+com um teste que reproduz o achado (`tests/test_adr_vistoria.py`). Os testes passaram de 705 para 735.
+
+- **B1 (bloqueante):** `adr init` reescrevia a §7 e acrescentava a coluna mesmo sem criar registro
+  nenhum, e perdia o texto do dono em "not applicable". Agora, se as respostas não constroem nem
+  vinculam nada, a constituição não muda um byte; e o texto que o campo substitui fica depois de
+  `previously:` também no modo "não aplicável".
+- **I1:** `adr init --dry-run` interativo gravava `.sdd/.adr-interview.json`. Agora não grava.
+- **I2:** `adr new --decision D-NNN --supersedes ADR-X` deixava a §3 apontando para o registro
+  substituído. A célula que cita um registro substituído passa para o novo (célula com outro valor
+  continua intocada).
+- **I3:** `adr init` criava um segundo registro para uma decisão que já tinha um (feito por `adr new` em
+  tabela sem a coluna). Agora o registro vivo é vinculado, a coluna é acrescentada e nada é duplicado.
+- **I4:** a substituição reescrevia o ADR do dono sem backup, podia gravar U+FFFD em arquivo cp1252 e
+  descartava comentários do frontmatter. Agora recusa arquivo que não é UTF-8 (antes de reservar
+  número), copia o original para `.sdd/.pre-fix-backup/<stamp>/decisions/` e troca só as linhas
+  `status:` e `superseded_by:`, preservando CRLF, BOM e comentários.
+- **I5:** a `sdd-init` agora traz o roteiro para o agente conduzir a entrevista sem terminal
+  (`--answers ... --dry-run`, depois a execução real).
+- **Menores corrigidos junto:** `apply` confere os números sob a trava e aborta se outra sessão tomou um
+  (M1); links só para arquivos realmente criados (M1); colunas da §3 lidas pelo rótulo, inclusive em
+  português (M2); `interno`/`externo` e o rótulo em qualquer caixa na §7 (M3); `map` validado contra a §3
+  (M5); data do ADR de discovery só em ISO (M6); frontmatter com BOM, aspas simples, comentário ao fim da
+  linha e itens de lista com vírgula entre aspas (M7); mensagem `decisions_dir_missing` sem "locked"
+  (M8); novos registros numerados depois dos ADRs externos (M10); a entrevista salva depois de cada linha
+  respondida (M11); ledger corrompido e constituição fora de UTF-8 viram mensagem, não traceback (M12);
+  `USAGE.md` e o help deixaram de afirmar que só `adr new`/`adr init` criam `decisions/` e que a §7 não é
+  reescrita (M13); a excursão do `sdd-decide` diz quando o registro vira `aceita` (M14).
+- **Fica para a 4.10.1** (registrado, sem corrigir aqui): M4 (célula com `\|` escapado: `_index_checks._cells`
+  e `_discovery_list` já eram assim antes da release).
+- **Desvios do spec agora registrados:** o M-04 cita o `CHANGELOG` como fonte para o levantamento, e o
+  código lê só `spec.md` e `report.md` das etapas; no modo `link` o "índice aponta o documento" é o campo
+  da §7 (não há arquivo de índice); o "`sdd migrate` com prévia" do M-02 ficou com o `adr init`
+  (`update` e `migrate` nunca editam a constituição).

@@ -46,7 +46,11 @@ rebuilds them for projects that decided things before the folder existed. (The p
   the instructions.
 - `init --discovery` writes six cells per decision row (the new `Record` column); the template's
   `Decision records (ADRs)` free-text line became the `Decision records` field.
-- `sddkit update` and `sddkit migrate` still never create `.sdd/decisions/`.
+- `sddkit update` and `sddkit migrate` still never create `.sdd/decisions/` (M-01, M-04); the record is a
+  file you own, so `adr new --supersedes` copies the old one to `.sdd/.pre-fix-backup/` and changes only its
+  `status:` and `superseded_by:` lines (M-01).
+- `adr init` leaves the constitution untouched when the answers build and link nothing, never creates a
+  second record for a decision that already has one, and numbers new records after ADR files kept elsewhere (M-04).
 
 ## [4.9.6] — In progress
 

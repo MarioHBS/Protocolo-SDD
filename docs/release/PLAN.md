@@ -49,3 +49,5 @@ G-02 e G-03 (4.6.0) já estão feitos; M-03 só reaproveita o status `proposta`.
 8. **Coluna da §3 chama-se `Record`** (o kit é em inglês); `Registro` e `ADR` são aceitos como apelidos.
 9. **"Não aplicável" e "não há ADRs" (e os equivalentes em inglês) silenciam a nota** `decisions_dir_missing`:
    o `doctor` nos 10 projetos mostrou 6 deles escrevendo isso em português ou inglês na §7.
+10. **Vistoria final:** o agente Opus achou B1 e I1 a I5 (ver `NOTES.md`); corrigidos nesta release. O M4 da
+    vistoria (pipe escapado em célula) fica para a 4.10.1.
