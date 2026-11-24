@@ -32,6 +32,7 @@ FIELDS = ("id", "status", "date", "stage", "decision", "supersedes", "superseded
           "implemented_in", "reconstructed", "source")
 LIST_FIELDS = ("supersedes", "superseded_by")
 
+_LIST_ITEM_RE = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'[^']*'|[^,]+")
 _ID_RE = re.compile(r"ADR-(\d+)")
 _FILE_RE = re.compile(r"ADR-(\d+)(?:-[a-z0-9-]*)?\.md\Z")
 _DECISION_RE = re.compile(r"D-\d+\Z")
@@ -83,9 +84,15 @@ def _scalar(value: str) -> object:
             return json.loads(value)
         except json.JSONDecodeError:
             return value[1:-1]
-    if value.startswith("[") and value.endswith("]"):
-        inner = value[1:-1].strip()
-        return [str(_scalar(part)) for part in inner.split(",") if part.strip()] if inner else []
+    if value.startswith("'") and value.endswith("'") and len(value) >= 2:
+        return value[1:-1].replace("''", "'")
+    if value.startswith("["):
+        # a flow list: items may be quoted and may hold commas; a trailing comment is dropped
+        closing = value.rfind("]")
+        inner = value[1:closing].strip() if closing > 0 else value[1:].strip()
+        items = _LIST_ITEM_RE.findall(inner)
+        return [str(_scalar(part)) for part in items if part.strip()]
+    value = re.split(r"\s+#", value, maxsplit=1)[0].strip()  # `aceita  # note` is `aceita`
     if value.lower() in ("true", "false"):
         return value.lower() == "true"
     return value
@@ -136,6 +143,25 @@ def set_meta(text: str, updates: dict) -> str:
     return render_frontmatter(meta) + body
 
 
+def update_frontmatter(text: str, updates: dict) -> str:
+    """``text`` (LF) with only the lines of ``updates`` changed inside the frontmatter: every other
+    line, comment and the whole body stay as the owner wrote them. A key that is missing is added
+    before the closing ``---``."""
+    match = re.match(r"(---[ \t]*\n)(.*?)(\n---[ \t]*(?:\n|\Z))", text, re.S)
+    if not match:
+        raise ValueError("record has no frontmatter")
+    lines = match.group(2).split("\n")
+    for key, value in updates.items():
+        new = f"{key}: {_format(value)}".rstrip()
+        for index, line in enumerate(lines):
+            if re.match(rf"{re.escape(key)}\s*:", line):
+                lines[index] = new
+                break
+        else:
+            lines.append(new)
+    return match.group(1) + "\n".join(lines) + match.group(3) + text[match.end():]
+
+
 # ------------------------------------------------------------------ files
 
 @dataclass
@@ -168,7 +194,7 @@ def decisions_dir(root: Path) -> Path:
 
 
 def _read_text(path: Path) -> str:
-    return path.read_bytes().decode("utf-8", errors="replace").replace("\r\n", "\n")
+    return path.read_bytes().decode("utf-8-sig", errors="replace").replace("\r\n", "\n")  # a BOM is not content
 
 
 def list_adrs(root: Path) -> list[Adr]:
@@ -323,6 +349,13 @@ def _check_new(root: Path, *, title: str, status: str | None, decision: str,
             raise ValueError(f"--supersedes must look like ADR-001, not {old!r}")
         if old not in known:
             raise ValueError(f"{old} does not exist in .sdd/decisions/")
+        # checked before a number is reserved: the old record is rewritten, so it must be readable
+        try:
+            text = known[old].path.read_bytes().decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raise ValueError(f"{known[old].path.name} is not valid UTF-8; convert it before superseding it") from None
+        if not split(text.replace("\r\n", "\n")):
+            raise ValueError(f"{known[old].path.name} has no frontmatter; add `status:` and `superseded_by:` first")
     return canonical
 
 
@@ -389,14 +422,22 @@ def new_adr(root: Path, title: str, *, decision: str = "", stage: str = "", stat
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("x", encoding="utf-8", newline="\n") as handle:
         handle.write(content)
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     for old_id in supersedes:
         old = next(r for r in list_adrs(root) if r.id == old_id)
-        raw = old.path.read_bytes().decode("utf-8", errors="replace")
+        original = old.path.read_bytes()
+        backup = root / ".sdd" / ".pre-fix-backup" / stamp / DECISIONS_DIR / old.path.name
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        if not backup.exists():
+            backup.write_bytes(original)
+        raw = original.decode("utf-8")
+        bom = "﻿" if raw.startswith("﻿") else ""
+        raw = raw.removeprefix("﻿")
         crlf = "\r\n" in raw
         text = raw.replace("\r\n", "\n")
-        current = split(text)[0].get("superseded_by", []) if split(text) else []
+        current = split(text)[0].get("superseded_by", [])
         successors = [*(current if isinstance(current, list) else [current]), record_id]
-        updated = set_meta(text, {"status": SUPERSEDED, "superseded_by": successors})
-        old.path.write_bytes((updated.replace("\n", "\r\n") if crlf else updated).encode("utf-8"))
+        updated = update_frontmatter(text, {"status": SUPERSEDED, "superseded_by": successors})
+        old.path.write_bytes((bom + (updated.replace("\n", "\r\n") if crlf else updated)).encode("utf-8"))
     write_index(root)
     return result
