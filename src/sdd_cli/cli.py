@@ -19,6 +19,7 @@ from pathlib import Path
 from . import (
     _adr,
     _adr_checks,
+    _adr_init,
     _dashboard,
     _decisions,
     _deps,
@@ -309,7 +310,8 @@ def _apply_discovery(root: Path, data: dict) -> None:
                 root, title or decision_id,
                 decision=decision_id, status=_adr.PROPOSED, context=item.get("context", ""),
                 alternatives=item.get("alternatives") or [], source="discovery.json",
-                date=item.get("locked_on") or None)
+                date=item.get("locked_on") or None,
+                decision_text=_adr.decision_section(str(item.get("choice", "")), str(item.get("rationale", ""))))
             record = f"[{made['id']}]({_adr.DECISIONS_DIR}/{Path(made['path']).name})"
         decisions.append({**item, "locked_on": _proposed_marker(item.get("locked_on")), "record": record})
     decision_rows = _discovery_list(decisions, ("decision", "choice", "rationale", "locked_on", "record"), "D")
@@ -2062,11 +2064,74 @@ _LINK_NOTES = {
 }
 
 
+def _cmd_adr_init(args, root: Path) -> None:
+    """Interview (or read --answers) and build records for decisions the project made before the folder."""
+    analysis = _adr_init.analyze(root)
+    if not analysis["has_table"]:
+        die("constitution.md has no section 3 table of decisions: there is nothing to build records from")
+    if args.answers:
+        try:
+            answers = _adr_init.load_answers(Path(args.answers), analysis, root)
+        except ValueError as exc:
+            die(str(exc))
+    elif not sys.stdin.isatty():
+        die("sddkit adr init asks questions and needs a terminal; without one, pass --answers FILE.json "
+            f"(contract {_adr_init.SCHEMA}, described in the manual: sddkit manual)")
+    else:
+        state = _adr_init.load_state(root) if args.resume else None
+        if args.resume and not state:
+            print(dim("nothing to resume; starting a new interview"))
+        try:
+            raw = _adr_init.run_interview(root, analysis, _docs_plan.Console(), state=state,
+                                          on_step=lambda s: _adr_init.save_state(root, s))
+            answers = _adr_init.validate(raw, analysis, root)
+        except _docs_plan.InterviewAborted:
+            die("interview interrupted; answers so far are kept: run 'sddkit adr init --resume'")
+        except ValueError as exc:
+            die(str(exc))
+    plan = _adr_init.build_plan(root, analysis, answers)
+    result = {"command": "adr init", "dry_run": bool(args.dry_run), **_adr_init.summary(plan)}
+    if args.dry_run:
+        _emit_json(result) if args.json else print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+    if _adr_init.is_empty(plan):
+        _adr_init.clear_state(root)
+        if args.json:
+            _emit_json({**result, "created": [], "skipped_existing": [], "constitution_changed": False})
+        else:
+            print(f"{green('ok')}  nothing to do: every decision already has its record or needs none")
+            for note in plan["notes"]:
+                print(dim(f"  note: {note}"))
+        return
+    try:
+        outcome = _adr_init.apply(root, plan)
+    except _lock.LockTimeout as exc:
+        die(f"could not take the lock: {exc}")
+    _adr_init.clear_state(root)
+    if args.json:
+        _emit_json({**result, **outcome})
+        return
+    for path in outcome["created"]:
+        print(f"{green('ok')}  created {path}")
+    for path in outcome["skipped_existing"]:
+        print(dim(f"  kept existing {path}"))
+    if outcome["constitution_changed"]:
+        print(f"{green('ok')}  updated constitution.md (copy in .sdd/.pre-fix-backup/)")
+    if outcome["index_written"]:
+        print(f"{green('ok')}  wrote {_adr.DECISIONS_DIR}/{_adr.INDEX_NAME}")
+    for note in plan["notes"]:
+        print(dim(f"  note: {note}"))
+
+
 def cmd_adr(args) -> None:
-    """Architecture decision records: `new` creates one, `index` regenerates the generated README."""
+    """Architecture decision records: `new` creates one, `index` regenerates the generated README,
+    `init` rebuilds them for decisions that predate the folder."""
     root = Path(args.path).resolve()
     if not (root / ".sdd").is_dir():
         die(f"no .sdd/ found in {root}")
+    if args.adr_command == "init":
+        _cmd_adr_init(args, root)
+        return
     if args.adr_command == "index":
         stale = _adr.index_is_stale(root)
         if args.check:
@@ -3733,6 +3798,13 @@ _HELP_DETAILS: dict[str, tuple[str, str]] = {
                 "never touched). Needs no documentation feature; creates .sdd/decisions/ if missing.",
                 "sddkit adr new \"Use PostgreSQL\" --decision D-004 --context 'Need transactions' "
                 "--alternative 'SQLite: no concurrent writers'\nsddkit adr new \"Use PostgreSQL\" --dry-run"),
+    "adr init": ("For a project that decided things before .sdd/decisions/ existed: an interview that reads "
+                 "what the project already says (the D-NNN rows of section 3, section 7, ADR files outside "
+                 ".sdd/), proposes candidates and asks only what cannot be inferred. Every record it writes is "
+                 "marked reconstructed with its source, and what the sources do not say stays marked unknown. "
+                 "It only creates files and fills the Record column and section 7 (the constitution is copied "
+                 "first). --resume continues an interrupted run; without a terminal pass --answers.",
+                 "sddkit adr init --dry-run\nsddkit adr init\nsddkit adr init --answers adr-init.json --dry-run"),
     "adr index": ("Regenerate .sdd/decisions/README.md (id, title, status, decision, stage, date) from the "
                   "frontmatter of the records. Never edit that file by hand. --check changes nothing and "
                   "exits 1 when the index is out of date.",
@@ -4131,6 +4203,13 @@ with open todo.md checkboxes as WARNINGS. Nothing is edited.
     adr_index.add_argument("--check", action="store_true", help="only report whether the index is current (exit 1 if not)")
     adr_index.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     adr_index.set_defaults(func=cmd_adr)
+    adr_init = adr_sub.add_parser("init", help="rebuild records for decisions made before .sdd/decisions/ existed")
+    adr_init.add_argument("path", nargs="?", default=".", help="project root (default: .)")
+    adr_init.add_argument("--resume", action="store_true", help="continue an interrupted interview")
+    adr_init.add_argument("--answers", metavar="FILE", help="read the answers from JSON (no terminal needed)")
+    adr_init.add_argument("--dry-run", action="store_true", help="show what would be created and changed; write nothing")
+    adr_init.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    adr_init.set_defaults(func=cmd_adr)
 
     proposals = sub.add_parser("proposals", help="gather improvement proposals from several projects")
     proposals_sub = proposals.add_subparsers(dest="proposals_command", required=True)
