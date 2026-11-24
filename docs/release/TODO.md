@@ -20,4 +20,4 @@
 - [x] revisão do material complementar (help, doctor, skills, template, READMEs)
 - [x] vistoria final por agente Opus, achados tratados
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.10.0`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
+- [x] tag `v4.10.0`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
