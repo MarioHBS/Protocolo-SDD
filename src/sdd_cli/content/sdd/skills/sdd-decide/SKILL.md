@@ -104,6 +104,8 @@ Do not stall the flow debating local matters — note them and move on.
      decision that does not yet exist?
    - If subagents are available, delegate this audit to one reading the
      constitution cold.
+   - When the audit passes, each record step 3 created moves from `proposta` to
+     `aceita`: edit `status:` in its frontmatter, then run `sddkit adr index`.
 
 5. **Open the gate.** With no structural item pending: `State: ROADMAP`,
    `Next action: load the sdd-roadmap skill`, update the date, record in §6.
@@ -115,15 +117,22 @@ Do not stall the flow debating local matters — note them and move on.
 
 `sddkit init --discovery` leaves the project in `DECIDING` with the interview's
 decisions in §3 marked `proposed (agreed <date>)` in the `Locked on` column: the
-owner agreed to them, but nobody has audited them. Do not repeat the interview.
+owner agreed to them, but nobody has audited them. A decision the interview marked
+`adr: true` also has its record in `.sdd/decisions/`, status `proposta`, linked in
+the row's `Record` column. Do not repeat the interview.
 
 1. Run only step 4 (cold self-audit) over §3 and §4. Check §3 against the
    categories above (for instance, a project with an interface and no design
-   system decision has a gap) and check that the decisions are consistent.
+   system decision has a gap) and check that the decisions are consistent. Apply
+   the record criterion of step 3 too: a decision that passes it and has no
+   record gets one (`sddkit adr new ... --decision D-NNN`); a record that does not
+   pass it is only a row, so say so to the owner instead of deleting the file.
 2. Ask the owner only about what the audit finds missing or contradictory, and
    about any question in §4 that blocks the gate.
 3. When the audit passes, lock every `proposed` row: replace the marker with
-   today's date in `Locked on`. Then open the gate (step 5).
+   today's date in `Locked on`, and move each linked record from `proposta` to
+   `aceita` (its `status:` frontmatter, then `sddkit adr index`). Then open the
+   gate (step 5).
 
 ## Structural decision mid-flight (short excursion)
 
@@ -133,6 +142,10 @@ If you are in `IMPLEMENTING` and a new structural decision surfaces:
 2. Take a **short excursion to DECIDING** for that decision only: lock it in §3
    (using the anti-regression procedure from `sdd-specify` if it touches
    something already delivered) and record it in §6 as a mid-flight excursion.
+   Apply the record criterion of step 3: a decision that passes it gets its
+   record (`sddkit adr new ... --decision D-NNN`); one that revises an existing
+   record is an "Amendment N" section in that file, or a new record with
+   `--supersedes` when the decision itself changed.
 3. Return to `IMPLEMENTING`. No need to restart the whole cycle.
 
 This is a legitimate, expected path — what matters is that the decision ends up
