@@ -18,4 +18,4 @@
 - [x] `update --dry-run` nos projetos: nada gravado; `update` real em cópia
 - [x] revisão do material complementar (help, doctor, skills, template, READMEs)
 - [x] `docs/release/NOTES.md`
-- [ ] tag `v4.10.1`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
+- [x] tag `v4.10.1`, fast-forward `main`, push de branch, tag e `main` (só com confirmação do dono)
