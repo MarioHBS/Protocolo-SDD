@@ -1108,6 +1108,10 @@ def _find_stage(root: Path, raw: str, track: str | None = None) -> Path | None:
     return None
 
 
+# An `Active stage` value that opens by saying there is none: "(none)", "**nenhuma** — ...", a lone dash.
+_NO_STAGE_RE = re.compile(r"(?i)^[\s*_(\[`]*(?:none\b|nenhuma?\b|n/a\b|[—–-]+[\s*_)\]`]*$)")
+
+
 def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str | None]:
     """Read the small current-state pointer without owning or rewriting it."""
     path = root / ".sdd" / "tracks" / track / "state.md" if track else root / ".sdd" / "constitution.md"
@@ -1119,6 +1123,8 @@ def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str 
     if not stage:
         return (state.group(1) if state else None, None)
     raw = stage.group(1).strip()
+    if _NO_STAGE_RE.match(raw):  # whatever the narrative cites after it (K-13)
+        return (state.group(1) if state else None, None)
     found = _find_stage(root, raw, track)
     if found:
         return (state.group(1) if state else None, found.name)
