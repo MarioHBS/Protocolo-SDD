@@ -149,16 +149,17 @@ to `CHANGELOG.md`, section 5 to `backlog.md`, any other section: decide with the
 those lines. Run from a subfolder of a project, it audits the nearest `.sdd/` above (and says which
 root it used); with none above it still says "not an SDD project". A repeated finding is printed once
 with its count; `--all` lists every occurrence (file and line, stage, track) and, for `mojibake_v1`,
-every hit with `line:column` and a snippet. Findings (`code`, severity):
+every hit with `line:column` and a snippet (printed without `--all` too when there are at most 10).
+The closing line counts the kinds of warning shown. Findings (`code`, severity):
 
 | Area | Code | Meaning |
 |------|------|---------|
 | Encoding | `mojibake_v2` (error) | Deterministic double-encoding; `sddkit fix --mojibake` repairs it. |
-| | `mojibake_v1` (warn) | Possible lost accent (`?`); ambiguous, never auto-fixed. |
+| | `mojibake_v1` (warn) | Possible lost accent (`?`); ambiguous, never auto-fixed. A `?` written as Markdown code is not counted. |
 | | `invalid_utf8` (error) | File is not UTF-8. |
 | Stages | `spec_without_todo`, `closed_open_todo` | Spec with no todo; closed stage with open checkboxes (`[x]`, `[-]`, `[!]` count as resolved). |
 | Size | `constitution_oversized` (warn), `long_table_cell` (warn), `cold_file_oversized` (note) | What inflates a session. `constitution_oversized` is about the part a session reads at start (Settings and Current state, the same cut `sddkit context` makes; limit 8 KiB), not the whole file. A big constitution is a `cold_file_oversized` note against 24 KiB; `roadmap.md`, `estimates.md` and `CHANGELOG.md` against 48 KiB. A project sets its own ceilings with optional Settings lines (`- **Constitution max size:** 75 KB`, `- **Cold file max size:** 60 KB`; KB and KiB both mean 1024 bytes; an invalid value is ignored). The messages show the limit in use, and the constitution note shows the biggest sections and how many bytes `sddkit fix --slim` would recover. `long_table_cell` advises by section: a locked decision (3) or history (6) goes to `CHANGELOG.md` with a pointer, never to `backlog.md`; a stage-index row (5) goes to `backlog.md`; `sddkit doctor --slim` lists every line. |
-| Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; machine-specific `file:///` links (`sddkit fix --links`). |
+| Structure | `duplicate_h2`, `abs_file_links` | Repeated section heading; a machine-specific `file:///` link with a target, outside code (`sddkit fix --links` rewrites those that point inside the project; edit the others by hand). |
 | Settings | `feature_mismatch` | Constitution and manifest disagree on a feature (`sddkit fix --features`). |
 | Settings | `tracks_setting_missing` | Real track activity but no explicit `Parallel tracks:` line in Settings — add `on` or `off` by hand. |
 | Kit | `manifest_eol_drift` (note; `sddkit fix --manifest`), `eol_crlf` (note; `sddkit fix --eol`), `managed_file_edited`, `readme_anchor_missing`, `migration_todo_pending` (note), `provider_shim_unmanaged`, `cli_older_than_project`, `kit_behind` (note; `sddkit update --notes`, then `sddkit update --dry-run`), `global_skill_stale` (note; `sddkit update --global-skill`) | A managed file edited by hand that `sddkit update` kept (it stays listed after the version bump); managed files of the kit on disk in CRLF (`eol_crlf`, never changes the exit status; `sddkit fix --eol --manifest` repairs them and re-records the hashes in one run); a skill or template citing a README section the project's `.sdd/README.md` lacks; a shim on disk the manifest does not manage; a `.migration-todo.md` left behind by `sddkit migrate`; the CLI is older than the project's kit, or the project's kit is older than the CLI (`kit_behind` never changes the exit status: updating is the owner's call); the global Claude Code `sdd` skill predates the kit (it is read, never written). |
@@ -216,7 +217,8 @@ Prints what a session needs to start — Settings and Current state, the active
 stage's files — and **nothing more**. `--budget` adds each file's size and token
 estimate (bytes/4), split into **hot** (read at startup) and **cold** (read only
 when a task needs it), and what reading the whole constitution would have cost.
-Agent shims call it at startup.
+Agent shims call it at startup. An `Active stage` value that starts with "none" or "nenhuma" (or
+is a lone dash) means there is no active stage.
 
 ### `sddkit evaluate [PATH] [--write] [--json]`
 
