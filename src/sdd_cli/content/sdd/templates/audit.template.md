@@ -23,7 +23,7 @@
 
 | Premise | State | Evidence or owner |
 |---------|-------|-------------------|
-| [what the design stands on] | untested <!-- verified (evidence) | refuted | untested (who, when) --> | [`path:line`, or who will test it and when] |
+| [what the design stands on] | untested <!-- verified (evidence) / refuted / untested (who, when) --> | [`path:line`, or who will test it and when] |
 
 <!-- After the last round, when the verdict is READY TO LOCK and the spec is locked, add this line
      to the spec's header (counts of the findings whose last state is fixed/dismissed):
