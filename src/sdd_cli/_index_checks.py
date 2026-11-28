@@ -29,8 +29,24 @@ def _slugify(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
+# A `|` after a backslash is text inside a cell (GitHub Markdown), not a column separator.
+_BARE_PIPE_RE = re.compile(r"(?<!\\)\|")
+
+
 def _cells(line: str) -> list[str]:
-    return [c.strip() for c in line.strip().strip("|").split("|")]
+    """The cells of a table line, each as written in the file (an escaped `\\|` stays escaped), so
+    rewriting a row does not change a byte of the cells it did not touch."""
+    parts = _BARE_PIPE_RE.split(line.strip())
+    while parts and not parts[0]:
+        parts.pop(0)
+    while parts and not parts[-1]:
+        parts.pop()
+    return [c.strip() for c in parts] or [""]
+
+
+def cell_text(value: str) -> str:
+    """``value`` ready to go inside a table cell: one line, every bare `|` escaped (once)."""
+    return _BARE_PIPE_RE.sub(r"\\|", " ".join(value.splitlines())).strip()
 
 
 def _tables(block: str) -> list[list[dict[str, str]]]:
@@ -210,7 +226,9 @@ _LOCKED_BY_RE = re.compile(r"(?im)^[-*]?\s*\*{0,2}Locked-by-audit:\*{0,2}\s*(.+)
 _ROUND_RE = re.compile(r"(?m)^##\s+Round\s+(\d+)\b")
 _VERDICT_RE = re.compile(r"(?im)^[-*]?\s*\*\*Verdict:\*\*\s*(NOT READY TO LOCK|READY TO LOCK)\b")
 _FINDING_RE = re.compile(
-    r"(?m)^\|\s*(F-\d+)\s*\|\s*(BLOCKER|MAJOR|MINOR)\s*\|[^|\n]*\|[^|\n]*\|\s*(open|fixed|dismissed)\s*\|")
+    r"(?m)^\|\s*(F-\d+)\s*\|\s*(BLOCKER|MAJOR|MINOR)\s*\|"
+    r"(?:\\[^\n]|[^|\\\n])*\|(?:\\[^\n]|[^|\\\n])*\|"  # Lens and Where may hold an escaped `\|`
+    r"\s*(open|fixed|dismissed)\s*\|")
 _TOUCHES_PATHS_RE = re.compile(r"(?im)^\s*[-*]\s*paths:\s*(.+)$")
 _BACKTICKED_RE = re.compile(r"`([^`]+)`")
 

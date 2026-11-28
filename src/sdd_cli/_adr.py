@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import _lock, _tracks
+from . import _index_checks, _lock, _tracks
 
 DECISIONS_DIR = "decisions"
 INDEX_NAME = "README.md"
@@ -263,10 +263,6 @@ def reserve_number(root: Path) -> int:
 
 # ------------------------------------------------------------------ index
 
-def _cell(text: str) -> str:
-    return text.replace("|", "\\|").replace("\n", " ").strip()
-
-
 def render_index(root: Path) -> str:
     """The generated ``README.md`` of ``.sdd/decisions/``: id, title, status, decision, stage, date."""
     lines = ["# Decision records", "",
@@ -280,9 +276,10 @@ def render_index(root: Path) -> str:
                   "|----|-------|--------|----------|-------|------|"]
         for r in records:
             meta = r.meta
-            lines.append(f"| [{r.id}]({r.path.name}) | {_cell(r.title)} | {_cell(r.status)} | "
-                         f"{_cell(str(meta.get('decision', '')))} | {_cell(str(meta.get('stage', '')))} | "
-                         f"{_cell(str(meta.get('date', '')))} |")
+            cell = _index_checks.cell_text
+            lines.append(f"| [{r.id}]({r.path.name}) | {cell(r.title)} | {cell(r.status)} | "
+                         f"{cell(str(meta.get('decision', '')))} | {cell(str(meta.get('stage', '')))} | "
+                         f"{cell(str(meta.get('date', '')))} |")
     return "\n".join(lines) + "\n"
 
 

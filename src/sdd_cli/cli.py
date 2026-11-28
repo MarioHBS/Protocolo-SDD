@@ -270,7 +270,7 @@ sdd-discover is a SKILL, not a command: an AI agent interviews you and writes tw
 def _discovery_list(items: list[dict], fields: tuple[str, ...], prefix: str) -> str:
     rows = []
     for index, item in enumerate(items, 1):
-        values = [str(item.get(field, "")) for field in fields]
+        values = [_index_checks.cell_text(str(item.get(field, ""))) for field in fields]
         rows.append(f"| {prefix}-{index:03d} | " + " | ".join(values) + " |")
     empty = " |" * (len(fields) - 1)
     return "\n".join(rows) or f"| {prefix}-001 | [none recorded] |{empty}"
@@ -315,17 +315,19 @@ def _apply_discovery(root: Path, data: dict) -> None:
             record = f"[{made['id']}]({_adr.DECISIONS_DIR}/{Path(made['path']).name})"
         decisions.append({**item, "locked_on": _proposed_marker(item.get("locked_on")), "record": record})
     decision_rows = _discovery_list(decisions, ("decision", "choice", "rationale", "locked_on", "record"), "D")
-    text = re.sub(r"\| D-001 \|[^\n]*\|", decision_rows, text)
+    # Replacements are functions: a backslash in a discovery value is text, not a group reference.
+    text = re.sub(r"\| D-001 \|[^\n]*\|", lambda _: decision_rows, text)
     questions = data.get("open_questions", [])
     question_rows = _discovery_list(questions, ("question", "blocks_gate", "status"), "Q")
-    text = re.sub(r"\| Q-001 \|[^\n]*\|", question_rows, text)
+    text = re.sub(r"\| Q-001 \|[^\n]*\|", lambda _: question_rows, text)
     canonical = f"| 001 | {first['slug']} | pending | — |"
-    text = re.sub(r"\| 001\s+\|[^\n]*\|", canonical, text)
+    text = re.sub(r"\| 001\s+\|[^\n]*\|", lambda _: canonical, text)
     provisional = []
     for stage in stages[1:]:
-        provisional.append(f"| {stage['slug']} | pending | — | {stage['title']}; Origin: {stage.get('origin', 'escopo-original')} |")
+        note = _index_checks.cell_text(f"{stage['title']}; Origin: {stage.get('origin', 'escopo-original')}")
+        provisional.append(f"| {stage['slug']} | pending | — | {note} |")
     queue = "\n".join(provisional) or "| — | — | — | No further provisional stages |"
-    text = re.sub(r"\| \[slug\] \| pending \|[^\n]*\|", queue, text, count=1)
+    text = re.sub(r"\| \[slug\] \| pending \|[^\n]*\|", lambda _: queue, text, count=1)
     constitution.write_text(text, encoding="utf-8", newline="\n")
 
     backlog = ["# Backlog", "", "> Imported from discovery. Details remain here until `sdd-specify` consumes a stage.", ""]
