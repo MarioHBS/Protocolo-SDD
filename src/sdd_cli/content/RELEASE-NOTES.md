@@ -5,6 +5,13 @@ kit and the bundled one; `sddkit update --notes` prints them again without chang
 A line starting with `Manual action:` is something the project has to do by hand, because the
 kit never edits the constitution or any other file you own.
 
+## 4.10.1
+
+- `sddkit doctor` stops warning about `file:///` written as code or with no target, and about a `?` written as code (`mojibake_v1`); with up to 10 accent-loss hits it prints their line and column without `--all`.
+- The closing line of `doctor` counts every kind of warning on screen, so the number may be higher than before for the same project, and a warning that used to end in "clean." no longer does.
+- An `Active stage` that starts with "none" or "nenhuma" now means no active stage, whatever the text after it cites.
+- A `\|` inside a table cell is read as part of the cell, `init --discovery` escapes the `|` of its values, and `templates/audit.template.md` no longer fails markdownlint (MD056).
+
 ## 4.10.0
 
 - Decision records (ADRs) now live in `.sdd/decisions/`, one file per record, whether or not the Documentation feature is on. `sddkit adr new "<title>" --decision D-NNN` creates the next one (status `proposta`; numbers are never reused) and `sddkit adr index` regenerates the index.

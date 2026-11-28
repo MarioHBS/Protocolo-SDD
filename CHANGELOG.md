@@ -1,5 +1,29 @@
 # Changelog — sdd-cli
 
+## [4.10.1] — In progress
+
+Fixes only: what the 4.10.0 review left for later and what real projects reported on 2026-11-26 and
+2026-11-27.
+
+### Fixed
+
+- K-08: an escaped `\|` inside a table cell is part of the cell. Rewriting a decision row no longer
+  moves the cells after it, an `audit.md` finding whose Lens or Where holds `\|` is read again, and
+  `init --discovery` escapes the `|` of its values; a backslash in one of them (a Windows path) no longer
+  aborts the import.
+- K-09: `abs_file_links` reports only a `file:///` link with a target, outside Markdown code, and
+  `fix --links` applies the same test (it leaves code as written).
+- K-10: `mojibake_v1` skips the `?` written as code in Markdown (a regex, a command), and `doctor`
+  prints line, column and snippet without `--all` when there are at most 10 hits. The deterministic
+  `mojibake_v2` is unchanged.
+- K-11: the closing line of `doctor` counts every kind of warning shown, including those printed in
+  their own sections; a track warning alone no longer ends in "clean.", and a closed track not yet
+  archived is shown as a note.
+- K-12: `templates/audit.template.md` had bare `|` inside a table cell, which fails markdownlint
+  (MD056) in a project that lints Markdown.
+- K-13: an `Active stage` value that starts by saying there is none ("(none)", "nenhuma", a lone dash)
+  names no stage, even when the text after it cites stage numbers (`context`, `session sync`, `doctor`).
+
 ## [4.10.0] — In progress
 
 Decision records (ADRs) become part of the kit: a folder of their own, a command, a link from the
