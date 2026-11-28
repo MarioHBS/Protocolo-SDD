@@ -51,8 +51,9 @@ def test_a_value_that_names_a_stage_still_resolves(tmp_path, value):
     assert _scope_state(_project(tmp_path, value))[1] == "015-brute-force"
 
 
-def test_an_unknown_name_is_still_passed_on(tmp_path):
-    assert _scope_state(_project(tmp_path, "`nonexistent-slug`"))[1] == "nonexistent-slug"
+@pytest.mark.parametrize("name", ["nonexistent-slug", "none-handling"])
+def test_an_unknown_name_is_still_passed_on(tmp_path, name):
+    assert _scope_state(_project(tmp_path, f"`{name}`"))[1] == name
 
 
 def test_a_synced_session_without_a_stage_is_consistent(tmp_path, capsys):

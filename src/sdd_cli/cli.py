@@ -1109,7 +1109,7 @@ def _find_stage(root: Path, raw: str, track: str | None = None) -> Path | None:
 
 
 # An `Active stage` value that opens by saying there is none: "(none)", "**nenhuma** — ...", a lone dash.
-_NO_STAGE_RE = re.compile(r"(?i)^[\s*_(\[`]*(?:none\b|nenhuma?\b|n/a\b|[—–-]+[\s*_)\]`]*$)")
+_NO_STAGE_RE = re.compile(r"(?i)^[\s*_(\[`]*(?:(?:none|nenhuma?|n/a)(?![A-Za-z0-9-])|[—–-]+[\s*_)\]`]*$)")
 
 
 def _scope_state(root: Path, track: str | None = None) -> tuple[str | None, str | None]:
