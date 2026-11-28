@@ -970,17 +970,18 @@ def cmd_doctor(args) -> None:
                      f"{len(v1_only)} file(s) — NOT auto-fixed: a `?` next to a "
                      "letter may be a real question mark. Review by hand."))
         show_all = bool(getattr(args, "all", False))
+        # A handful of hits is shown where it is; only a long list needs --all (K-10).
+        show_lines = show_all or sum(len(r.v1) for r in v1_only) <= _V1_LINES_SHOWN
         for r in v1_only if show_all else v1_only[:20]:
             rel = r.path.relative_to(root)
             print(f"  {yellow('v1')}   {rel} {dim('(' + str(len(r.v1)) + ' hits)')}")
-            if show_all:
-                raw = r.path.read_bytes()
+            if show_lines:
                 for hit in r.v1:
-                    line = raw.count(b"\n", 0, hit.offset) + 1
-                    col = hit.offset - (raw.rfind(b"\n", 0, hit.offset) + 1) + 1
-                    print(dim(f"         {line}:{col}  {hit.snippet!r}"))
+                    print(dim(f"         {hit.line}:{hit.column}  {hit.snippet!r}"))
         if len(v1_only) > 20 and not show_all:
-            print(dim(f"    ...and {len(v1_only) - 20} more files (doctor --all lists them, with line and snippet)"))
+            print(dim(f"    ...and {len(v1_only) - 20} more files"))
+        if not show_lines:
+            print(dim("    (doctor --all lists each line and snippet)"))
 
     if non_utf8:
         status = max(status, 1)
@@ -1061,6 +1062,10 @@ def cmd_doctor(args) -> None:
         print(yellow(f"\n{len(pending)} kind(s) of finding to review — see above."))
     else:
         print(bold("\nclean."))
+
+
+# Up to this many accent-loss hits, the report prints line and snippet without --all.
+_V1_LINES_SHOWN = 10
 
 
 # Codes the human report already prints in its own sections above.

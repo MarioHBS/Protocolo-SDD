@@ -30,6 +30,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import _markdown
+
 # ----------------------------------------------------------------- detector
 
 # Double-encoding (v2): a `Ã` (U+00C3, bytes `c3 83`) immediately followed by a
@@ -72,6 +74,8 @@ class Hit:
     kind: str          # "v2" (double-encoding) | "v1" (accent-loss `?`)
     offset: int       # byte offset in the file
     snippet: str      # ~12-char context, replacement chars for undecodable bytes
+    line: int = 0     # 1-based
+    column: int = 0   # 1-based, in bytes
 
     @property
     def actionable(self) -> bool:
@@ -97,7 +101,8 @@ def _make_hit(kind: str, m: re.Match, raw: bytes) -> Hit:
     start = max(0, m.start() - 8)
     end = min(len(raw), m.end() + 8)
     snippet = raw[start:end].decode("utf-8", errors="replace")
-    return Hit(kind=kind, offset=m.start(), snippet=snippet)
+    return Hit(kind=kind, offset=m.start(), snippet=snippet, line=raw.count(b"\n", 0, m.start()) + 1,
+               column=m.start() - raw.rfind(b"\n", 0, m.start()))
 
 
 def scan_file(path: Path) -> FileReport:
@@ -105,7 +110,11 @@ def scan_file(path: Path) -> FileReport:
     first, because a non-UTF-8 file would raise before we could classify it."""
     raw = path.read_bytes()
     v2 = [_make_hit("v2", m, raw) for m in _V2_BYTE_RE.finditer(raw)]
-    v1 = [_make_hit("v1", m, raw) for m in _V1_BYTE_RE.finditer(raw)
+    # In Markdown, a `?` written as code (a regex, a command) is not a lost accent (K-10). Latin-1
+    # maps one byte to one character, so the masked copy keeps every byte offset.
+    prose = (_markdown.mask_code(raw.decode("latin-1")).encode("latin-1")
+             if path.suffix.lower() == ".md" else raw)
+    v1 = [_make_hit("v1", m, raw) for m in _V1_BYTE_RE.finditer(prose)
           if not _QUERY_PARAM_RE.match(raw, m.start() + 2)]
     try:
         raw.decode("utf-8")
