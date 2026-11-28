@@ -1024,7 +1024,10 @@ def cmd_doctor(args) -> None:
         print(green("  ok    every spec'd stage has a todo.md"))
 
     if hyg.track_divergences:
-        print(yellow(f"  {yellow('WARN')} track hygiene "
+        # A closed track that was not archived yet is a note, here as in `--json` (K-11).
+        only_notes = all(t.kind == "closed_in_place" for t in hyg.track_divergences)
+        label = "note " if only_notes else "WARN"
+        print(yellow(f"  {yellow(label)} track hygiene "
                      f"({len(hyg.track_divergences)}):"))
         for t in hyg.track_divergences:
             print(f"    - {t.track} [{t.kind}]: {t.detail}")
@@ -1057,8 +1060,9 @@ def cmd_doctor(args) -> None:
     status = max(status, payload["status"])
     if status:
         raise SystemExit(status)
-    pending = [g for g in _findings.group(others) if g["severity"] == "warn"]
-    if hyg.closed_with_open_todo or hyg.spec_without_todo or pending:
+    # Every kind of warning shown, whether in its own section or under "findings" (K-11).
+    pending = {f["code"] for f in payload["findings"] if f["severity"] == "warn"}
+    if pending:
         print(yellow(f"\n{len(pending)} kind(s) of finding to review — see above."))
     else:
         print(bold("\nclean."))
