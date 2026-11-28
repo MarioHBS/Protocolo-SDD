@@ -28,6 +28,7 @@ from . import (
     _hooks,
     _index_checks,
     _lock,
+    _markdown,
     _mojibake,
     _proposals,
     _proposals_send,
@@ -1211,14 +1212,17 @@ def _doctor_payload(root: Path) -> dict:
         for heading in duplicates:
             findings.append({"severity": "warn", "code": "duplicate_h2", "heading": heading})
         section = ""
-        for line_no, line in enumerate(ctext.splitlines(), 1):
+        # Same test `fix --links` applies: a link with a target, outside code (K-09).
+        link_lines = {ctext.count("\n", 0, m.start()) + 1
+                      for m in _FILE_LINK_RE.finditer(_markdown.mask_code(ctext))}
+        for line_no, line in enumerate(ctext.split("\n"), 1):
             if line.startswith("## "):
                 section = line[3:].strip()
             if "|" in line and len(line.encode("utf-8")) > 600:
                 findings.append({"severity": "warn", "code": "long_table_cell", "line": line_no,
                                  "bytes": len(line.encode("utf-8")), "section": section,
                                  "destination": _slim.destination_for(section) or ""})
-            if "file:///" in line.lower():
+            if line_no in link_lines:
                 findings.append({"severity": "warn", "code": "abs_file_links", "line": line_no,
                                  "actionable": True})
         settings = {m.group(1).strip().lower(): m.group(2).strip().lower()
@@ -1454,7 +1458,7 @@ def _emit_json(data: dict) -> None:
     print(json.dumps(data, ensure_ascii=False, sort_keys=True))
 
 
-_FILE_LINK_RE = re.compile(r"file:///[^\s)`>\"]+")
+_FILE_LINK_RE = re.compile(r"(?i)file:///[^\s)`>\"]+")
 _AGENT_WORKTREE_DIRS = (".kilo/worktrees", ".claude/worktrees", ".cursor/worktrees")
 
 
@@ -1464,7 +1468,7 @@ def _relativize_file_links(text: str, root: Path) -> str:
     The constitution lives in ``.sdd/``, so a target ``<root>/.sdd/stages/x`` becomes
     ``stages/x`` and one outside ``.sdd/`` becomes ``../...``. A link from a moved
     or foreign checkout is still recognised when it contains ``/.sdd/``. Anything
-    else is left alone.
+    else is left alone, and so is anything written as code (K-09).
     """
     from urllib.parse import unquote
 
@@ -1481,7 +1485,11 @@ def _relativize_file_links(text: str, root: Path) -> str:
             return match.group(0)
         return rel[len(".sdd/"):] if rel.startswith(".sdd/") else "../" + rel
 
-    return _FILE_LINK_RE.sub(convert, text)
+    parts, done = [], 0
+    for match in _FILE_LINK_RE.finditer(_markdown.mask_code(text)):
+        parts += [text[done:match.start()], convert(_FILE_LINK_RE.match(text, match.start(), match.end()))]
+        done = match.end()
+    return "".join(parts) + text[done:]
 
 
 def _missing_worktree_ignores(root: Path) -> list[str]:
