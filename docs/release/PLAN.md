@@ -1,53 +1,50 @@
-# Plan — sdd-cli 4.10.0
+# Plan — sdd-cli 4.10.1
 
-**Branch:** `4.10.0` (de `main` = 4.9.6) · **Idioma:** português
+**Branch:** `4.10.1` (de `main` = 4.10.0) · **Idioma:** português
 
-Tema: o ADR deixa de depender da feature Documentation e passa a viver em `.sdd/decisions/` (um
-arquivo por ADR, mais um índice gerado). O plano privado chama este estágio de "estágio 12"; a pedido
-do dono ele sai como **4.10.0**, e os estágios de EARS e `sdd-qa` passam a 4.11.0 e 4.12.0.
+Tema: correções. O item que a vistoria da 4.10.0 deixou registrado (M4, `|` escapado em célula) e os
+defeitos registrados em uso real em 2026-11-26 e 2026-11-27. Escopo escolhido pelo dono em
+2026-11-28: "M4 + defeitos"; as melhorias pedidas nos mesmos registros ficam para depois.
 
 ## Itens
 
-- **M-01** lugar, formato e numerador: `.sdd/decisions/ADR-NNN-<slug>.md`, template
-  `adr.template.md`, frontmatter (`id`, `status`, `date`, `stage`, `decision`, `supersedes`,
-  `superseded_by`, `implemented_in`, `reconstructed`, `source`), ciclo de status
-  `proposta → aceita → implementada → substituída | obsoleta`, `sddkit adr new` com número que
-  nunca é reaproveitado (mesmo livro e mesma trava do `seq next`).
-- **M-02** índice gerado (`sddkit adr index` → `.sdd/decisions/README.md`, idêntico byte a byte
-  quando nada mudou) e coluna "Registro" na §3 da constituição; critério escrito no `sdd-decide` de
-  quando a decisão ganha ADR.
-- **M-05** campo `Decision records: internal | external` na §7 e verificações novas do `doctor`
-  (id duplicado, status fora do ciclo, ADR sem linha `D-NNN` e vice-versa, `implementada` sem
-  `implemented_in`, `substituída` sem sucessor, índice defasado, `decisions/` ausente, caminho
-  externo inexistente).
-- **M-03** `discovery.json` ganha `context`, `alternatives` e `adr` (opcionais, por decisão); o
-  `init --discovery` escreve os ADRs em `proposta`; `sdd-decide` cria o arquivo quando a decisão
-  passa o critério e o autoaudit muda `proposta` para `aceita`.
-- **M-04** `sddkit adr init`: entrevista retomável (`--resume`, `--answers`, `--dry-run`) que
-  reconstrói ADRs de projeto legado sem inventar (`reconstructed: true`, `source:`), vincula ou
-  importa ADRs externos e preenche a coluna "Registro" e a §7.
-
-Ordem de construção: M-01 → M-02 → M-05 → M-03 → M-04 (M-04 depende do modo `external` de M-05).
-G-02 e G-03 (4.6.0) já estão feitos; M-03 só reaproveita o status `proposta`.
+- **K-08** (vistoria da 4.10.0, M4) um `|` dentro de uma célula quebra a tabela: `_cells` corta no
+  `\|` escapado, `init --discovery` grava o valor sem escapar, e a linha de um achado de `audit.md`
+  com `\|` deixa de ser lida.
+- **K-09** (P11/IP-002) `abs_file_links` acusa `file:///` escrito em código (entre crases ou em bloco)
+  ou sem destino, e indica um `fix --links` que não tem o que fazer.
+- **K-10** (P11/IP-003) `accent-loss` acusa o `?` de uma expressão regular escrita como código, e a
+  saída padrão não diz a linha.
+- **K-11** (P11/IP-004) o fecho do `doctor` conta menos tipos de aviso do que a tela mostra (e pode
+  dizer "clean." com um aviso de trilha na tela).
+- **K-12** (P2/IP-016, item 1) `audit.template.md` tem `|` solto numa célula: o projeto que roda
+  markdownlint reprova (MD056) num arquivo do kit.
+- **K-13** (P2/IP-016, item 12) `Active stage` que começa por "nenhuma"/"none" e cita números na
+  narrativa aponta uma etapa concluída como ativa.
 
 ## Decisões
 
-1. **Severidades do `doctor`:** só `adr_duplicate_id` é `error`; as demais são `warn`; `decisions/`
-   ausente em projeto interno com `D-NNN` é `note`. Projeto sem ADR por escolha nunca falha.
-2. **`adr init` importa só pasta com um ADR por arquivo.** Documento monolítico (vários ADRs em um
-   arquivo) só é **vinculado**: o kit não corta documento em ADRs.
-3. **Sem `adr set-status`:** o spec pede só `new`, `index` e `init`; mudar status é edição manual,
-   validada pelo `doctor`.
-4. **`update` e `migrate` nunca criam `decisions/`.** `adr new` e `adr init` criam.
-5. **Coluna "Registro" só no template novo.** Tabela §3 sem a coluna continua lida; em projeto
-   existente a coluna é preenchida por `adr init` (prévia e backup), nunca por `update`.
-6. **Arquivos novos em LF**; edição da constituição preserva o fim de linha do arquivo.
-7. **O `.sdd/README.md` gerenciado não muda nesta release.** O `doctor` 4.9.6 × 4.10.0 mostrou que o
-   P2 (manifesto com hash antigo, arquivo igual ao README da 4.9.6) passaria a acusar
-   `managed_file_edited` para sempre (família do IP-018, igual ao `track-state.template.md` da 4.9.6).
-   A descrição de `decisions/` fica no `USAGE.md` e nas skills.
-8. **Coluna da §3 chama-se `Record`** (o kit é em inglês); `Registro` e `ADR` são aceitos como apelidos.
-9. **"Não aplicável" e "não há ADRs" (e os equivalentes em inglês) silenciam a nota** `decisions_dir_missing`:
-   o `doctor` nos 10 projetos mostrou 6 deles escrevendo isso em português ou inglês na §7.
-10. **Vistoria final:** o agente Opus achou B1 e I1 a I5 (ver `NOTES.md`); corrigidos nesta release. O M4 da
-    vistoria (pipe escapado em célula) fica para a 4.10.1.
+1. **Célula continua crua.** `_cells` corta só no `|` sem barra e devolve o texto como está no arquivo
+   (com o `\|`), para que reescrever a linha não mude um byte da célula.
+2. **Escape único** (`_index_checks.cell_text`) para tudo que o kit escreve numa célula: não escapa duas
+   vezes.
+3. **Código é ignorado só pelos dois detectores** (`file:///` e `accent-loss` v1). O v2 (codificação
+   dupla), que é determinístico e bloqueia o `migrate`, não muda. Bloco sem fechamento e crase sem par
+   não escondem nada: na dúvida, o aviso sai.
+4. **`fix --links` segue o mesmo critério do `doctor`:** link dentro de código não é reescrito.
+5. **Linhas do `accent-loss` na saída padrão** quando são até 10 ocorrências; acima disso, a dica do
+   `doctor --all`.
+6. **Nenhum comando novo e nenhum arquivo do dono reescrito.** O único arquivo gerenciado que muda é
+   `templates/audit.template.md`; o gate confere o `managed_file_edited` nos projetos (família do
+   IP-018).
+
+## Fora desta release
+
+- P11/IP-001 (diff no `fix --dry-run`), IP-005 (nome da lente), IP-006 (`## Verifiers`), IP-007
+  (`hooks install --only`), IP-008 (marca do atalho global).
+- P2/IP-016, itens 2 a 5, 7, 9 e 10; P5/IP-014 (pausar uma etapa).
+
+## Gate de saída
+
+Suíte e `ruff` verdes com um teste por item; `doctor` 4.10.0 × 4.10.1 sobre o mesmo estado real dos
+projetos, só com as diferenças previstas; `update --dry-run` sem gravar nada; `update` real em cópia.
